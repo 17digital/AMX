@@ -1,0 +1,157 @@
+MODULE_NAME='Tascam DV-D01U DVD Player'(DEV VIRTUAL,DEV REAL)
+(***********************************************************)
+(***********************************************************)
+(*  FILE_LAST_MODIFIED_ON: 04/04/2006  AT: 11:33:16        *)
+(***********************************************************)
+(* System Type : NetLinx                                   *)
+(***********************************************************)
+(* REV HISTORY:                                            *)
+(***********************************************************)
+(*
+    $History: $
+*)
+(***********************************************************)
+(*          DEVICE NUMBER DEFINITIONS GO BELOW             *)
+(***********************************************************)
+DEFINE_DEVICE
+
+(***********************************************************)
+(*               CONSTANT DEFINITIONS GO BELOW             *)
+(***********************************************************)
+DEFINE_CONSTANT
+
+
+(***********************************************************)
+(*               VARIABLE DEFINITIONS GO BELOW             *)
+(***********************************************************)
+DEFINE_VARIABLE
+// {{NSX_DEFINE_VARIABLE
+// TASCAM DV-D01U DVD Player PORT Setup
+VOLATILE
+CHAR    cREAL_BUFFER[1000]
+
+VOLATILE CHAR cTXRealStrings[255][38]
+
+VOLATILE INTEGER nVIRTUALChnls[] =
+{
+    1,	//Play
+    2,	//STOP
+    3,	//PAUSE
+    4,	//Next
+    5,	//Prev
+    6,	//Fwd
+    7		//Rwd
+}
+// }}NSX_DEFINE_VARIABLE
+
+
+(***********************************************************)
+(*       MUTUALLY EXCLUSIVE DEFINITIONS GO BELOW           *)
+(***********************************************************)
+DEFINE_MUTUALLY_EXCLUSIVE
+
+([VIRTUAL,241]..[VIRTUAL,243],[VIRTUAL,246],[VIRTUAL,247])
+
+(***********************************************************)
+(*        SUBROUTINE/FUNCTION DEFINITIONS GO BELOW         *)
+(***********************************************************)
+(* EXAMPLE: DEFINE_FUNCTION <RETURN_TYPE> <NAME> (<PARAMETERS>) *)
+(* EXAMPLE: DEFINE_CALL '<NAME>' (<PARAMETERS>) *)
+
+(***********************************************************)
+(*                STARTUP CODE GOES BELOW                  *)
+(***********************************************************)
+DEFINE_START
+// {{NSX_DEFINE_START
+// TASCAM DV-D01U DVD Player PORT Setup
+CREATE_BUFFER REAL,cREAL_BUFFER
+
+
+cTXRealStrings[1]= "$02,'>PLYcFWD     17',$03"	//Play String
+cTXRealStrings[2]= "$02,'>STPc        98',$03"	//Stop String
+cTXRealStrings[3]= "$02,'>PLYcPAU     1C',$03"	//Pause String
+cTXRealStrings[4]= "$02,'>SKPcN       BD',$03"	//Next Track
+cTXRealStrings[5]= "$02,'>SKPcP       BF',$03"	//Prev Track
+cTXRealStrings[6]= "$02,'>PLYcFFW     19',$03"	//Fast Forward
+cTXRealStrings[7]= "$02,'>PLYcFBW     15',$03"	//Fast Rewind
+
+// }}NSX_DEFINE_START
+
+
+(***********************************************************)
+(*                THE EVENTS GO BELOW                      *)
+(***********************************************************)
+DEFINE_EVENT
+// {{NSX_DEFINE_EVENT
+// TASCAM DV-D01U DVD Player PORT Setup
+DATA_EVENT[REAL]
+{
+  ONLINE:
+  {
+    SEND_COMMAND REAL,"'SET BAUD 9600,N,8,1 485 DISABLE'"
+  }
+  STRING:
+  {
+    IF(FIND_STRING(cREAL_BUFFER,"$02",1)AND FIND_STRING(cREAL_BUFFER,"$03",1))
+    {
+	SELECT
+	{
+	    ACTIVE(FIND_STRING(cREAL_BUFFER,'>PLYsFWD',1)OR FIND_STRING(cREAL_BUFFER,'>MODs:',1)):	//Play
+	    {
+		    ON[VIRTUAL,241]
+	    }
+	     ACTIVE(FIND_STRING(cREAL_BUFFER,'>STPs',1)OR FIND_STRING(cREAL_BUFFER,'>MODs7',1)):	//Stop
+	    {
+		    ON[VIRTUAL,242]
+	    }
+	     ACTIVE(FIND_STRING(cREAL_BUFFER,'>PLYsPAU',1)OR FIND_STRING(cREAL_BUFFER,'>MODs;',1)):	//Pause
+	    {
+		    ON[VIRTUAL,243]
+	    }
+	     ACTIVE(FIND_STRING(cREAL_BUFFER,'>PLYsFFW',1)):	//Pause
+	    {
+		    ON[VIRTUAL,246]
+	    }
+	     ACTIVE(FIND_STRING(cREAL_BUFFER,'>PLYsFBW',1)):	//Fwd
+	    {
+		    ON[VIRTUAL,247]
+	    }
+	}
+	cREAL_BUFFER = ''
+  }
+  ELSE
+  {
+	cREAL_BUFFER = ''
+    }
+  }
+}
+
+// TASCAM
+CHANNEL_EVENT[VIRTUAL,nVIRTUALChnls]
+{
+  ON:
+  {
+    CANCEL_WAIT 'DVD POLL'
+    SEND_STRING REAL,cTXRealStrings[CHANNEL.CHANNEL]
+  }
+  OFF:
+  {
+  }
+}
+// }}NSX_DEFINE_EVENT
+
+
+(***********************************************************)
+(*            THE ACTUAL PROGRAM GOES BELOW                *)
+(***********************************************************)
+DEFINE_PROGRAM
+
+WAIT 3 'DVD POLL'
+{
+    SEND_STRING REAL,"$02,'>MODc        81',$03"
+}
+
+(***********************************************************)
+(*                     END OF PROGRAM                      *)
+(*        DO NOT PUT ANY CODE BELOW THIS COMMENT           *)
+(***********************************************************)
