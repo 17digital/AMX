@@ -1,9 +1,14 @@
 PROGRAM_NAME='System_Setup_'
+(***********************************************************)
+(*  FILE_LAST_MODIFIED_ON: 03/15/2019  AT: 22:40:18        *)
+(***********************************************************)
 
 
 DEFINE_DEVICE
 
+#IF_NOT_DEFINED dvMaster
 dvMaster =				0:1:0
+#END_IF
 
 
 (***********************************************************)
@@ -11,7 +16,6 @@ dvMaster =				0:1:0
 (***********************************************************)
 
 DEFINE_CONSTANT
-
 
 //Clock Stuff...
 CHAR TIME_IP[]					= '130.207.165.28' //Your Clock Server IP Address
@@ -21,8 +25,8 @@ CHAR TIME_ZONE[]				= 'UTC-05:00' //Eastern
 INTEGER TIME_SYNC_PERIOD 		= 60 //1 hour
 
 
-//System Number...
-INTEGER MY_SYSTEM				= 1234
+#WARN 'Set System Number...Last 4 digits of IP Address...See Line 62 below'
+INTEGER MY_SYSTEM				= 8235
 
 
 (***********************************************************)
@@ -54,10 +58,10 @@ DEFINE_FUNCTION fnSetIPAddress()
     #WARN    'Extremely Important DO NOT set an incorrect address here! '
     
     myIPSet[1].FLAGS = 0 //Use Static... 1 for DHCP
-    myIPSet[1].HOSTNAME = 'Skiles006Master'
-    myIPSet[1].IPADDRESS = '172.21.1.128'
+    myIPSet[1].HOSTNAME = 'CODA-C1108'
+    myIPSet[1].IPADDRESS = '172.21.8.235'
     myIPSet[1].SUBNETMASK = '255.255.252.0'
-    myIPSet[1].GATEWAY = '172.21.0.1'
+    myIPSet[1].GATEWAY = '172.21.8.1'
 
 }
 DEFINE_FUNCTION fnSetDNSAddress()
