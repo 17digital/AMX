@@ -755,7 +755,7 @@ TIMELINE_EVENT [TL_FEEDBACK]
 (* X-Series masters, changing variables in the DEFINE_PROGRAM    *)
 (* section of code can negatively impact program performance.    *)
 (*                                                               *)
-(* See “Differences in DEFINE_PROGRAM Program Execution” section *)
+(* See Â“Differences in DEFINE_PROGRAM Program ExecutionÂ” section *)
 (* of the NX-Series Controllers WebConsole & Programming Guide   *)
 (* for additional and alternate coding methodologies.            *)
 (*****************************************************************)
