@@ -68,16 +68,6 @@ vdvSHARPTV_Four = 			33014:1:0 //Sharp LC60LE661U
 (***********************************************************)
 DEFINE_CONSTANT
 
-//Clock Stuff...
-CHAR TIME_IP[]				= '130.207.165.28'
-CHAR TIME_SERVER[]			= 'ntp1.gatech.edu'
-CHAR TIME_LOC[]			= 'NIST, Gatech, ATL'
-CHAR TIME_ZONE[]			= 'UTC-05:00' //Eastern
-INTEGER TIME_SYNC_PERIOD 	= 60 //1 hour
-
-//System Stuff...
-INTEGER MY_SYSTEM			= 1059
-
 //DGX Channels...
 //Inputs...
 VIDEO_IN_MAC_3				= 1 
@@ -93,14 +83,11 @@ VIDEO_IN_MAC_4				= 8
 VIDEO_IN_LAPTOP_3				= 9
 VIDEO_IN_DXLINK_10			= 10
 
-
 //OUTs...
 OUTPUT_TV_1				= 61 //DxLink
 OUTPUT_TV_2				= 63 //DxLink
 OUTPUT_TV_3				= 62 //Hdmi
 OUTPUT_TV_4				= 64 //Hdmi
-
-
 
 INPUT_NAME_1				= 'iMac 3'
 INPUT_NAME_2				= 'Laptop 2'
@@ -119,21 +106,6 @@ TXT_3_OUTPUT				= 3
 TXT_4_OUTPUT				= 4
 
 
-MUTE_ON					= 'ENABLE'
-MUTE_OFF					= 'DISABLE'
-
-
-
-//Projector Common Feedback
-POWER_CYCLE			= 9
-POWER_ON				= 27
-POWER_OFF			= 28
-WARMING				= 253
-COOLING				= 254
-ON_LINE				= 251
-POWER				= 255
-BLANK				= 211
-
 // Timeline
 TL_FEEDBACK			= 1
 TL_FLASH				= 2
@@ -151,9 +123,6 @@ DEFINE_TYPE
 (***********************************************************)
 DEFINE_VARIABLE
 
-VOLATILE CHAR nHelp[15] = '404-894-4669'
-VOLATILE CHAR nRoomInfo[30] = 'Boggs 1-23'
-
 VOLATILE INTEGER nSource_TV_1 
 VOLATILE INTEGER nSource_TV_2
 VOLATILE INTEGER nSource_TV_3
@@ -164,47 +133,9 @@ VOLATILE INTEGER nSource_Input
 VOLATILE INTEGER nSource_Outputs[4]
 VOLATILE CHAR cSwitcher[25]
 
-
-VOLATILE INTEGER nMode
-VOLATILE INTEGER nPop //Popup Tracking...
-VOLATILE INTEGER nLockout
-VOLATILE INTEGER nTPOnline
-
 VOLATILE LONG lTLFeedback[] = {250}
 VOLATILE LONG lTLFlash[] = {500} 
 VOLATILE INTEGER iFLASH
-
-VOLATILE CHAR cPopup_Names[][16] =
-{
-    '_help me',
-    '_microphones',
-    '_volume',
-    '_dvd',
-    '_aux'
-}
-VOLATILE INTEGER nPopupBtns[] =
-{
-    1001, //Help...
-    1002, //mics
-    1003,  //volume
-    1004,  //Combine Outside TVs...
-    1005
-}
-VOLATILE INTEGER nTelevisionBtns[] =
-{
-    1, //On
-    2, //Off
-    
-    101, //On
-    102, //Off
-    
-    201,
-    202,
-    
-    301,
-    302
-}
-
 
 (***********************************************************)
 (*               LATCHING DEFINITIONS GO BELOW             *)
@@ -223,79 +154,6 @@ DEFINE_MUTUALLY_EXCLUSIVE
 (***********************************************************)
 (* EXAMPLE: DEFINE_FUNCTION <RETURN_TYPE> <NAME> (<PARAMETERS>) *)
 (* EXAMPLE: DEFINE_CALL '<NAME>' (<PARAMETERS>) *)
-DEFINE_FUNCTION fnSetClock()
-{
-	WAIT 10 CLKMGR_SET_CLK_SOURCE(CLKMGR_MODE_NETWORK)//1 
-	WAIT 30 CLKMGR_SET_TIMEZONE(TIME_ZONE)
-	WAIT 60 CLKMGR_SET_RESYNC_PERIOD(TIME_SYNC_PERIOD) 
-	WAIT 90 CLKMGR_SET_DAYLIGHTSAVINGS_MODE(TRUE)
-	WAIT 110 CLKMGR_ADD_USERDEFINED_TIMESERVER(TIME_IP, TIME_SERVER, TIME_LOC)
-	WAIT 140 CLKMGR_SET_ACTIVE_TIMESERVER(TIME_IP) 
-}
-DEFINE_FUNCTION fnKill()
-{
-    IF (TIME = '22:00:00')
-    {
-	fnTelevisionPower ('Off')
-    }
-    ELSE IF (TIME = '23:00:00')
-    {
-	fnTelevisionPower ('Off')
-    }
-}
-DEFINE_CALL 'LABEL DVX'
-{
-    SEND_COMMAND dvVIDEO_1, "'VIDIN_NAME-',INPUT_NAME_1"
-    SEND_COMMAND dvVIDEO_2, "'VIDIN_NAME-',INPUT_NAME_2"
-    SEND_COMMAND dvVIDEO_3, "'VIDIN_NAME-',INPUT_NAME_3"
-    SEND_COMMAND dvVIDEO_4, "'VIDIN_NAME-',INPUT_NAME_4"
-    
-    SEND_COMMAND dvVIDEO_5, "'VIDIN_NAME-',INPUT_NAME_5"
-    SEND_COMMAND dvVIDEO_6, "'VIDIN_NAME-',INPUT_NAME_6"
-    SEND_COMMAND dvVIDEO_7, "'VIDIN_NAME-',INPUT_NAME_7"
-    SEND_COMMAND dvVIDEO_8, "'VIDIN_NAME-',INPUT_NAME_8"
-    
-    SEND_COMMAND dvVIDEO_9, "'VIDIN_NAME-',INPUT_NAME_9"
-    SEND_COMMAND dvVIDEO_10, "'VIDIN_NAME-',INPUT_NAME_10"
-}
-DEFINE_FUNCTION fnDVXPull()
-{
-    WAIT 10 SEND_COMMAND dvDvxSwitcher, "'?INPUT-VIDEO,1'" //Get INput of 1
-    WAIT 20 SEND_COMMAND dvDvxSwitcher, "'?INPUT-VIDEO,2'" //Get Input of 3
-    WAIT 30 SEND_COMMAND dvDvxSwitcher, "'?INPUT-VIDEO,3'" //Get INput of 1
-    WAIT 40 SEND_COMMAND dvDvxSwitcher, "'?INPUT-VIDEO,4'" //Get Input of 3
-}
-DEFINE_FUNCTION fnReboot()
-{
-    IF (TIME = '06:00:00')
-    {
-	IF (!nTPOnline)
-	{
-	    REBOOT (dvMaster)
-	}
-    }
-}
-DEFINE_FUNCTION fnTelevisionPower(CHAR cPWR[3])
-{
-    SWITCH (cPWR)
-    {
-	CASE 'On':
-	{
-	    PULSE [vdvSHARPTV_One, POWER_ON] 
-	    WAIT 10 PULSE [vdvSHARPTV_Two, POWER_ON]
-	    WAIT 20 PULSE [vdvSHARPTV_Three, POWER_ON]
-	    WAIT 30 PULSE [vdvSHARPTV_Four, POWER_ON]
-	}
-	CASE 'Off':
-	{
-	    PULSE [vdvSHARPTV_One, POWER_OFF] 
-	    WAIT 10 PULSE [vdvSHARPTV_Two, POWER_OFF]
-	    WAIT 20 PULSE [vdvSHARPTV_Three, POWER_OFF]
-	    WAIT 30 PULSE [vdvSHARPTV_Four, POWER_OFF]
-	}
-
-    }
-}
 
 (***********************************************************)
 (*                STARTUP CODE GOES BELOW                  *)
@@ -303,51 +161,14 @@ DEFINE_FUNCTION fnTelevisionPower(CHAR cPWR[3])
 
 DEFINE_START
 
-SET_SYSTEM_NUMBER(MY_SYSTEM) //May not see this update until first reboot =)
-
 TIMELINE_CREATE(TL_FEEDBACK,lTLFeedback,1,TIMELINE_ABSOLUTE,TIMELINE_REPEAT);
 TIMELINE_CREATE(TL_FLASH,lTLFlash,1,TIMELINE_ABSOLUTE,TIMELINE_REPEAT);
 
-WAIT 450
-{
-    fnSetClock()
-}
-
-(***********************************************************)
-(*                MODULE DEFINITIONS GO BELOW              *)
-(***********************************************************)
-
-DEFINE_MODULE 'Sharp_LC90LE657U' TeleModOne(vdvSHARPTV_One,dvSHARPTV_One);
-DEFINE_MODULE 'Sharp_LC90LE657U' TeleModTwo(vdvSHARPTV_Two,dvSHARPTV_Two);
-DEFINE_MODULE 'Sharp_LC90LE657U' TeleModThree(vdvSHARPTV_Three,dvSHARPTV_Three);
-DEFINE_MODULE 'Sharp_LC90LE657U' TeleModFour(vdvSHARPTV_Four,dvSHARPTV_Four);
 
 (***********************************************************)
 (*                THE EVENTS GO BELOW                      *)
 (***********************************************************)
 DEFINE_EVENT
-BUTTON_EVENT [dvTP_Main, nPopupBtns]
-{
-    PUSH :
-    {
-	SEND_COMMAND dvTP_Main, "'PPON-',cPopup_Names[GET_LAST(nPopupBtns)]"
-	nPop = GET_LAST(nPopupBtns)
-    }
-}
-BUTTON_EVENT [dvTP_Main, nTelevisionBtns] //Left Power & Mute...
-{
-    PUSH:
-    {
-	STACK_VAR INTEGER nTelevisionIdx
-	nTelevisionIdx = GET_LAST (nTelevisionBtns)
-
-	SWITCH (nTelevisionIdx)
-	{
-	    CASE 1: fnTelevisionPower ('On')
-	    CASE 2: fnTelevisionPower ('Off')
-	}
-    }
-}
 BUTTON_EVENT [dvTP_Switch, VIDEO_IN_MAC_3]
 BUTTON_EVENT [dvTP_Switch, VIDEO_IN_LAPTOP_2]
 BUTTON_EVENT [dvTP_Switch, VIDEO_IN_MAC_2]
@@ -399,8 +220,6 @@ BUTTON_EVENT [dvTP_Switch, 100] //Video Take
 DEFINE_EVENT
 TIMELINE_EVENT [TL_FEEDBACK] 
 {
-    fnKill()
-    fnReboot()
  [dvTP_Switch, VIDEO_IN_MAC_3] = nSource_Input = VIDEO_IN_MAC_3
  [dvTP_Switch, VIDEO_IN_LAPTOP_2] = nSource_Input = VIDEO_IN_LAPTOP_2
  [dvTP_Switch, VIDEO_IN_MAC_2] = nSource_Input = VIDEO_IN_MAC_2
@@ -412,22 +231,6 @@ TIMELINE_EVENT [TL_FEEDBACK]
  [dvTP_Switch, VIDEO_IN_LAPTOP_3] = nSource_Input = VIDEO_IN_LAPTOP_3
  [dvTP_Switch, VIDEO_IN_DXLINK_10] = nSource_Input = VIDEO_IN_DXLINK_10
     
-    [dvTP_Main, 1] = [vdvSHARPTV_One, POWER]
-    [dvTP_Main, 2] = ![vdvSHARPTV_One, POWER]
-    [dvTP_Main, 601] = [vdvSHARPTV_One, ON_LINE]
-    
-    [dvTP_Main, 101] = [vdvSHARPTV_Two, POWER]
-    [dvTP_Main, 102] = ![vdvSHARPTV_Two, POWER]
-    [dvTP_Main, 611] = [vdvSHARPTV_Two, ON_LINE]
-    
-    [dvTP_Main, 301] = [vdvSHARPTV_Three, POWER]
-    [dvTP_Main, 302] = ![vdvSHARPTV_Three, POWER]
-    [dvTP_Main, 621] = [vdvSHARPTV_Three, ON_LINE]
-    
-    [dvTP_Main, 401] = [vdvSHARPTV_Four, POWER]
-    [dvTP_Main, 402] = ![vdvSHARPTV_Four, POWER]
-    [dvTP_Main, 631] = [vdvSHARPTV_Four, ON_LINE]
-    
 }
 TIMELINE_EVENT [TL_FLASH]
 {
@@ -437,17 +240,6 @@ TIMELINE_EVENT [TL_FLASH]
 DEFINE_EVENT
 DATA_EVENT [dvDvxSwitcher] 
 {
-    ONLINE:
-    {
-	WAIT 100 
-	{
-	    fnDVXPull()
-	    WAIT 50
-	    {
-		CALL 'LABEL DVX'
-	    }
-	}
-    }
     COMMAND:
     {
 	SELECT
@@ -603,118 +395,6 @@ DATA_EVENT [dvDvxSwitcher]
 	}
     }
 }
-DATA_EVENT [dvTp_Main] //TouchPanel Online
-{
-    ONLINE:
-    {
-	ON [nTPOnline]
-	SEND_COMMAND dvTP_Main, "'ADBEEP'"
-	SEND_COMMAND dvTp_Main, "'^TXT-100,0,',nRoomInfo"
-	SEND_COMMAND dvTp_Main, "'^TXT-99,0,',nHelp"
-    }
-    OFFLINE :
-    {
-	OFF [nTPOnline]
-    }
-}
-
-DEFINE_EVENT
-CHANNEL_EVENT [vdvSHARPTV_One, ON_LINE] 
-{
-    ON:
-    {
-	SWITCH(CHANNEL.CHANNEL)
-	{
-	    CASE ON_LINE:
-	    {
-		SEND_COMMAND dvTP_Main, "'^BMF-1.2,0,%OP255'" 
-	    }
-	}
-    }
-    OFF:
-    {
-	SWITCH(CHANNEL.CHANNEL)
-	{
-	    CASE ON_LINE:
-	    {
-		SEND_COMMAND dvTP_Main, "'^BMF-1.2,0,%OP30'" 
-	    }
-	}
-    }
-}
-CHANNEL_EVENT [vdvSHARPTV_Two,ON_LINE] 
-{
-    ON:
-    {
-	SWITCH(CHANNEL.CHANNEL)
-	{
-	    CASE ON_LINE:
-	    {
-		SEND_COMMAND dvTP_Main, "'^BMF-101.102,0,%OP255'" 
-	    }
-	}
-    }
-    OFF:
-    {
-	SWITCH(CHANNEL.CHANNEL)
-	{
-	    CASE ON_LINE :
-	    {
-		SEND_COMMAND dvTP_Main, "'^BMF-101.102,0,%OP30'"
-	    }
-	}
-    }
-}
-CHANNEL_EVENT [vdvSHARPTV_Three,ON_LINE]
-{
-    ON:
-    {
-	SWITCH(CHANNEL.CHANNEL)
-	{
-	    CASE ON_LINE:
-	    {
-		SEND_COMMAND dvTP_Main, "'^BMF-301.302,0,%OP255'" 
-	    }
-	}
-    }
-    OFF:
-    {
-	SWITCH(CHANNEL.CHANNEL)
-	{
-	    CASE ON_LINE :
-	    {
-		SEND_COMMAND dvTP_Main, "'^BMF-301.302,0,%OP30'" 
-	    }
-	}
-    }
-} 
-CHANNEL_EVENT [vdvSHARPTV_Four,ON_LINE] 
-{
-    ON:
-    {
-	SWITCH(CHANNEL.CHANNEL)
-	{
-	    CASE ON_LINE:
-	    {
-		SEND_COMMAND dvTP_Main, "'^BMF-401.402,0,%OP255'" 
-	    }
-	}
-    }
-    OFF:
-    {
-	SWITCH(CHANNEL.CHANNEL)
-	{
-	    CASE ON_LINE :
-	    {
-		SEND_COMMAND dvTP_Main, "'^BMF-401.402,0,%OP30'" 
-	    }
-	}
-    }
-}
-
-DEFINE_EVENT
-
-
 
 (***********************************************************)
 (*            THE ACTUAL PROGRAM GOES BELOW                *)
