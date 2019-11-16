@@ -233,8 +233,8 @@ VOLATILE INTEGER nMute_right //Mute DxLink Right
 VOLATILE INTEGER nPop
 VOLATILE INTEGER nCurrentLightsScene
 
-VOLATILE LONG lTLFeedback[] = {250}
-VOLATILE LONG lTLFlash[] = {500} 
+VOLATILE LONG lTLFeedback[] = {500}
+VOLATILE LONG lTLFlash[] = {1000} 
 VOLATILE INTEGER iFLASH //For Blinky Buttons
 
 VOLATILE CHAR cPopup_Names[][16] =
@@ -309,14 +309,6 @@ VOLATILE INTEGER nLightsBtns[]=
     84,  // (preset 3)
     85   // (preset 4)
 }
-
-#INCLUDE 'TVTuner'
-#INCLUDE 'System_Setup_'
-
-(***********************************************************)
-(*               LATCHING DEFINITIONS GO BELOW             *)
-(***********************************************************)
-DEFINE_LATCHING
 
 (***********************************************************)
 (*       MUTUALLY EXCLUSIVE DEFINITIONS GO BELOW           *)
@@ -516,10 +508,11 @@ DEFINE_FUNCTION fnSetScale(DEV cDev)
 
 DEFINE_START
 
-
-TIMELINE_CREATE(TL_FEEDBACK,lTLFeedback,1,TIMELINE_ABSOLUTE,TIMELINE_REPEAT);
-TIMELINE_CREATE(TL_FLASH,lTLFlash,1,TIMELINE_ABSOLUTE,TIMELINE_REPEAT);
-
+WAIT 250
+{
+ TIMELINE_CREATE(TL_FEEDBACK,lTLFeedback,1,TIMELINE_ABSOLUTE,TIMELINE_REPEAT);
+  TIMELINE_CREATE(TL_FLASH,lTLFlash,1,TIMELINE_ABSOLUTE,TIMELINE_REPEAT);
+}
 
 (***********************************************************)
 (*                MODULE DEFINITIONS GO BELOW              *)
@@ -932,15 +925,26 @@ DATA_EVENT [dvDxlink_left]
     }
     COMMAND:
     {
+    	LOCAL_VAR CHAR cTmp[8]
+	CHAR cMsg[30]
+	cMsg = DATA.TEXT
 	SELECT
 	{
-	    ACTIVE(FIND_STRING(DATA.TEXT,'VIDOUT_MUTE-ENABLE',1)):
+	    ACTIVE(FIND_STRING(cMsg,'VIDOUT_MUTE-',1)):
 	    {
-		ON [nMute_left]
-	    }
-	    ACTIVE(FIND_STRING(DATA.TEXT,'VIDOUT_MUTE-DISABLE',1)):
-	    {
-		OFF [nMute_left]
+	    	REMOVE_STRING (cMsg,'VIDOUT_MUTE-',1)
+		cTmp = cMsg
+		SWITCH (cTmp)
+		{
+		   CASE 'ENABLE' :
+		   {
+			ON [nMute_left]
+		   }
+		   CASE 'DISABLE' :
+	    	   {
+		        OFF [nMute_left]
+		    }
+		}
 	    }
 	}
     }
@@ -958,15 +962,26 @@ DATA_EVENT [dvDxlink_right]
     }
     COMMAND:
     {
+        LOCAL_VAR CHAR cTmp[8]
+	CHAR cMsg[30]
+	cMsg = DATA.TEXT
 	SELECT
 	{
-	    ACTIVE(FIND_STRING(DATA.TEXT,'VIDOUT_MUTE-ENABLE',1)):
+	    ACTIVE(FIND_STRING(cMsg,'VIDOUT_MUTE-',1)):
 	    {
-		ON [nMute_right]
-	    }
-	    ACTIVE(FIND_STRING(DATA.TEXT,'VIDOUT_MUTE-DISABLE',1)):
-	    {
-		OFF [nMute_right]
+	    	REMOVE_STRING (cMsg,'VIDOUT_MUTE-',1)
+		cTmp = cMsg
+		SWITCH (cTmp)
+		{
+		   CASE 'ENABLE' :
+		   {
+			ON [nMute_right]
+		   }
+		   CASE 'DISABLE' :
+	    	   {
+		        OFF [nMute_right]
+		    }
+		}
 	    }
 	}
     }
