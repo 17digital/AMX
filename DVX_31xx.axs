@@ -197,6 +197,29 @@ TXT_RM					= 100
 
 MAX_LEVEL_OUT				= 80
 
+BTN_PC_MAIN_L				= 11
+BTN_PC_EXT_L				= 12
+BTN_VGA_L				= 13
+BTN_HDMI_L				= 14
+BTN_DOCCAM_L				= 15
+BTN_MERSIVE_L				= 16
+BTN_SX80_L				= 17
+
+BTN_PC_MAIN_R				= 111
+BTN_PC_EXT_R				= 112
+BTN_VGA_R				= 113
+BTN_HDMI_R				= 114
+BTN_DOCCAM_R				= 115
+BTN_MERSIVE_R				= 116
+BTN_SX80_R				= 117
+
+BTN_PC_MAIN_SHARE			= 211
+BTN_PC_EXT_SHARE			= 212
+BTN_VGA_SHARE				= 213
+BTN_HDMI_SHARE				= 214
+BTN_DOCCAM_SHARE			= 215
+BTN_MERSIVE_SHARE			= 216
+
 (***********************************************************)
 (*              DATA TYPE DEFINITIONS GO BELOW             *)
 (***********************************************************)
@@ -269,25 +292,35 @@ VOLATILE INTEGER nProjectorRight[] =
     104, //Screen Up
     105  //Screen Down
 }
+VOLATILE INTEGER nVideoSources[] =
+{
+	VIDEO_PC_MAIN, 				
+	VIDEO_PC_EXTENDED, 			
+	VIDEO_VGA,					
+	VIDEO_DOC_CAM,				
+	VIDEO_HDMI,					
+	VIDEO_MERSIVE,					
+	VIDEO_SX80_L			
+}
 VOLATILE INTEGER nVideoLeftBtns[] = 
 {
-    11, //PC Left
-    12, //PC Extended
-    13, //VGA 
-    14, //HDMI
-    15,  //Doc Cam
-    16,  //BluRay
-    17  //Tuner
+	BTN_PC_MAIN_L,				
+	BTN_PC_EXT_L,				
+	BTN_VGA_L,				
+	BTN_HDMI_L,				
+	BTN_DOCCAM_L,				
+	BTN_MERSIVE_L,				
+	BTN_SX80_L				
 }
 VOLATILE INTEGER nVideoRightBtns[] = 
 {
-    111, //PC Left
-    112, //PC Extended
-    113, //VGA
-    114, //HDMI
-    115,  //Doc Cam
-    116, //BluRay
-    117  //Tuner
+	BTN_PC_MAIN_R,				
+	BTN_PC_EXT_R,				
+	BTN_VGA_R,				
+	BTN_HDMI_R,				
+	BTN_DOCCAM_R,				
+	BTN_MERSIVE_R,				
+	BTN_SX80_R				
 }
 VOLATILE INTEGER nAudioBtns[] = 
 {
@@ -464,17 +497,24 @@ DEFINE_CALL 'DVX INPUT SETUP' //Setup Input Names,
 	fnDVXPull()
     }
 }
-DEFINE_FUNCTION fnRouteVideoLeft (INTEGER cIn)
+DEFINE_FUNCTION fnRouteVideoRm (INTEGER cIn, INTEGER cOut)
 {
-    SEND_COMMAND dvDvxSwitcher, "'VI',ITOA(cIn),'O',ITOA(OUT_PROJECTOR_LEFT)"
-}
-DEFINE_FUNCTION fnRouteVideoRight (INTEGER cIn)
-{
-    SEND_COMMAND dvDvxSwitcher, "'VI',ITOA(cIn),'O',ITOA(OUT_PROJECTOR_RIGHT)"
-}
-DEFINE_FUNCTION fnRouteAudio (INTEGER cIn)
-{
-    SEND_COMMAND dvDvxSwitcher, "'AI',ITOA(cIn),'O',ITOA(OUT_AUDIO_MIX)"
+    SEND_COMMAND dvDvxSwitcher, "'VI',ITOA(cIn),'O',ITOA(cOut)"
+    
+    SWITCH (cIn)
+    {
+    	CASE VIDEO_PC_MAIN : 				
+	CASE VIDEO_PC_EXTENDED :
+	{
+	  SEND_COMMAND dvDvxSwitcher, "'AI',ITOA(VIDEO_PC_MAIN),'O',ITOA(OUT_AUDIO_MIX)"		
+	}
+	CASE VIDEO_VGA :								
+	CASE VIDEO_HDMI :					
+	CASE VIDEO_MERSIVE :
+	{
+	  SEND_COMMAND dvDvxSwitcher, "'AI',ITOA(VIDEO_PC_MAIN),'O',ITOA(OUT_AUDIO_MIX)"		
+	}
+    }
 }
 DEFINE_FUNCTION fnSetScale(DEV cDev)
 {
@@ -592,92 +632,14 @@ BUTTON_EVENT [vdvTP_Main,nVideoLeftBtns] //Video Source Left
 {
     PUSH:
     {
-	STACK_VAR INTEGER nVidLeftIdx
-	
-	nVidLeftIdx = GET_LAST (nVideoLeftBtns)
-	SWITCH (nVidLeftIdx)
-	{
-	    CASE 1: //PC MAIN LEFT
-	    {
-		fnRouteVideoLeft(VIDEO_PC_MAIN)
-		    fnRouteAudio(VIDEO_PC_MAIN)
-	    }
-	    CASE 2: //PC EXTENDED LEFT
-	    {
-		fnRouteVideoLeft(VIDEO_PC_EXTENDED)
-		    fnRouteAudio(VIDEO_PC_MAIN)
-	    }
-	    CASE 3: //VGA LEFT
-	    {
-		fnRouteVideoLeft(VIDEO_VGA)
-		    fnRouteAudio(VIDEO_VGA)
-	    }
-	    CASE 4: //HDMI LEFT
-	    {
-		fnRouteVideoLeft(VIDEO_HDMI)
-		    fnRouteAudio(VIDEO_HDMI)
-	    }
-	    CASE 5: //Doc Cam
-	    {
-		fnRouteVideoLeft(VIDEO_DOC_CAM)
-	    }
-	    CASE 6: //Blu Ray
-	    {
-		fnRouteVideoLeft(VIDEO_DVD)
-		    fnRouteAudio(VIDEO_DVD)
-	    }
-	    CASE 7: //Tuner
-	    {
-		fnRouteVideoLeft(VIDEO_TUNER)
-		    fnRouteAudio(VIDEO_TUNER)
-	    }
-	}
+	fnRouteVideoRm(nVideoSources[GET_LAST(nVideoLeftBtns)],OUT_PROJECTOR_LEFT)
     }
 }
 BUTTON_EVENT [vdvTP_Main,nVideoRightBtns] //Video Source Right
 {
     PUSH:
     {
-	STACK_VAR INTEGER nVidRightIdx
-	
-	nVidRightIdx = GET_LAST (nVideoRightBtns)
-	SWITCH (nVidRightIdx)
-	{
-	    CASE 1: //PC MAIN Right
-	    {
-		fnRouteVideoRight(VIDEO_PC_MAIN)
-		    fnRouteAudio(VIDEO_PC_MAIN)
-	    }
-	    CASE 2: //PC EXTENDED Right
-	    {
-		fnRouteVideoRight(VIDEO_PC_EXTENDED)
-		    fnRouteAudio(VIDEO_PC_MAIN)
-	    }
-	    CASE 3: //VGA Right
-	    {
-		fnRouteVideoRight(VIDEO_VGA)
-		    fnRouteAudio(VIDEO_VGA)
-	    }
-	    CASE 4: //HDMI Right
-	    {
-		fnRouteVideoRight(VIDEO_HDMI)
-		    fnRouteAudio(VIDEO_HDMI)
-	    }
-	    CASE 5: //Doc Cam Right
-	    {
-		fnRouteVideoRight(VIDEO_DOC_CAM)
-	    }
-	    CASE 6: //DVD Right
-	    {
-		fnRouteVideoRight(VIDEO_DVD)
-		    fnRouteAudio(VIDEO_DVD)
-	    }
-	    CASE 7: //TUNER Right
-	    {
-		fnRouteVideoRight(VIDEO_TUNER)
-		    fnRouteAudio(VIDEO_TUNER)
-	    }
-	}
+       fnRouteVideoRm(nVideoSources[GET_LAST(nVideoRightBtns)],OUT_PROJECTOR_RIGHT)
     }    
 }
 BUTTON_EVENT [vdvTp_Main, nAudioBtns] //Audio Controls 
