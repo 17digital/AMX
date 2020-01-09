@@ -42,26 +42,6 @@ dvRS232_6 =				5001:6:0
 dvRS232_7 =				5001:7:0
 dvRS232_8 =				5001:8:0
 
-//DGX Stuff...
-dvVIDEOIN_1   = 			5002:1:DGX_CONN //Computer
-dvVIDEOIN_2   = 			5002:2:DGX_CONN //Mersive 1
-dvVIDEOIN_3   = 			5002:3:DGX_CONN //Mersive 2
-dvVIDEOIN_4   = 			5002:4:DGX_CONN //Mersive 3
-
-dvVIDEOIN_5   = 			5002:5:DGX_CONN //Tuner 1
-dvVIDEOIN_6  = 			5002:6:DGX_CONN //Tuner 2
-dvVIDEOIN_7  = 			5002:7:DGX_CONN //Tuner 3
-dvVIDEOIN_8  = 			5002:8:DGX_CONN //Tuner 4
-
-dvVIDEOIN_9   = 			5002:9:DGX_CONN //DxLink Front Column 1
-dvVIDEOIN_10  = 			5002:10:DGX_CONN //DxLink Front Column 2
-dvVIDEOIN_11 =			5002:11:DGX_CONN //DxLink From ??
-dvVIDEOIN_12 =			5002:12:DGX_CONN //DxLink From ??
-
-dvVIDEOIN_13 =			5002:13:DGX_CONN //Not Used
-dvVIDEOIN_14 =			5002:14:DGX_CONN //Not Used
-dvVIDEOIN_15 =			5002:15:DGX_CONN //Not Used
-dvVIDEOIN_16 =			5002:16:DGX_CONN //Not Used
 
 dvAUDIOOUT_24 =			5002:24:DGX_CONN //
 
@@ -103,59 +83,6 @@ LF							= 10
 TL_MAINLINE				= 1
 TL_FLASH					= 2
 
-//DGX...
-//Naming - Max Char = 31
-INPUT_NAME_1			= 'Desktop'
-INPUT_NAME_2			= 'Mersive 001'
-INPUT_NAME_3			= 'Mersive 002'
-INPUT_NAME_4			= 'Mersive 003'
-
-INPUT_NAME_5			= 'TVTuner 001'
-INPUT_NAME_6			= 'TVTuner 002'
-INPUT_NAME_7			= 'TVTuner 003'
-INPUT_NAME_8			= 'TVTuner 004'
-
-INPUT_NAME_9			= 'Wall Plate'
-INPUT_NAME_10			= 'Not Used'
-INPUT_NAME_11			= 'Not Used'
-INPUT_NAME_12			= 'Not Used'
-
-INPUT_NAME_13			= 'Not Used'
-INPUT_NAME_14			= 'Not Used'
-INPUT_NAME_15			= 'Not Used'
-INPUT_NAME_16			= 'Not Used'
-
-//Conference room Connections...
-
-OUTPUT_NAME_1			= 'TV NEC 001'
-OUTPUT_NAME_2			= 'TV NEC 002'
-OUTPUT_NAME_3			= 'TV NEC 003'
-OUTPUT_NAME_4			= 'TV NEC 004'
-                                                                                 
-OUTPUT_NAME_5			= 'TV NEC 005'
-OUTPUT_NAME_6			= 'TV NEC 006'
-OUTPUT_NAME_7			= 'TV NEC 007'
-OUTPUT_NAME_8			= 'TV NEC 008'
-                                                                                 
-OUTPUT_NAME_9			= 'TV NEC 009'
-OUTPUT_NAME_10		= 'Not Used'
-OUTPUT_NAME_11		= 'Not Used'
-OUTPUT_NAME_12		= 'Not Used'
-                     
-OUTPUT_NAME_13		= 'Not Used'
-OUTPUT_NAME_14		= 'Not Used'
-OUTPUT_NAME_15		= 'Not Used'
-OUTPUT_NAME_16		= 'Not Used'
-
-IN_DESKTOP				= 1 
-IN_MERSIVE_001			= 2
-IN_MERSIVE_002			= 3
-IN_MERSIVE_003			= 4
-
-IN_TVTUNER_1				= 5
-IN_TVTUNER_2				= 6
-IN_TVTUNER_3				= 7
-IN_TVTUNER_4				= 8
 
 IN_WALL_1					= 9 
 
@@ -170,39 +97,8 @@ OUT_TV_8					= 8
 OUT_TV_9					= 9
 OUT_AUDIO_MIX			= 24
 
-//Preferred EDID...
-EDID_PC					= '1920x1080,60'
-EDID_MERSIVE				= '1920x1080p,60'
-EDID_TUNER				= '1920x1080,60'
-EDID_WALL					= '1280x720,60'
-
-//Common Feedback...
-POWER_CYCLE				= 9
-POWER_ON				= 27
-POWER_OFF				= 28
-WARMING					= 253
-COOLING					= 254
-ON_LINE					= 251
-POWER					= 255
-BLANK						= 211
-
-MODE_PRESENTATION		= 1
-MODE_GAME				= 2
-MODE_PRESENTATION_ZONE = 3
-
-BTN_PRESENTATION		= 20
-BTN_PRESENTATION_ZONE	= 21
-BTN_GAME					= 22
-BTN_ALL_OFF				= 23
 
 TECH_PASSWORD			= '8324'
-
-(***********************************************************)
-(*              DATA TYPE DEFINITIONS GO BELOW             *)
-(***********************************************************)
-DEFINE_TYPE
-
-
 
 
 (***********************************************************)
@@ -235,37 +131,6 @@ VOLATILE DEV dcProjectorDevices[] =
     vdvMonitor_8,
     vdvMonitor_9
 }
-VOLATILE INTEGER nSourceBtns[] =
-{
-    11, //Desktop
-    12, //Wallplate
-    13  //Mersive...
-}
-VOLATILE INTEGER nZoneBtns[] =
-{
-    //Zone 1
-    31, //Mersive
-    32, //Wall Input (Display Port
-    33, //Follow Source Video
-    
-    //Zone 3
-    34, //Wall Input (Display Port)
-    35, //Follow Source Video
-    
-    //Zone 4
-    36, //Mersive
-    37, //Wall Input (Display Port)
-    38  //Follow Source Video
-}
-
-#INCLUDE 'TVTuner_001'
-#INCLUDE 'NexiaCube'
-#INCLUDE 'RMSMain'
-
-(***********************************************************)
-(*               LATCHING DEFINITIONS GO BELOW             *)
-(***********************************************************)
-DEFINE_LATCHING
 
 (***********************************************************)
 (*       MUTUALLY EXCLUSIVE DEFINITIONS GO BELOW           *)
@@ -277,97 +142,6 @@ DEFINE_MUTUALLY_EXCLUSIVE
 (***********************************************************)
 (* EXAMPLE: DEFINE_FUNCTION <RETURN_TYPE> <NAME> (<PARAMETERS>) *)
 (* EXAMPLE: DEFINE_CALL '<NAME>' (<PARAMETERS>) *)
-DEFINE_FUNCTION fnReboot()
-{
-    IF (TIME = '06:00:00')
-    {
-	IF (!nTPOnline)
-	{
-	    REBOOT (dvMaster)
-	}
-    }
-}
-DEFINE_CALL 'DGX NAMING'
-{
-    SEND_COMMAND dvVIDEOIN_1, "'VIDIN_NAME-',INPUT_NAME_1"
-    SEND_COMMAND dvVIDEOIN_2, "'VIDIN_NAME-',INPUT_NAME_2"
-    SEND_COMMAND dvVIDEOIN_3, "'VIDIN_NAME-',INPUT_NAME_3"
-    SEND_COMMAND dvVIDEOIN_4, "'VIDIN_NAME-',INPUT_NAME_4"
-    SEND_COMMAND dvVIDEOIN_5, "'VIDIN_NAME-',INPUT_NAME_5"
-    SEND_COMMAND dvVIDEOIN_6, "'VIDIN_NAME-',INPUT_NAME_6"
-    SEND_COMMAND dvVIDEOIN_7, "'VIDIN_NAME-',INPUT_NAME_7"
-    SEND_COMMAND dvVIDEOIN_8, "'VIDIN_NAME-',INPUT_NAME_8"
-    SEND_COMMAND dvVIDEOIN_9, "'VIDIN_NAME-',INPUT_NAME_9"
-    SEND_COMMAND dvVIDEOIN_10, "'VIDIN_NAME-',INPUT_NAME_10"
-    SEND_COMMAND dvVIDEOIN_11, "'VIDIN_NAME-',INPUT_NAME_11"
-    SEND_COMMAND dvVIDEOIN_12, "'VIDIN_NAME-',INPUT_NAME_12"
-    SEND_COMMAND dvVIDEOIN_13, "'VIDIN_NAME-',INPUT_NAME_13"
-    SEND_COMMAND dvVIDEOIN_14, "'VIDIN_NAME-',INPUT_NAME_14"
-    SEND_COMMAND dvVIDEOIN_15, "'VIDIN_NAME-',INPUT_NAME_15"
-    SEND_COMMAND dvVIDEOIN_16, "'VIDIN_NAME-',INPUT_NAME_16"
-    
-    WAIT 40
-    {
-    	SEND_COMMAND dvVIDEOIN_1, "'VIDOUT_NAME-',OUTPUT_NAME_1"
-	SEND_COMMAND dvVIDEOIN_2, "'VIDOUT_NAME-',OUTPUT_NAME_2"
-	SEND_COMMAND dvVIDEOIN_3, "'VIDOUT_NAME-',OUTPUT_NAME_3"
-	SEND_COMMAND dvVIDEOIN_4, "'VIDOUT_NAME-',OUTPUT_NAME_4"
-	SEND_COMMAND dvVIDEOIN_5, "'VIDOUT_NAME-',OUTPUT_NAME_5"
-	SEND_COMMAND dvVIDEOIN_6, "'VIDOUT_NAME-',OUTPUT_NAME_6"
-	SEND_COMMAND dvVIDEOIN_7, "'VIDOUT_NAME-',OUTPUT_NAME_7"
-	SEND_COMMAND dvVIDEOIN_8, "'VIDOUT_NAME-',OUTPUT_NAME_8"
-	SEND_COMMAND dvVIDEOIN_9, "'VIDOUT_NAME-',OUTPUT_NAME_9"
-	SEND_COMMAND dvVIDEOIN_10, "'VIDOUT_NAME-',OUTPUT_NAME_10"
-	SEND_COMMAND dvVIDEOIN_11, "'VIDOUT_NAME-',OUTPUT_NAME_11"
-	SEND_COMMAND dvVIDEOIN_12, "'VIDOUT_NAME-',OUTPUT_NAME_12"
-	SEND_COMMAND dvVIDEOIN_13, "'VIDOUT_NAME-',OUTPUT_NAME_13"
-	SEND_COMMAND dvVIDEOIN_14, "'VIDOUT_NAME-',OUTPUT_NAME_14"
-	SEND_COMMAND dvVIDEOIN_15, "'VIDOUT_NAME-',OUTPUT_NAME_15"
-	SEND_COMMAND dvVIDEOIN_16, "'VIDOUT_NAME-',OUTPUT_NAME_16"
-    }
-    
-    WAIT 80
-    {
-	//Preferred Edid...
-	SEND_COMMAND dvVIDEOIN_1, "'VIDIN_PREF_EDID-',EDID_PC"
-	SEND_COMMAND dvVIDEOIN_2, "'VIDIN_PREF_EDID-',EDID_MERSIVE"
-	SEND_COMMAND dvVIDEOIN_3, "'VIDIN_PREF_EDID-',EDID_MERSIVE"
-	SEND_COMMAND dvVIDEOIN_4, "'VIDIN_PREF_EDID-',EDID_MERSIVE"
-	
-	SEND_COMMAND dvVIDEOIN_5, "'VIDIN_PREF_EDID-',EDID_TUNER"
-	SEND_COMMAND dvVIDEOIN_6, "'VIDIN_PREF_EDID-',EDID_TUNER" 
-	SEND_COMMAND dvVIDEOIN_7, "'VIDIN_PREF_EDID-',EDID_TUNER" 
-	SEND_COMMAND dvVIDEOIN_8, "'VIDIN_PREF_EDID-',EDID_TUNER"
-	
-	SEND_COMMAND dvVIDEOIN_9, "'VIDIN_PREF_EDID-',EDID_WALL"
-    }
-}
-DEFINE_FUNCTION fnSetDGXRoutePresentation(INTEGER cIn) //Full Presentation!
-{
-    nSourceVid = cIn 
-    SEND_COMMAND dvDGX, "'VI',ITOA(cIn),'O',ITOA(OUT_TV_1)" 
-    WAIT 10 SEND_COMMAND dvDGX, "'VI',ITOA(cIn),'O',ITOA(OUT_TV_2)"  
-    WAIT 20 SEND_COMMAND dvDGX, "'VI',ITOA(cIn),'O',ITOA(OUT_TV_3)" 
-    WAIT 30 SEND_COMMAND dvDGX, "'VI',ITOA(cIn),'O',ITOA(OUT_TV_4)"   
-    WAIT 40 SEND_COMMAND dvDGX, "'VI',ITOA(cIn),'O',ITOA(OUT_TV_5)" 
-    WAIT 50 SEND_COMMAND dvDGX, "'VI',ITOA(cIn),'O',ITOA(OUT_TV_6)"   
-    WAIT 60 SEND_COMMAND dvDGX, "'VI',ITOA(cIn),'O',ITOA(OUT_TV_7)" 
-    WAIT 70 SEND_COMMAND dvDGX, "'VI',ITOA(cIn),'O',ITOA(OUT_TV_8)"   
-    WAIT 80 SEND_COMMAND dvDGX, "'VI',ITOA(cIn),'O',ITOA(OUT_TV_9)" 
-}
-DEFINE_FUNCTION fnSetDGXRouteZone(INTEGER cIn) //Zoned Presentation
-{
-    SEND_COMMAND dvDGX, "'VI',ITOA(cIn),'O',ITOA(OUT_TV_2),',',ITOA(OUT_TV_3)" 
-    nSourceVid = cIn 
-}
-DEFINE_FUNCTION fnSetDGXRouteAV(INTEGER cIn, INTEGER cOut) //Function for Game Day
-{
-    SEND_COMMAND dvDGX, "'VI',ITOA(cIn),'O',ITOA(cOut)"
-}
-DEFINE_FUNCTION fnSetDGXAudio(INTEGER cIn)
-{
-    SEND_COMMAND dvDGX, "'AI',ITOA(cIn),'O',ITOA(OUT_AUDIO_MIX)"   
-}
 DEFINE_FUNCTION fnPWRDisplaysON()
 {
     STACK_VAR INTEGER nLoop
@@ -395,86 +169,6 @@ DEFINE_FUNCTION fnSWITCHDisplaySource()
 	SEND_COMMAND dcProjectorDevices[nLoop], "'INPUT-HDMI,1'"
     }
 }
-DEFINE_FUNCTION fnPWRZoneON()
-{
-    PULSE [vdvMonitor_2, POWER_ON]
-    PULSE [vdvMonitor_3, POWER_ON]
-    
-
-    WAIT 10 PULSE [vdvMonitor_1, POWER_ON]
-    WAIT 20 PULSE [vdvMonitor_4, POWER_ON]
-    WAIT 30 PULSE [vdvMonitor_5, POWER_OFF]
-    WAIT 40 PULSE [vdvMonitor_6, POWER_OFF]
-    WAIT 50 PULSE [vdvMonitor_7, POWER_OFF]
-    WAIT 60 PULSE [vdvMonitor_8, POWER_OFF]
-    WAIT 70 PULSE [vdvMonitor_9, POWER_ON]
-}
-DEFINE_CALL 'SET MODE' (CHAR cMode[20])
-{
-    SWITCH (cMode)
-    {
-	CASE 'Full Presentation' : //All TVS receive Same Source... [Mersive, WallPlate, Desktop]
-	{
-	    nMode_ = MODE_PRESENTATION
-	    fnPWRDisplaysON()
-	    
-	    fnSetDGXRoutePresentation(IN_DESKTOP) //Default
-	    fnSetDGXAudio(IN_DESKTOP)
-		fnVolumeMute(TAG_DGX, ID_DGX, SET_MUTE_OFF)
-		
-		    WAIT 60 //Let TV's Warm...
-		    {
-			fnSWITCHDisplaySource()
-		    }
-	}
-	CASE 'Zone Presentation' :
-	{
-	    nMode_ = MODE_PRESENTATION_ZONE
-	    fnPWRZoneON()
-	    
-	    fnSetDGXRouteZone(IN_DESKTOP)
-		fnSetDGXAudio(IN_DESKTOP)
-		fnVolumeMute(TAG_DGX, ID_DGX, SET_MUTE_OFF)
-		
-		WAIT 60 //Let TV's Warm...
-		{
-		    SEND_COMMAND vdvMonitor_2, "'INPUT-HDMI,1'"
-		    SEND_COMMAND vdvMonitor_3, "'INPUT-HDMI,1'"
-		}
-	}
-	CASE 'GameDay' :
-	{
-	    nMode_ = MODE_GAME
-	    fnPWRDisplaysON()
-	    
-	    fnVolumeMute(TAG_DGX, ID_DGX, SET_MUTE_OFF)
-	    
-	    fnSetDGXRouteAV(IN_TVTUNER_1,OUT_TV_1)
-	    fnSetDGXAudio(IN_TVTUNER_1)
-	    
-	    
-	    WAIT 10 fnSetDGXRouteAV(IN_TVTUNER_1,OUT_TV_2)
-	    WAIT 20 fnSetDGXRouteAV(IN_TVTUNER_2,OUT_TV_3)
-	    WAIT 30 fnSetDGXRouteAV(IN_TVTUNER_3,OUT_TV_4)
-	    WAIT 40 fnSetDGXRouteAV(IN_TVTUNER_4,OUT_TV_5)
-	    WAIT 50 fnSetDGXRouteAV(IN_TVTUNER_4,OUT_TV_6)
-	    WAIT 60 fnSetDGXRouteAV(IN_TVTUNER_3,OUT_TV_7)
-	    WAIT 70 fnSetDGXRouteAV(IN_TVTUNER_2,OUT_TV_8)
-	    WAIT 80 fnSetDGXRouteAV(IN_TVTUNER_1,OUT_TV_9)
-	    
-	    WAIT 90 fnSWITCHDisplaySource()
-	    
-	}
-	CASE 'OFF' :
-	{
-	    OFF [nMode_]
-	    
-	    fnPWRDisplaysOFF()
-	    fnVolumeMute(TAG_DGX, ID_DGX, SET_MUTE_ON)
-	    SEND_COMMAND vdvTP_Main, "'PAGE-Locked'"
-	}
-    }
-}
 
 (***********************************************************)
 (*                STARTUP CODE GOES BELOW                  *)
@@ -498,76 +192,6 @@ DEFINE_MODULE 'NEC_E656' TVMonitorModNine (vdvMonitor_9, dvMonitor_9);
 (*                THE EVENTS GO BELOW                      *)
 (***********************************************************)
 DEFINE_EVENT
-BUTTON_EVENT [vdvTP_Main, BTN_PRESENTATION]
-BUTTON_EVENT [vdvTP_Main, BTN_PRESENTATION_ZONE]
-BUTTON_EVENT [vdvTP_Main, BTN_GAME]
-BUTTON_EVENT [vdvTP_Main, BTN_ALL_OFF]
-{
-    PUSH :
-    {
-	SWITCH (BUTTON.INPUT.CHANNEL)
-	{
-	    CASE BTN_PRESENTATION : CALL 'SET MODE' ('Full Presentation')
-	    CASE BTN_PRESENTATION_ZONE : CALL 'SET MODE' ('Zone Presentation')
-	    CASE BTN_GAME : CALL 'SET MODE' ('GameDay')
-	    CASE BTN_ALL_OFF : CALL 'SET MODE' ('OFF')
-	}
-    }
-}
-BUTTON_EVENT [vdvTP_Main, nSourceBtns]
-{
-    PUSH :
-    {
-	STACK_VAR INTEGER nSourceIDX
-	
-	nSourceIDX = GET_LAST (nSourceBtns)
-	SWITCH (nSourceIDX)
-	{
-	    CASE 1 : //Desktop...
-	    {
-		fnSetDGXAudio(IN_DESKTOP)
-		
-		IF (nMode_ == MODE_PRESENTATION_ZONE)
-		{	
-		    fnSetDGXRouteZone(IN_DESKTOP)
-			
-		}
-		ELSE
-		{
-		    fnSetDGXRoutePresentation(IN_DESKTOP)
-		}
-	    }
-	    CASE 2:
-	    {
-		fnSetDGXAudio(IN_WALL_1)
-		
-		IF (nMode_ == MODE_PRESENTATION_ZONE)
-		{	
-		    fnSetDGXRouteZone(IN_WALL_1)
-			
-		}
-		ELSE
-		{
-		    fnSetDGXRoutePresentation(IN_WALL_1)
-		}
-	    }
-	    CASE 3:
-	    {
-		fnSetDGXAudio(IN_MERSIVE_001)
-		
-		IF (nMode_ == MODE_PRESENTATION_ZONE)
-		{	
-		    fnSetDGXRouteZone(IN_MERSIVE_001)
-			
-		}
-		ELSE
-		{
-		    fnSetDGXRoutePresentation(IN_MERSIVE_001)
-		}
-	    }
-	}
-    }
-}
 BUTTON_EVENT [vdvTP_Main, nZoneBtns]
 {
     PUSH :
@@ -762,7 +386,7 @@ TIMELINE_EVENT [TL_MAINLINE]
 (* X-Series masters, changing variables in the DEFINE_PROGRAM    *)
 (* section of code can negatively impact program performance.    *)
 (*                                                               *)
-(* See “Differences in DEFINE_PROGRAM Program Execution” section *)
+(* See Â“Differences in DEFINE_PROGRAM Program ExecutionÂ” section *)
 (* of the NX-Series Controllers WebConsole & Programming Guide   *)
 (* for additional and alternate coding methodologies.            *)
 (*****************************************************************)
