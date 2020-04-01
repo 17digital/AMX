@@ -905,6 +905,11 @@ DATA_EVENT [dvDxlink_left]
     ONLINE:
     {
 	fnSetScale(dvDxlink_left)
+	
+	WAIT 300
+	{
+		fnMuteCheck(dvDxlink_left)
+	}
     }
     COMMAND:
     {
@@ -938,6 +943,11 @@ DATA_EVENT [dvDxlink_right]
     ONLINE:
     {
 	fnSetScale(dvDxlink_right)
+	
+	WAIT 300
+	{
+		fnMuteCheck(dvDxlink_right)
+	}
     }
     COMMAND:
     {
