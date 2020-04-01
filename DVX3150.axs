@@ -236,6 +236,14 @@ BTN_SCREEN_DN_R			= 105
 
 BTN_CLOSE_PG				= 1006
 
+BTN_AUDIO_PC			= 511
+BTN_AUDIO_VGA			= 513
+BTN_AUDIO_HDMI			= 514
+BTN_AUDIO_MERSIVE		= 516
+
+BTN_ONLINE_L			= 601
+BTN_ONLINE_R			= 611
+
 (***********************************************************)
 (*               VARIABLE DEFINITIONS GO BELOW             *)
 (***********************************************************)
@@ -259,7 +267,7 @@ VOLATILE SINTEGER nMicrophone_Hold
 VOLATILE INTEGER nPop
 VOLATILE LONG lTLFeedback[] = {500}
 VOLATILE LONG lTLFlash[] = {1000} 
-VOLATILE INTEGER iFLASH //For Blinky Buttons
+VOLATILE INTEGER iFLASH 
 
 VOLATILE CHAR cPopup_Names[][16] = //Matches the Names on Actual Touch panel file!
 {
@@ -313,6 +321,13 @@ VOLATILE INTEGER nAudioBtns[] =
     BTN_MIC_DN,
     BTN_MIC_PRESET
 }
+VOLATILE INTEGER nAudioFBBtns[] =
+{
+    BTN_AUDIO_PC,			
+    BTN_AUDIO_VGA,			
+    BTN_AUDIO_HDMI,			
+    BTN_AUDIO_MERSIVE
+}   
 
 (***********************************************************)
 (*               LATCHING DEFINITIONS GO BELOW             *)
@@ -325,6 +340,13 @@ DEFINE_LATCHING
 DEFINE_MUTUALLY_EXCLUSIVE
 
 //([dvIO,nTimelineIO[1]]..[dvIO,nTimelineIO[8]])
+([dvTP_Main, nVideoLeftBtns[1]]..[dvTP_Main, nVideoLeftBtns[5]])
+([dvTP_Main, nVideoRightBtns[1]]..[dvTP_Main, nVideoRightBtns[5]])
+
+([dvTP_Main, nAudioFBBtns[1]]..[dvTP_Main, nAudioFBBtns[5]])
+
+([dvTP_Main, BTN_PWR_ON_L],[dvTP_Main, BTN_PWR_OFF_L])
+([dvTP_Main, BTN_PWR_ON_R],[dvTP_Main, BTN_PWR_OFF_R])
 
 (***********************************************************)
 (*        SUBROUTINE/FUNCTION DEFINITIONS GO BELOW         *)
@@ -342,7 +364,14 @@ DEFINE_FUNCTION fnDVXPull()
     WAIT 60 SEND_LEVEL dvProgram,MICROPHONE_MIX_1,-100 //Turn Off to Front
     WAIT 70 SEND_LEVEL dvProgram,MICROPHONE_MIX_2,-100 //Turn Off to Front
     
-    WAIT 100
+    WAIT 150 //Allow Network traffic to pass thru DxLink Outs...
+    {
+	SEND_COMMAND dvAVOUTPUT1, "'DXLINK_ETH-auto'"
+	SEND_COMMAND dvAVOUTPUT3, "'DXLINK_ETH-auto'"
+	
+	SEND_COMMAND dvVIDEOIN_9, "'DXLINK_IN_ETH-auto'"
+    }
+    WAIT 250
     {
 	SEND_COMMAND dvVIDEOIN_1, "'VIDIN_NAME-',VIDINPUT_1"
 	SEND_COMMAND dvVIDEOIN_2, "'VIDIN_NAME-',VIDINPUT_2"
@@ -355,21 +384,18 @@ DEFINE_FUNCTION fnDVXPull()
 	SEND_COMMAND dvVIDEOIN_9, "'VIDIN_NAME-',VIDINPUT_9"
 	SEND_COMMAND dvVIDEOIN_10, "'VIDIN_NAME-',VIDINPUT_10"
     }
-    WAIT 150 //Allow Network traffic to pass thru DxLink Outs...
-    {
-	SEND_COMMAND dvAVOUTPUT1, "'DXLINK_ETH-auto'"
-	SEND_COMMAND dvAVOUTPUT3, "'DXLINK_ETH-auto'"
-	
-	SEND_COMMAND dvVIDEOIN_9, "'DXLINK_IN_ETH-auto'"
-    }
+
 
 }
 DEFINE_FUNCTION fnKill()
 {
     IF (TIME = TIME_KILL)
     {
-	fnProjectorPower('LEFTOFF')
-	fnProjectorPower('RIGHTOFF')
+    	IF ([vdvProjector_Left, POWER] || [vdvProjector_Right, POWER])
+	{
+		fnProjectorPower('LEFTOFF')
+		fnProjectorPower('RIGHTOFF')
+	}
     }
 }
 DEFINE_FUNCTION fnReboot()
@@ -695,9 +721,10 @@ LEVEL_EVENT [dvMicrophone1, MICROPHONE_MIX_1]
 }
 
 DEFINE_EVENT
-CHANNEL_EVENT [vdvProjector_left,ON_LINE]
+CHANNEL_EVENT [vdvProjector_left, ON_LINE]
 CHANNEL_EVENT [vdvProjector_left, WARMING] 
-CHANNEL_EVENT [vdvProjector_left,COOLING] 
+CHANNEL_EVENT [vdvProjector_left, COOLING] 
+CHANNEL_EVENT [vdvProjector_left, POWER] 
 {
     ON:
     {
@@ -706,11 +733,16 @@ CHANNEL_EVENT [vdvProjector_left,COOLING]
 	    CASE ON_LINE :
 	    {
 		SEND_COMMAND vdvTP_Main, "'^BMF-1.2,0,%OP255'"
+		ON [vdvTP_Main, BTN_ONLINE_L]
 	    }
 	    CASE WARMING :
 	    CASE COOLING :
 	    {
 		SEND_COMMAND vdvTP_Main, "'^BMF-1.2,0,%OP30'"
+	    }
+	    CASE POWER :
+	    {
+		ON [vdvTP_Main, BTN_PWR_ON_L]
 	    }
 	}
     }
@@ -721,11 +753,16 @@ CHANNEL_EVENT [vdvProjector_left,COOLING]
 	    CASE ON_LINE :
 	    {
 		SEND_COMMAND vdvTP_Main, "'^BMF-1.2,0,%OP30'"
+		OFF [vdvTP_Main, BTN_ONLINE_L]
 	    }
 	    CASE WARMING :
 	    CASE COOLING :
 	    {
 		SEND_COMMAND vdvTP_Main, "'^BMF-1.2,0,%OP255'"
+	    }
+	    CASE POWER :
+	    {
+		ON [vdvTP_Main, BTN_PWR_OFF_L]
 	    }
 	}
     }
@@ -733,6 +770,7 @@ CHANNEL_EVENT [vdvProjector_left,COOLING]
 CHANNEL_EVENT [vdvProjector_right,ON_LINE]
 CHANNEL_EVENT [vdvProjector_right, WARMING] 
 CHANNEL_EVENT [vdvProjector_right,COOLING] 
+CHANNEL_EVENT [vdvProjector_Right, POWER]
 {
     ON:
     {
@@ -741,11 +779,16 @@ CHANNEL_EVENT [vdvProjector_right,COOLING]
 	    CASE ON_LINE :
 	    {
 		SEND_COMMAND vdvTP_Main, "'^BMF-101.102,0,%OP255'"
+		ON [vdvTP_Main, BTN_ONLINE_R]
 	    }
 	    CASE WARMING :
 	    CASE COOLING :
 	    {
 		SEND_COMMAND vdvTP_Main, "'^BMF-101.102,0,%OP30'"
+	    }
+	    CASE POWER :
+	    {
+		ON [vdvTP_Main, BTN_PWR_ON_R]
 	    }
 	}
     }
@@ -756,11 +799,16 @@ CHANNEL_EVENT [vdvProjector_right,COOLING]
 	    CASE ON_LINE :
 	    {
 		SEND_COMMAND vdvTP_Main, "'^BMF-101.102,0,%OP30'"
+		OFF [vdvTP_Main, BTN_ONLINE_R]
 	    }
 	    CASE WARMING :
 	    CASE COOLING :
 	    {
 		SEND_COMMAND vdvTP_Main, "'^BMF-101.102,0,%OP255'"
+	    }
+	    	    CASE POWER :
+	    {
+		ON [vdvTP_Main, BTN_PWR_OFF_R]
 	    }
 	}
     }
@@ -796,14 +844,30 @@ DATA_EVENT [dvDvxSwitcher] //DVX SWitcher Online / Offline Events
 		IF (FIND_STRING(cMsg,"'O',ITOA(OUT_PROJECTOR_LEFT)",1))
 		{
 		    cLeftTmp = LEFT_STRING(cMsg,LENGTH_STRING(cMsg)-2)
-		
 		    nSourceLeft = ATOI(cLeftTmp)
+		    
+		    SWITCH (nSourceLeft)
+		    {
+			CASE VIDEO_PC_MAIN : ON [vdvTP_MAIN, BTN_PC_MAIN_L]
+			CASE VIDEO_PC_EXTENDED : ON [vdvTP_MAIN, BTN_PC_EXT_L]
+			CASE VIDEO_VGA : ON [vdvTP_MAIN, BTN_VGA_L]
+			CASE VIDEO_DOC_CAM : ON [vdvTP_MAIN, BTN_DOCCAM_L]
+			CASE VIDEO_HDMI : ON [vdvTP_MAIN, BTN_HDMI_L]
+		    }
 		}
     		IF (FIND_STRING(cMsg,"'O',ITOA(OUT_PROJECTOR_RIGHT)",1))
 		{
 		    cRightTmp = LEFT_STRING(cMsg,LENGTH_STRING(cMsg)-2)
-		
 		    nSourceRight = ATOI(cRightTmp)
+		    
+		    SWITCH (nSourceRight)
+		    {
+			CASE VIDEO_PC_MAIN : ON [vdvTP_MAIN, BTN_PC_MAIN_R]
+			CASE VIDEO_PC_EXTENDED : ON [vdvTP_MAIN, BTN_PC_EXT_R]
+			CASE VIDEO_VGA : ON [vdvTP_MAIN, BTN_VGA_R]
+			CASE VIDEO_DOC_CAM : ON [vdvTP_MAIN, BTN_DOCCAM_R]
+			CASE VIDEO_HDMI : ON [vdvTP_MAIN, BTN_HDMI_R]
+		    }
 		}
 	    }
 	    //Audio Feedback...
@@ -815,6 +879,13 @@ DATA_EVENT [dvDvxSwitcher] //DVX SWitcher Online / Offline Events
 		{
 		    cAudio = LEFT_STRING(cMsg,LENGTH_STRING(cMsg)-2)	
 		    nSourceAudio = ATOI(cAudio)
+		    
+		    SWITCH (nSourceAudio)
+		    {
+			CASE VIDEO_PC_MAIN : ON [vdvTP_Main, BTN_AUDIO_PC]
+			CASE VIDEO_VGA : ON [vdvTP_Main, BTN_AUDIO_VGA]
+			CASE VIDEO_HDMI : ON [vdvTP_Main, BTN_AUDIO_HDMI]
+		    }
 		}
 	    }
 	}
@@ -906,30 +977,6 @@ TIMELINE_EVENT [TL_FEEDBACK]
 {
     fnKill()
     fnReboot()
-    // Left, 
-    [dvTP_MAIN, BTN_PC_MAIN_L] = nSourceLeft = VIDEO_PC_MAIN
-    [dvTP_MAIN, BTN_PC_EXT_L] = nSourceLeft = VIDEO_PC_EXTENDED
-    [dvTP_MAIN, BTN_HDMI_L] = nSourceLeft = VIDEO_HDMI
-    [dvTP_MAIN, BTN_DOCCAM_L] = nSourceLeft = VIDEO_DOC_CAM
-    [dvTP_MAIN, BTN_MERSIVE_L] = nSourceLeft = VIDEO_MERSIVE
-
-    //Right
-    [dvTP_MAIN, BTN_PC_MAIN_R] = nSourceRight = VIDEO_PC_MAIN
-    [dvTP_MAIN, BTN_PC_EXT_R] = nSourceRight = VIDEO_PC_EXTENDED
-    [dvTP_MAIN, BTN_HDMI_R] = nSourceRight = VIDEO_HDMI
-    [dvTP_MAIN, BTN_DOCCAM_R] = nSourceRight = VIDEO_DOC_CAM
-    [dvTP_MAIN, BTN_MERSIVE_R] = nSourceRight = VIDEO_MERSIVE
-
-    //Audio Feedback...
-    [dvTP_MAIN,511] = nSourceAudio = VIDEO_PC_MAIN
-    [dvTP_MAIN,514] = nSourceAudio = VIDEO_HDMI
-    [dvTP_MAIN,516] = nSourceAudio = VIDEO_MERSIVE
-
-    //Left Projector Feedback
-    [dvTP_MAIN, BTN_PWR_ON_L]	= [vdvProjector_left,POWER]
-    [dvTP_MAIN, BTN_PWR_OFF_L]	= ![vdvProjector_left, POWER]
-
-    [dvTP_MAIN, 601] = [vdvProjector_left, ON_LINE] //Online
     
     IF([vdvProjector_left,WARMING])
     {
@@ -944,11 +991,7 @@ TIMELINE_EVENT [TL_FEEDBACK]
 	[dvTP_MAIN, 602] = [vdvProjector_left, WARMING]
 	[dvTP_MAIN, 603] = [vdvProjector_left, COOLING]
     }
-    //Right Projector....
-    [dvTP_MAIN, BTN_PWR_ON_R] = [vdvProjector_right,POWER]
-    [dvTP_MAIN, BTN_PWR_OFF_R] = ![vdvProjector_right,POWER]
 
-    [dvTP_MAIN, 611] = [vdvProjector_right, ON_LINE] //Online
     
     IF([vdvProjector_right,WARMING]) 
     {
