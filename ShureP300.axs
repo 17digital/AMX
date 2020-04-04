@@ -4,7 +4,7 @@ PROGRAM_NAME='ShureTest'
 (***********************************************************)
 (***********************************************************)
 (***********************************************************)
-(*  FILE_LAST_MODIFIED_ON: 04/03/2020  AT: 17:48:22        *)
+(*  FILE_LAST_MODIFIED_ON: 04/04/2020  AT: 10:45:14        *)
 (***********************************************************)
 (* System Type : NetLinx                                   *)
 (***********************************************************)
@@ -57,6 +57,7 @@ ANALOG_OUT_2			= 18
 USB_OUT				= 19
 MOBILE_OUT			= 20
 
+//Buttons..
 BTN_MUTE_DAN_1		= 1
 BTN_MUTE_DAN_2		= 1
 BTN_MUTE_DAN_3		= 1
@@ -72,6 +73,9 @@ BTN_MUTE_ANALOG_1		= 5
 BTN_MUTE_MAIN			= 9 //Analog Out 1
 BTN_MUTE_Subs			= 13 //Analog Out 2
 
+BTN_NET_BOOT			= 1000
+
+//TXT Addresses...
 TXT_CH_1				= 301
 TXT_CH_2				= 302
 TXT_CH_3				= 303
@@ -91,6 +95,8 @@ TXT_CH_16				= 316
 TXT_CH_17				= 317
 TXT_CH_18				= 318
 
+TXT_DEVICE			= 1001
+
 
 (***********************************************************)
 (*               VARIABLE DEFINITIONS GO BELOW             *)
@@ -99,7 +105,7 @@ DEFINE_VARIABLE
 
 DEV vdvTP_Shure[] = {dvTP_Shure}
 
-CHAR shureDevice[30] = 'Shure Office' //This will show up on the touchpanel
+VOLATILE CHAR shureDevice[30]
 
 CHAR shureIP[15]= '172.21.24.16' 
 
@@ -263,6 +269,7 @@ DEFINE_FUNCTION fnGetShureRep()
 	WAIT 200 SEND_STRING dvShure, " '< GET ',ITOA(ANALOG_IN_1), ' CHAN_NAME >' "
 	WAIT 210 SEND_STRING dvShure, " '< GET ',ITOA(ANALOG_OUT_1), ' CHAN_NAME >' "
 	WAIT 220 SEND_STRING dvShure, " '< GET ',ITOA(ANALOG_OUT_2), ' CHAN_NAME >' "
+	WAIT 240 SEND_STRING dvShure, " '< GET DEVICE_ID >' "
 }
 DEFINE_FUNCTION fnReconnect()
 {
@@ -270,7 +277,7 @@ DEFINE_FUNCTION fnReconnect()
 	WAIT 20
 	{
 	    fnStartConnection()
-	    //WAIT 30 fnGetShureRep()
+	    WAIT 50 fnGetShureRep()
 	}
 }
 
@@ -331,8 +338,9 @@ DATA_EVENT [dvShure]
     	LOCAL_VAR CHAR cResponse[100]
 	LOCAL_VAR INTEGER cID //Holds Input ID
 	LOCAL_VAR INTEGER cLev
-	LOCAL_VAR CHAR cChName[30]
-    
+	LOCAL_VAR CHAR cChName[20]
+	
+	ON [scm820Online]
     	CANCEL_WAIT 'DEVICE COMM/INIT'
 	
 	WAIT 350 'DEVICE COMM/INIT'
@@ -349,7 +357,7 @@ DATA_EVENT [dvShure]
 		REMOVE_STRING (cShureBuffer,'< REP ',1)
 		
 		cResponse = cShureBuffer
-		cID = ATOI (LEFT_STRING(cResponse, 2)) //01 -- 14
+		cID = ATOI (LEFT_STRING(cResponse, 2)) //01 -- 14 (
 	    
 		    IF (FIND_STRING (cResponse,"ITOA(cId),' AUDIO_MUTE ON >'",1))
 		    {
@@ -363,7 +371,6 @@ DATA_EVENT [dvShure]
 			{
 			    SEND_STRING dvShure, " '< GET ',ITOA(nMixLevels[cID]), ' AUDIO_GAIN_HI_RES >' "
 			}
-				
 		    }
 		    IF (FIND_STRING (cResponse,"ITOA(cId), ' AUDIO_GAIN_HI_RES '",1))
 		    {
@@ -379,6 +386,15 @@ DATA_EVENT [dvShure]
 			
 			SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(nNameSlot[cId]),',0,',cChName"
 		    }
+	    
+		    IF (FIND_STRING (cResponse,'DEVICE_ID {',1))
+		    {
+			REMOVE_STRING (cResponse,'DEVICE_ID {',1)
+			    shureDevice = LEFT_STRING(cResponse,LENGTH_STRING(cResponse)-3)
+			
+			    SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(TXT_DEVICE),',0,',shureDevice"
+		    }
+		
 	    }
 	}
 	cShureBuffer = ''
@@ -476,6 +492,22 @@ BUTTON_EVENT [vdvTP_Shure, nShureChannelIdx]
 	}
     }
 }
+BUTTON_EVENT [vdvTP_Shure, BTN_NET_BOOT]
+{
+    RELEASE :
+    {
+	fnReconnect()
+    }
+}
+//TIMELINE_EVENT [TL_FEEDBACK]
+//{
+//    [vdvTP_Shure, 1000] = scm820Online
+//    
+//    WAIT 250
+//    {
+//	SEND_STRING dvShure, '< GET DEVICE_ID >'
+//    }
+//}
 
 (*****************************************************************)
 (*                                                               *)
@@ -485,7 +517,7 @@ BUTTON_EVENT [vdvTP_Shure, nShureChannelIdx]
 (* X-Series masters, changing variables in the DEFINE_PROGRAM    *)
 (* section of code can negatively impact program performance.    *)
 (*                                                               *)
-(* See Differences in DEFINE_PROGRAM Program Execution section *)
+(* See “Differences in DEFINE_PROGRAM Program Execution” section *)
 (* of the NX-Series Controllers WebConsole & Programming Guide   *)
 (* for additional and alternate coding methodologies.            *)
 (*****************************************************************)
