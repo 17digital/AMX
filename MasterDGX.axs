@@ -343,11 +343,6 @@ VOLATILE INTEGER nProjectorRightVidBtns[] =
     BTN_BOARD_4_R
 }
 
-#INCLUDE 'ExtronSMP'
-#INCLUDE 'VaddioCamera'
-#INCLUDE 'Tesira'
-#INCLUDE 'TVTuner_'
-
 (***********************************************************)
 (*       MUTUALLY EXCLUSIVE DEFINITIONS GO BELOW           *)
 (***********************************************************)
