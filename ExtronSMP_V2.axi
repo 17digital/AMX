@@ -86,6 +86,12 @@ DEV vdvTP_Capture[] = {dvTP_Recorder}
 VOLATILE CHAR cExtron_Buffer[1000]
 VOLATILE LONG lRecordStatus[] = {5000} //5 Second Pull...
 
+VOLATILE INTEGER nRecSends[] =
+{
+    RECORDING_START,
+    RECORDING_PAUSE,
+    RECORDING_STOP
+}
 VOLATILE INTEGER nRecBtns[] =
 {
     BTN_REC_START, 
@@ -312,7 +318,7 @@ BUTTON_EVENT [vdvTP_Capture, nRecBtns]
 {
     PUSH :
     {
-	fnRecordSwitch(GET_LAST(nRecBtns))
+	fnRecordSwitch(nRecSends[GET_LAST(nRecBtns)])
     }
 }
 BUTTON_EVENT [vdvTP_Capture, BTN_REC_BOOKMARK]
