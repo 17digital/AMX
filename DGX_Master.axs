@@ -372,8 +372,14 @@ DEFINE_FUNCTION fnKill()
 {
     IF (TIME = TIME_KILL )
     {
-	fnPowerDisplays('LEFTOFF')
-	fnPowerDisplays('RIGHTOFF')
+	IF ([vdvProjector_Left, POWER] || [vdvDisplay_Left, POWER])
+	{
+	    fnPowerDisplays('LEFTOFF')
+	}
+	IF ([vdvProjector_Right, POWER] || [vdvDisplay_Right, POWER])
+	{
+	    fnPowerDisplays('RIGHTOFF')
+	}
     }
 }
 DEFINE_FUNCTION fnPowerDisplays(CHAR cPWR[MAX_LENGTH])
