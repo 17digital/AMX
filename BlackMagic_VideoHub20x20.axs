@@ -125,7 +125,9 @@ BTN_DESTINATION_18				= 918
 BTN_DESTINATION_19				= 919
 BTN_DESTINATION_20				= 920
 
+BTN_TECH_PAGE					= 2000
 
+PAGE_TECH					= '_HubRouting'
 
 (***********************************************************)
 (*              DATA TYPE DEFINITIONS GO BELOW             *)
@@ -141,6 +143,100 @@ DEV vdvTP_Main[] = {dvTP_MAIN}
 
 VOLATILE INTEGER nSourceInput_
 VOLATILE INTEGER nDestinationOutput_
+VOLATILE INTEGER nChannelCount = 20
+
+VOLATILE INTEGER nInputBtns[] =
+{
+    BTN_SOURCE_IN_1,
+    BTN_SOURCE_IN_2,
+    BTN_SOURCE_IN_3,
+    BTN_SOURCE_IN_4,
+    BTN_SOURCE_IN_5,
+    BTN_SOURCE_IN_6,
+    BTN_SOURCE_IN_7,
+    BTN_SOURCE_IN_8,
+    BTN_SOURCE_IN_9,
+    BTN_SOURCE_IN_10,
+    BTN_SOURCE_IN_11,
+    BTN_SOURCE_IN_12,
+    BTN_SOURCE_IN_13,
+    BTN_SOURCE_IN_14,
+    BTN_SOURCE_IN_15,
+    BTN_SOURCE_IN_16,
+    BTN_SOURCE_IN_17,
+    BTN_SOURCE_IN_18,
+    BTN_SOURCE_IN_19,
+    BTN_SOURCE_IN_20
+}
+VOLATILE INTEGER nOutputBtns[] =
+{
+    BTN_DESTINATION_1,
+    BTN_DESTINATION_2,
+    BTN_DESTINATION_3,
+    BTN_DESTINATION_4,
+    BTN_DESTINATION_5,  
+    BTN_DESTINATION_6,
+    BTN_DESTINATION_7,
+    BTN_DESTINATION_8,
+    BTN_DESTINATION_9,
+    BTN_DESTINATION_10, 
+    BTN_DESTINATION_11,
+    BTN_DESTINATION_12,
+    BTN_DESTINATION_13,
+    BTN_DESTINATION_14,
+    BTN_DESTINATION_15, 
+    BTN_DESTINATION_16,
+    BTN_DESTINATION_17,
+    BTN_DESTINATION_18,
+    BTN_DESTINATION_19,
+    BTN_DESTINATION_20     
+}
+VOLATILE CHAR nSwitchInputNames[20][15] = 
+{
+    '1 Program', //1
+    '2 Aux 1 Out', //2
+    '3 Aux 2 Out', //3
+    '4 SSD-1', //4
+    '5 SSD-2', //5
+    '6 Pearl2', //6
+    '7 Camera 1', //7
+    '8 Camera 2', //8
+    '9 WallPlate 1', //9
+    '10 WallPlate 2', //10
+    '11 WallPlate', //11
+    '12 WallPlate', //12
+    '13 WallPlate', //13
+    '14 WallPlate', //14
+    '15 WallPlate', //15
+    '16 Not Used', //16
+    '17 Quad View', 
+    '18 Vaddio Cam',
+    '19 Not Used',
+    '20 Not Used' 
+}
+VOLATILE CHAR nSwitchOutputNames[20][35] = 
+{
+    '1 Quad Monitor', //1
+    '2 RossIn1', //2
+    '3 RossIn2', //3
+    '4 RossIn3', //4
+    '5 RossIn4', //5
+    '6 RossIn 5', //6
+    '7 RossIn 6', //7
+    '8 SDI1', //8
+    '9 SDI2', //9
+    '10 USB-REC-1', //10
+    '11 USB-REC-2', //11
+    '12 WP03', //12
+    '13 WP04', //13
+    '14 PTZ Feed', //14
+    '15 Not Used', //15
+    '16 Ctl Monitor',//16
+    '17 Quad A',
+    '18 Quad B',
+    '19 WP SDI-1',
+    '20 WP SDI-2'
+}
 
 (***********************************************************)
 (*       MUTUALLY EXCLUSIVE DEFINITIONS GO BELOW           *)
@@ -177,7 +273,16 @@ DEFINE_FUNCTION fnRouteVideoPresets()
     WAIT 10 fnRouteVideoHubMultiple(OUT_ROSS_1, IN_CAMERA_1, OUT_QUAD_A, IN_CAMERA_1)
     WAIT 10 fnRouteVideoHubMultiple(OUT_ROSS_2, IN_CAMERA_2, OUT_QUAD_B, IN_CAMERA_2)
     WAIT 10 fnRouteVideoHubSingle(OUT_CAMERA_FEED, IN_CAMERA_VADDIO)
-
+}
+DEFINE_FUNCTION fnLoadVideoInputLabels()
+{
+    STACK_VAR INTEGER cLoop
+    
+    FOR (cLoop=1; cLoop<=nChannelCount; cLoop++)
+    {
+	SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(nInputBtns[cLoop]),',0,',nSwitchInputNames[cLoop]"
+	SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(nOutputBtns[cLoop]),',0,',nSwitchOutputNames[cLoop]"
+    }
 }
 
 (***********************************************************)
@@ -244,11 +349,27 @@ BUTTON_EVENT [dvTP_MAIN, BTN_DESTINATION_20]
 	ON [dvTP_MAIN, BUTTON.INPUT.CHANNEL]
 	nDestinationOutput_ = BUTTON.INPUT.CHANNEL - 900
 	
-	WAIT 10
+	WAIT 5
 	{
-	    fnRouteVideoHubSingle(nDestinationOutput_, nSourceInput_)
+	    IF(nSourceInput_ > 0) //Must be something there..
+	    {
+		fnRouteVideoHubSingle(nDestinationOutput_, nSourceInput_)
+	    }
 	}
-	
+	WAIT 20
+	{
+	    OFF [nDestinationOutput_]
+	    OFF [nSourceInput_] //Reset...
+	    TOTAL_OFF [dvTP_Main, nInputBtns]
+	    TOTAL_OFF [dvTP_Main, nOutputBtns] //Kill All Feedback
+	}
+    }
+}
+BUTTON_EVENT [dvTP_Main, BTN_TECH_PAGE]
+{
+    HOLD [50] :
+    {
+	SEND_COMMAND dvTP_Main, "'PPON-',PAGE_TECH"
     }
 }
 
@@ -258,6 +379,7 @@ DATA_EVENT [dvTp_Main]
     ONLINE:
     {
 	SEND_COMMAND DATA.DEVICE, "'ADBEEP'"
+	WAIT 100 fnLoadVideoInputLabels()
     }
 }
 DATA_EVENT [dvVideoHub]
@@ -273,6 +395,7 @@ DATA_EVENT [dvVideoHub]
 	
 	WAIT 90 fnRouteVideoPresets() //Set Defaults...
 	//WAIT 90 SEND_STRING dvBlackMagic, "'@ X?0',ITOA(DES_EXTRON_CAPTURE),CR" //Get Connected Route...
+	
 
     }
 }
