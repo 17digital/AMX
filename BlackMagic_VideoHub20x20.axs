@@ -11,9 +11,12 @@ PROGRAM_NAME='BlackMagic_VideoHub'
 (***********************************************************)
 (*
     $History: $
-    
-    HDMI Port to Vaddio Feed??
-    Serial Connection for Vaddio ?? Use Port 3
+    	From AMX Master (2200, 3200, 4200) Must use Serial Port 1 or 5
+	Uses RS422
+	See Baud Rate below in Data Event
+	
+	Warning with Video Hub...One too many wrong commands will lock up Device.
+	Will need a physical reboot. 
 *)
 (***********************************************************)
 (*          DEVICE NUMBER DEFINITIONS GO BELOW             *)
