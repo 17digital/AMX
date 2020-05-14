@@ -145,6 +145,8 @@ VOLATILE INTEGER nSourceInput_
 VOLATILE INTEGER nDestinationOutput_
 VOLATILE INTEGER nChannelCount = 20
 
+VOLATILE INTEGER nNumAssign[] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20}
+
 VOLATILE INTEGER nInputBtns[] =
 {
     BTN_SOURCE_IN_1,
@@ -280,8 +282,9 @@ DEFINE_FUNCTION fnLoadVideoInputLabels()
     
     FOR (cLoop=1; cLoop<=nChannelCount; cLoop++)
     {
-	SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(nInputBtns[cLoop]),',0,',nSwitchInputNames[cLoop]"
-	SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(nOutputBtns[cLoop]),',0,',nSwitchOutputNames[cLoop]"
+	SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(nInputBtns[cLoop]),',0,',ITOA(nNumAssign[cLoop]),$0A,$0D,nSwitchInputNames[cLoop]"
+	SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(nOutputBtns[cLoop]),',0,',ITOA(nNumAssign[cLoop]),$0A,$0D,nSwitchOutputNames[cLoop]"
+	//For G5 X Series - Use ^UTF-
     }
 }
 
