@@ -90,6 +90,24 @@ BTN_DGX_OUT_14			= 3014
 BTN_DGX_OUT_15			= 3015
 BTN_DGX_OUT_16			= 3016
 
+//Address Buttons...
+BTN_DGX_VIEW_1			= 3050
+BTN_DGX_VIEW_2			= 3051
+BTN_DGX_VIEW_3			= 3052
+BTN_DGX_VIEW_4			= 3053
+BTN_DGX_VIEW_5			= 3054
+BTN_DGX_VIEW_6			= 3055
+BTN_DGX_VIEW_7			= 3056
+BTN_DGX_VIEW_8			= 3057
+BTN_DGX_VIEW_9			= 3058
+BTN_DGX_VIEW_10			= 3059
+BTN_DGX_VIEW_11			= 3060
+BTN_DGX_VIEW_12			= 3061
+BTN_DGX_VIEW_13			= 3062
+BTN_DGX_VIEW_14			= 3063
+BTN_DGX_VIEW_15			= 3064
+BTN_DGX_VIEW_16			= 3065
+
 (***********************************************************)
 (*               VARIABLE DEFINITIONS GO BELOW             *)
 (***********************************************************)
@@ -100,6 +118,25 @@ VOLATILE INTEGER nSelectOutput_
 
 VOLATILE INTEGER nDGXNumAssign[] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16}
 
+VOLATILE INTEGER nDgxReadBtns[] =
+{
+    BTN_DGX_VIEW_1,
+    BTN_DGX_VIEW_2,
+    BTN_DGX_VIEW_3,
+    BTN_DGX_VIEW_4,
+    BTN_DGX_VIEW_5,
+    BTN_DGX_VIEW_6,
+    BTN_DGX_VIEW_7,
+    BTN_DGX_VIEW_8,
+    BTN_DGX_VIEW_9,
+    BTN_DGX_VIEW_10,
+    BTN_DGX_VIEW_11,
+    BTN_DGX_VIEW_12,
+    BTN_DGX_VIEW_13,
+    BTN_DGX_VIEW_14,
+    BTN_DGX_VIEW_15,
+    BTN_DGX_VIEW_16
+}
 VOLATILE INTEGER nDgxInputBtns[] =
 {
     BTN_DGX_IN_1,		
@@ -263,6 +300,16 @@ DEFINE_FUNCTION fnLoadDGXAudioLabels()
 
     }
 }
+DEFINE_FUNCTION fnReadDGXRoutes()
+{
+    //This may be too fast....
+    STACK_VAR INTEGER cLoop
+    
+    FOR (cLoop=1; cLoop<=MAX_LENGTH_ARRAY(dcDGXVideoSlots); cLoop++)
+    {
+	SEND_COMMAND dcDGXVideoSlots[cLoop], "'?INPUT-VIDEO,',ITOA(cLoop)"
+    }
+}
 DEFINE_FUNCTION fnDGXSwitchIO(INTEGER cIn, INTEGER cOut)
 {
     SEND_COMMAND dvDgx, "'VI',ITOA(cIn),'O',ITOA(cOut)"
@@ -362,6 +409,59 @@ DATA_EVENT [dvDGX]
 	    }
 	}
     }
+    COMMAND : //Parsing to Read Current Routes...
+    {
+	CHAR cInput[5]
+	STACK_VAR INTEGER cOutput
+	INTEGER cInSource 
+	CHAR cData[20]
+	
+	cData = DATA.TEXT
+	
+	SELECT
+	{
+	    ACTIVE (FIND_STRING(cData,"'SWITCH-LVIDEOI'",1)): //Parse Input Changes to Read what is selected
+	    {
+		REMOVE_STRING(cData,"'SWITCH-LVIDEOI'",1)
+		
+		cInput = cData //Should Read #O##
+		
+		REMOVE_STRING(cData,"'O'",1) //Should only be left with Output #
+		
+		cOutput = ATOI(cData)
+		
+		SWITCH (cOutput)
+		{
+		    CASE 1 :
+		    CASE 2 :
+		    CASE 3 :
+		    CASE 4 :
+		    CASE 5 :
+		    CASE 6 :
+		    CASE 7 :
+		    CASE 8 :
+		    CASE 9 :
+		    {
+			cInput = LEFT_STRING(cInput,LENGTH_STRING(cInput)-2)
+			cInSource = ATOI(cInput)
+			    SEND_COMMAND dvTP_Router, "'^TXT-',ITOA(nDgxReadBtns[cInSource]),',0,',nDgxInputNames[cOutput]"
+		    }
+		    CASE 10 :
+		    CASE 11 :
+		    CASE 12 :
+		    CASE 13 :
+		    CASE 14 :
+		    CASE 15 :
+		    CASE 16 :
+		    {
+			cInput = LEFT_STRING(cInput,LENGTH_STRING(cInput)-3)
+			cInSource = ATOI(cInput)
+			    SEND_COMMAND dvTP_Router, "'^TXT-',ITOA(nDgxReadBtns[cInSource]),',0,',nDgxInputNames[cOutput]"
+		    }
+		}
+	    }
+	}
+    }
 }
 	
 (*****************************************************************)
@@ -372,7 +472,7 @@ DATA_EVENT [dvDGX]
 (* X-Series masters, changing variables in the DEFINE_PROGRAM    *)
 (* section of code can negatively impact program performance.    *)
 (*                                                               *)
-(* See “Differences in DEFINE_PROGRAM Program Execution” section *)
+(* See Â“Differences in DEFINE_PROGRAM Program ExecutionÂ” section *)
 (* of the NX-Series Controllers WebConsole & Programming Guide   *)
 (* for additional and alternate coding methodologies.            *)
 (*****************************************************************)
