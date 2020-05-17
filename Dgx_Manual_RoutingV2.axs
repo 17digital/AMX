@@ -11,7 +11,12 @@ PROGRAM_NAME='Dgx_Manual_Routing'
 (* REV HISTORY:                                            *)
 (***********************************************************)
 (*
-    $History: $
+    DGX Manual Routing - This was created for the DGX-1600
+    Manual Selected Input routed to output.
+    On Touch panel create ch buttons to select inputs and outputs
+    See Constant values below.
+    Also this will Parse the return from DGX and read labels
+    and place them on buttons.
 *)
 (***********************************************************)
 (*          DEVICE NUMBER DEFINITIONS GO BELOW             *)
@@ -175,7 +180,7 @@ VOLATILE INTEGER nDgxOutputBtns[] =
     BTN_DGX_OUT_15,
     BTN_DGX_OUT_16
 }
-VOLATILE CHAR nDgxInputNames[16][25] =
+VOLATILE CHAR nDgxInputNames[16][25] = //Type in Your Input Labels for DGX
 {
     'In Name 1',
     'In Name 2',
@@ -194,7 +199,7 @@ VOLATILE CHAR nDgxInputNames[16][25] =
     'In Name 15',
     'In Name 16'
 }
-VOLATILE CHAR nDgxOutputName[16][25] =
+VOLATILE CHAR nDgxOutputName[16][25] =//Type in Your Output Labels for DGX
 {
     'Out Name 1',
     'Out Name 2',
@@ -213,7 +218,7 @@ VOLATILE CHAR nDgxOutputName[16][25] =
     'Out Name 15',
     'Out Name 16'
 }
-VOLATILE CHAR nDgxAudioOutName[8][25] =
+VOLATILE CHAR nDgxAudioOutName[8][25] = //Type in Audio Output Labels for DGX
 {
     'Audio Mix Out',
     'Not Used',
@@ -367,7 +372,7 @@ BUTTON_EVENT [dvTP_Router, BTN_DGX_OUT_16]
 {
     PUSH :
     {
-	ON [dvTP_Router, BUTTON.INPUT.CHANNEL]
+	
 	    nSelectOutput_ = BUTTON.INPUT.CHANNEL - 3000
 	    
 	    WAIT 5
@@ -375,6 +380,7 @@ BUTTON_EVENT [dvTP_Router, BTN_DGX_OUT_16]
 		IF (nSelectInput_ > 0) //Must be something there...
 		{
 		    fnDGXSwitchIO(nSelectInput_, nSelectOutput_)
+		    ON [dvTP_Router, BUTTON.INPUT.CHANNEL]
 		}
 	    }
 	    WAIT 20
