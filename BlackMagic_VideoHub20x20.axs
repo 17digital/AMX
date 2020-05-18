@@ -195,49 +195,49 @@ VOLATILE INTEGER nOutputBtns[] =
 }
 VOLATILE CHAR nSwitchInputNames[20][15] = 
 {
-    '1 Program', //1
-    '2 Aux 1 Out', //2
-    '3 Aux 2 Out', //3
-    '4 SSD-1', //4
-    '5 SSD-2', //5
-    '6 Pearl2', //6
-    '7 Camera 1', //7
-    '8 Camera 2', //8
-    '9 WallPlate 1', //9
-    '10 WallPlate 2', //10
-    '11 WallPlate', //11
-    '12 WallPlate', //12
-    '13 WallPlate', //13
-    '14 WallPlate', //14
-    '15 WallPlate', //15
-    '16 Not Used', //16
-    '17 Quad View', 
-    '18 Vaddio Cam',
-    '19 Not Used',
-    '20 Not Used' 
+    'Program', //1
+    'Aux 1 Out', //2
+    'Aux 2 Out', //3
+    'SSD-1', //4
+    'SSD-2', //5
+    'Pearl2', //6
+    'Camera 1', //7
+    'Camera 2', //8
+    'WallPlate 1', //9
+    'WallPlate 2', //10
+    'WallPlate', //11
+    'WallPlate', //12
+    'WallPlate', //13
+    'WallPlate', //14
+    'WallPlate', //15
+    'Not Used', //16
+    'Quad View', 
+    'Vaddio Cam',
+    'Not Used',
+    'Not Used' 
 }
 VOLATILE CHAR nSwitchOutputNames[20][35] = 
 {
-    '1 Quad Monitor', //1
-    '2 RossIn1', //2
-    '3 RossIn2', //3
-    '4 RossIn3', //4
-    '5 RossIn4', //5
-    '6 RossIn 5', //6
-    '7 RossIn 6', //7
-    '8 SDI1', //8
-    '9 SDI2', //9
-    '10 USB-REC-1', //10
-    '11 USB-REC-2', //11
-    '12 WP03', //12
-    '13 WP04', //13
-    '14 PTZ Feed', //14
-    '15 Not Used', //15
-    '16 Ctl Monitor',//16
-    '17 Quad A',
-    '18 Quad B',
-    '19 WP SDI-1',
-    '20 WP SDI-2'
+    'Quad Monitor', //1
+    'RossIn1', //2
+    'RossIn2', //3
+    'RossIn3', //4
+    'RossIn4', //5
+    'RossIn 5', //6
+    'RossIn 6', //7
+    'SDI1', //8
+    'SDI2', //9
+    'USB-REC-1', //10
+    'USB-REC-2', //11
+    'WP03', //12
+    'WP04', //13
+    'PTZ Feed', //14
+    'Not Used', //15
+    'Ctl Monitor',//16
+    'Quad A',
+    'Quad B',
+    'WP SDI-1',
+    'WP SDI-2'
 }
 
 (***********************************************************)
