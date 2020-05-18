@@ -121,8 +121,6 @@ DEFINE_VARIABLE
 VOLATILE INTEGER nSelectInput_
 VOLATILE INTEGER nSelectOutput_
 
-VOLATILE INTEGER nDGXNumAssign[] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16}
-
 VOLATILE INTEGER nDgxReadBtns[] =
 {
     BTN_DGX_VIEW_1,
@@ -279,8 +277,8 @@ DEFINE_FUNCTION fnLoadTPIOs()
     
     FOR (cLoop=1; cLoop<=MAX_LENGTH_ARRAY(nDgxInputBtns); cLoop++)
     {
-	SEND_COMMAND dvTP_Router, "'^TXT-',ITOA(nDgxInputBtns[cLoop]),',0,',ITOA(nDGXNumAssign[cLoop]),$0A,$0D,nDgxInputNames[cLoop]"
-	SEND_COMMAND dvTP_Router, "'^TXT-',ITOA(nDgxOutputBtns[cLoop]),',0,',ITOA(nDGXNumAssign[cLoop]),$0A,$0D,nDgxOutputName[cLoop]"
+	SEND_COMMAND dvTP_Router, "'^TXT-',ITOA(nDgxInputBtns[cLoop]),',0,',ITOA(cLoop),$0A,$0D,nDgxInputNames[cLoop]"
+	SEND_COMMAND dvTP_Router, "'^TXT-',ITOA(nDgxOutputBtns[cLoop]),',0,',ITOA(cLoop),$0A,$0D,nDgxOutputName[cLoop]"
 	
 	//Test w/ ^UTF- (For G5 X Series)
     }
