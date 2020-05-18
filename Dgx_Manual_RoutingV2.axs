@@ -301,7 +301,7 @@ DEFINE_FUNCTION fnLoadDGXAudioLabels()
     
     FOR (cLoop=1; cLoop<=MAX_LENGTH_ARRAY(dcDGXAudioSlots); cLoop++)
     {
-	SEND_COMMAND dcDGXAudioSlots[cLoop], "'VIDOUT_NAME-',nDgxAudioOutName[cLoop]"
+	SEND_COMMAND dcDGXAudioSlots[cLoop], "'AUDOUT_NAME-',nDgxAudioOutName[cLoop]"
 
     }
 }
