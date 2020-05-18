@@ -332,8 +332,12 @@ BUTTON_EVENT [vdvTP_Capture, BTN_SWAP_SOURCE] //Swap Sources...
 {
     PUSH :
     {
-	    SEND_STRING dvExtronRec, "'%',CR"
+	 SEND_STRING dvExtronRec, "'%',CR"
     }
+}
+TIMELINE_EVENT [TL_STATUS]
+{
+    SEND_STRING dvExtronRec, "'35I',CR" //Record Timer...
 }
 TIMELINE_EVENT[TL_FEEDBACK]
 {
