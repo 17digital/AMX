@@ -48,8 +48,6 @@ dvBlackMagic =					5001:5:0 //BlackMagic Studio Production TV
 dvRelays =					5001:21:0 //Relays
 dvIO =						5001:22:0 //IO's
 
-
-
 (***********************************************************)
 (*               CONSTANT DEFINITIONS GO BELOW             *)
 (***********************************************************)
@@ -59,20 +57,12 @@ ONE_SECOND					= 10 //may have to set to 1000
 ONE_MINUTE					= 60*ONE_SECOND
 ONE_HOUR					= 60*ONE_MINUTE
 
-
 BTN_POWER_ON					= 1
 BTN_POWER_OFF					= 2
 BTN_PC_MAIN					= 11
 BTN_LAPTOP_1					= 13
 BTN_LAPTOP_2					= 14
 BTN_WIFI_VIDEO					= 15
-
-INPUT_MERSIVE					= '$01'
-INPUT_LAPTOP_1					= '$02'
-INPUT_LAPTOP_2					= '$03'
-INPUT_DESKTOP					= '$04'
-INPUT_CAMERA					= '$05'
-
 
 (***********************************************************)
 (*               VARIABLE DEFINITIONS GO BELOW             *)
@@ -101,7 +91,18 @@ DEFINE_MUTUALLY_EXCLUSIVE
 (***********************************************************)
 (* EXAMPLE: DEFINE_FUNCTION <RETURN_TYPE> <NAME> (<PARAMETERS>) *)
 (* EXAMPLE: DEFINE_CALL '<NAME>' (<PARAMETERS>) *)
-
+DEFINE_FUNCTION fnBMQuery()
+{
+    //Query Switcher
+    	SEND_COMMAND dvBlackMagic, "'ESCSEQON'"
+	SEND_STRING dvBlackMagic, "27,17,50" //Insert a time delay before transmitting the next character
+	
+		WAIT 2
+		{
+		    SEND_COMMAND dvBlackMagic, "'ESCSEQOFF'"
+		    SEND_STRING dvBlackMagic, "$30,$02,$01,$41" //Query Program Source...
+		}
+}
 
 (***********************************************************)
 (*                STARTUP CODE GOES BELOW                  *)
@@ -120,15 +121,15 @@ BUTTON_EVENT [dvTP_MAIN, BTN_WIFI_VIDEO]
 {
     PUSH :
     {
+    	ON [dvTP_MAIN, BUTTON.INPUT.CHANNEL]
 	SEND_COMMAND dvBlackMagic, "'ESCSEQON'" //SEE AMX PI >> SEND_STRING Escape Sequences
+	SEND_STRING dvBlackMagic, "27,17,50" //Insert a time delay before transmitting the next character
 	
 	SWITCH (BUTTON.INPUT.CHANNEL)
 	{
 	    
 	    CASE BTN_PC_MAIN :
 	    {
-		ON [dvTP_MAIN, BTN_PC_MAIN]
-		SEND_STRING dvBlackMagic, "27,17,50" //Insert Break for 50Ms...
 		WAIT 2
 		{
 		    SEND_COMMAND dvBlackMagic, "'ESCSEQOFF'"
@@ -137,8 +138,6 @@ BUTTON_EVENT [dvTP_MAIN, BTN_WIFI_VIDEO]
 	    }
 	    CASE BTN_LAPTOP_1 :
 	    {
-		ON [dvTP_MAIN, BTN_LAPTOP_1]
-		SEND_STRING dvBlackMagic, "27,17,50"
 		WAIT 2
 		{
 		    SEND_COMMAND dvBlackMagic, "'ESCSEQOFF'"
@@ -147,8 +146,6 @@ BUTTON_EVENT [dvTP_MAIN, BTN_WIFI_VIDEO]
 	    }
 	    CASE BTN_LAPTOP_2 :
 	    {
-		ON [dvTP_MAIN, BTN_LAPTOP_2]
-		SEND_STRING dvBlackMagic, "27,17,50"
 		WAIT 2
 		{
 		    SEND_COMMAND dvBlackMagic, "'ESCSEQOFF'"
@@ -157,8 +154,6 @@ BUTTON_EVENT [dvTP_MAIN, BTN_WIFI_VIDEO]
 	    }
 	    CASE BTN_WIFI_VIDEO :
 	    {
-		ON [dvTP_MAIN, BTN_WIFI_VIDEO]
-		SEND_STRING dvBlackMagic, "27,17,50"
 		WAIT 2
 		{
 		    SEND_COMMAND dvBlackMagic, "'ESCSEQOFF'"
@@ -177,6 +172,37 @@ DATA_EVENT [dvBlackMagic] //Take Note of Baud Rate...Not typical!
 	SEND_COMMAND DATA.DEVICE, "'RXON'"
 	SEND_COMMAND DATA.DEVICE, "'HSOFF'"
 	SEND_COMMAND DATA.DEVICE, "'CHARDM-100'" //0-255
+	
+	WAIT 100
+	{
+	    fnBMQuery()
+	}
+    }
+    STRING :
+    {
+	CHAR cMgs[20]
+	cMgs = DATA.TEXT
+	
+	SELECT
+	{
+	    ACTIVE (FIND_STRING(cMgs,"$03,$01,$C1,$04",1)):
+	    {
+		ON [dvTP_MAIN, BTN_PC_MAIN]
+	    }
+	    ACTIVE (FIND_STRING(cMgs,"$03,$01,$C1,$01",1)):
+	    {
+		ON [dvTP_MAIN, BTN_WIFI_VIDEO]
+	    }
+	    ACTIVE (FIND_STRING(cMgs,"$03,$01,$C1,$03",1)):
+	    {
+		ON [dvTP_MAIN, BTN_LAPTOP_1]
+	    }
+	    ACTIVE (FIND_STRING(cMgs,"$03,$01,$C1,$02",1)):
+	    {
+		ON [dvTP_MAIN, BTN_LAPTOP_2]
+	    }
+	}
+    
     }
 }
 
