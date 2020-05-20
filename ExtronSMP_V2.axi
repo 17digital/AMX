@@ -149,7 +149,7 @@ DEFINE_FUNCTION fnParseExtron()
 {
     STACK_VAR CHAR cMsgs[100]
     LOCAL_VAR CHAR nPreset[2]
-    LOCAL_VAR CHAR nRec[2]
+    LOCAL_VAR INTEGER nRec
     LOCAL_VAR CHAR cTimer[50]
     LOCAL_VAR CHAR cUsbname[50]
     LOCAL_VAR CHAR cTrash[50]
@@ -181,11 +181,11 @@ DEFINE_FUNCTION fnParseExtron()
 	    ACTIVE(FIND_STRING(cMsgs,'RcdrY',1)):
 	    {
 		REMOVE_STRING (cMsgs,'RcdrY',1)
-		nRec = cMsgs
+		nRec = ATOI(cMsgs)
 		
 		SWITCH (nRec)
 		{
-		    CASE '1' :
+		    CASE 1 :
 		    {
 			ON [vdvTP_Capture, BTN_REC_START]
 			SEND_STRING dvExtronRec, "'36I',CR" //Get USB Info
@@ -201,7 +201,7 @@ DEFINE_FUNCTION fnParseExtron()
 			}
 			SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_REC_STATUS),',0,Recording Started'" 
 		    }
-		    CASE '2' :
+		    CASE 2 :
 		    {
 			ON [vdvTP_Capture, BTN_REC_PAUSE]
 			SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_REC_STATUS),',0,Recording Paused'" 
@@ -211,7 +211,7 @@ DEFINE_FUNCTION fnParseExtron()
 			    TIMELINE_PAUSE(TL_STATUS)
 			}
 		    }
-		    CASE '0' :
+		    CASE 0 :
 		    {
 			ON [vdvTP_Capture, BTN_REC_STOP]
 
