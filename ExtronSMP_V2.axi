@@ -29,7 +29,7 @@ LF 					= 10
 SET_ADDRESS_IP			= '172.21.1.21'
 SET_ADDRESS_SUB		= '255.255.252.0'
 SET_ADDRESS_GW		= '172.21.0.1'
-SET_DEVICE_NAME		= 'Room B170'//First Character must be a letter
+SET_DEVICE_NAME		= 'Room-B170'//First Character must be a letter
 SET_ADDRESS_DNS		= '130.207.244.251'
 SET_REC_DESTINATION		= 3 //Set Recording Destination (2=Front 3=Rear 1=Internal)
 SET_VERBOSE_MODE		= 3 //Full Feedback Query
