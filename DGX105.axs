@@ -751,6 +751,21 @@ DEFINE_FUNCTION fnSetDGXRouteTV(INTEGER cIn, INTEGER cOut)
 {
     SEND_COMMAND dvDGX, "'VI',ITOA(cIn),'O',ITOA(cOut)" 
 }
+DEFINE_FUNCTION fnCheckTVPwrStatusAll()
+{
+    IF((nDisplayPWR_1 =0) && (nDisplayPWR_2 =0) && (nDisplayPWR_3 =0) && (nDisplayPWR_4 =0) && (nDisplayPWR_5 =0) && (nDisplayPWR_6 =0))
+    {
+	ON [vdvTP_Main, BTN_TVS_ALL_OFF]
+    }
+    ELSE IF ((nDisplayPWR_1 =1) && (nDisplayPWR_2 =1) && (nDisplayPWR_3 =1) && (nDisplayPWR_4 =1) && (nDisplayPWR_5 =1) && (nDisplayPWR_6 =1))
+    {
+	ON [vdvTP_Main, BTN_TVS_ALL_ON]
+    }
+    ELSE
+    {
+	//
+    }
+}
 
 
 (***********************************************************)
@@ -771,6 +786,8 @@ WAIT 150
     ON [vdvDisplay_Four, POWER]
     ON [vdvDisplay_Five, POWER]
     ON [vdvDisplay_Six, POWER]
+    
+    fnCheckTVPwrStatusAll()
 }
 
 DEFINE_MODULE 'Sony_FHZ700L' PROJMODLEFT(vdvProjector_Left, dvProjector_Left);
@@ -1187,6 +1204,18 @@ BUTTON_EVENT [vdvTP_Main, BTN_TV_SINGLE_FOLLOW] //Single TV Controls
 		    }
 		}
 	    }
+	}
+    }
+}
+BUTTON_EVENT [vdvTP_Main, BTN_PREVIEW_EXT]
+BUTTON_EVENT [vdvTP_Main, BTN_PREVIEW_REC] //Switch Preview Source 
+{
+    PUSH :
+    {
+	SWITCH (BUTTON.INPUT.CHANNEL)
+	{
+	    CASE BTN_PREVIEW_EXT : fnRouteVideoPreview(VIDEO_PC_EXT)
+	    CASE BTN_PREVIEW_REC : fnRouteVideoPreview(VIDEO_RECORD)
 	}
     }
 }
