@@ -34,12 +34,9 @@ TL_FEEDBACK			= 1
 (***********************************************************)
 DEFINE_VARIABLE
 
-VOLATILE LONG lHourTimer
-VOLATILE LONG lMinuteTimer
 VOLATILE LONG lSecondTimer
-VOLATILE LONG lMinuteStamp //To Caputre Minute Mark
-VOLATILE LONG lHourStamp //To Capture Hour Mark
-
+VOLATILE INTEGER nMinuteStamp
+VOLATILE INTEGER nHourStamp
 
 VOLATILE LONG lFeedback[] = {1000}
 
@@ -50,37 +47,36 @@ VOLATILE LONG lFeedback[] = {1000}
 (* EXAMPLE: DEFINE_CALL '<NAME>' (<PARAMETERS>) *)
 DEFINE_FUNCTION fnStartTimer()
 {
-    lSecondTimer = (GET_TIMER /10)
-    lMinuteTimer = (GET_TIMER / 600)
-    lHourTimer = (GET_TIMER / 36000) 
     
-    lMinuteStamp = (lMinuteStamp + lMinuteTimer)
-    lHourStamp = (lHourStamp + lHourTimer)
+    lSecondTimer = (GET_TIMER / 10)
     
-    IF (lSecondTimer = 60) //MUst be a minute to capture lMinuteTimer!
+    IF (lSecondTimer = 60)
     {
-	SET_TIMER (10)
-	IF (lMinuteStamp = 60)
+	nMinuteStamp = (nMinuteStamp + 1)
+	
+	IF (nMinuteStamp = 60)
 	{
-	    lMinuteStamp = 0
+	    nHourStamp = (nHourStamp + 1)
+	    nMinuteStamp = 0
 	}
+	SET_TIMER (0)
     }
-    ELSE IF (lSecondTimer < 60) //Timer Started
+    ELSE IF (lSecondTimer < 60)
     {
-	SEND_COMMAND dvTP_Shure, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(lHourStamp),' Hr(s) : ',ITOA(lMinuteStamp),' Min : ',ITOA(lSecondTimer),' Second(s)'"
+	SEND_COMMAND dvTP_Shure, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(nHourStamp),' Hr(s) : ',ITOA(nMinuteStamp),' Min : ',ITOA(lSecondTimer),' Second(s)'"
     }
 }
 DEFINE_FUNCTION fnResetTimerToZero()
 {
-    lMinuteStamp = 0
-    lHourStamp = 0
+    nMinuteStamp = 0
+    nHourStamp = 0
     SET_TIMER (0)
-    SEND_COMMAND dvTP_Shure, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(lHourStamp),' Hr(s) : ',ITOA(lMinuteStamp),' Min : ',ITOA(lSecondTimer),' Second(s)'"
+    SEND_COMMAND dvTP_Shure, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(nHourStamp),' Hr(s) : ',ITOA(nMinuteStamp),' Min : ',ITOA(lSecondTimer),' Second(s)'"
 }
 DEFINE_FUNCTION fnPausedTimer()
 {
     SET_TIMER (lSecondTimer * 10)
-    SEND_COMMAND dvTP_Shure, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(lHourStamp),' Hr(s) : ',ITOA(lMinuteStamp),' Min : ',ITOA(lSecondTimer),' Second(s)'"
+    SEND_COMMAND dvTP_Shure, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(nHourStamp),' Hr(s) : ',ITOA(nMinuteStamp),' Min : ',ITOA(lSecondTimer),' Second(s)'"
 }
 
 
