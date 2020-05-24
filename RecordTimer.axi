@@ -37,7 +37,8 @@ DEFINE_VARIABLE
 VOLATILE LONG lHourTimer
 VOLATILE LONG lMinuteTimer
 VOLATILE LONG lSecondTimer
-VOLATILE LONG lMinuteStamp
+VOLATILE LONG lMinuteStamp //To Caputre Minute Mark
+VOLATILE LONG lHourStamp //To Capture Hour Mark
 
 
 VOLATILE LONG lFeedback[] = {1000}
@@ -54,26 +55,32 @@ DEFINE_FUNCTION fnStartTimer()
     lHourTimer = (GET_TIMER / 36000) 
     
     lMinuteStamp = (lMinuteStamp + lMinuteTimer)
+    lHourStamp = (lHourStamp + lHourTimer)
     
     IF (lSecondTimer = 60) //MUst be a minute to capture lMinuteTimer!
     {
 	SET_TIMER (10)
+	IF (lMinuteStamp = 60)
+	{
+	    lMinuteStamp = 0
+	}
     }
     ELSE IF (lSecondTimer < 60) //Timer Started
     {
-	SEND_COMMAND dvTP_Shure, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(lMinuteStamp),' Min : ',ITOA(lSecondTimer),' Second(s)'"
+	SEND_COMMAND dvTP_Shure, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(lHourStamp),' Hr(s) : ',ITOA(lMinuteStamp),' Min : ',ITOA(lSecondTimer),' Second(s)'"
     }
 }
 DEFINE_FUNCTION fnResetTimerToZero()
 {
     lMinuteStamp = 0
+    lHourStamp = 0
     SET_TIMER (0)
-    SEND_COMMAND dvTP_Shure, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(lMinuteStamp),' Min : ',ITOA(lSecondTimer),' Second(s)'"
+    SEND_COMMAND dvTP_Shure, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(lHourStamp),' Hr(s) : ',ITOA(lMinuteStamp),' Min : ',ITOA(lSecondTimer),' Second(s)'"
 }
 DEFINE_FUNCTION fnPausedTimer()
 {
     SET_TIMER (lSecondTimer * 10)
-    SEND_COMMAND dvTP_Shure, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(lMinuteStamp),' Min : ',ITOA(lSecondTimer),' Second(s)'"
+    SEND_COMMAND dvTP_Shure, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(lHourStamp),' Hr(s) : ',ITOA(lMinuteStamp),' Min : ',ITOA(lSecondTimer),' Second(s)'"
 }
 
 
