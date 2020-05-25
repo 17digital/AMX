@@ -47,13 +47,12 @@ VOLATILE LONG lFeedback[] = {1000}
 (* EXAMPLE: DEFINE_CALL '<NAME>' (<PARAMETERS>) *)
 DEFINE_FUNCTION fnStartTimer()
 {
-    
     lSecondTimer = (GET_TIMER / 10)
     
     IF (lSecondTimer = 60)
     {
 	nMinuteStamp = (nMinuteStamp + 1)
-	SEND_COMMAND dvTP_Shure, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(nHourStamp),' Hr(s) : ',ITOA(nMinuteStamp),' Min : 00 Second(s)'"
+	SEND_COMMAND dvTP_Shure, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(nHourStamp),' Hr(s) : ',ITOA(nMinuteStamp),' Min(s) : 00'"
 	
 	IF (nMinuteStamp = 60)
 	{
@@ -62,9 +61,13 @@ DEFINE_FUNCTION fnStartTimer()
 	}
 	SET_TIMER (0)
     }
-    ELSE IF (lSecondTimer < 60)
+    ELSE IF (lSecondTimer <10)
     {
-	SEND_COMMAND dvTP_Shure, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(nHourStamp),' Hr(s) : ',ITOA(nMinuteStamp),' Min : ',ITOA(lSecondTimer),' Second(s)'"
+	SEND_COMMAND dvTP_Shure, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(nHourStamp),' Hr(s) : ',ITOA(nMinuteStamp),' Min(s) : 0',ITOA(lSecondTimer)"
+    }
+    ELSE
+    {
+	SEND_COMMAND dvTP_Shure, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(nHourStamp),' Hr(s) : ',ITOA(nMinuteStamp),' Min(s) : ',ITOA(lSecondTimer)"
     }
 }
 DEFINE_FUNCTION fnResetTimerToZero()
@@ -72,12 +75,12 @@ DEFINE_FUNCTION fnResetTimerToZero()
     nMinuteStamp = 0
     nHourStamp = 0
     SET_TIMER (0)
-    SEND_COMMAND dvTP_Shure, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(nHourStamp),' Hr(s) : ',ITOA(nMinuteStamp),' Min : ',ITOA(lSecondTimer),' Second(s)'"
+   SEND_COMMAND dvTP_Shure, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(nHourStamp),' Hr(s) : ',ITOA(nMinuteStamp),' Min(s) : 0',ITOA(lSecondTimer)"
 }
 DEFINE_FUNCTION fnPausedTimer()
 {
     SET_TIMER (lSecondTimer * 10)
-    SEND_COMMAND dvTP_Shure, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(nHourStamp),' Hr(s) : ',ITOA(nMinuteStamp),' Min : ',ITOA(lSecondTimer),' Second(s)'"
+    SEND_COMMAND dvTP_Shure, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(nHourStamp),' Hr(s) : ',ITOA(nMinuteStamp),' Min(s) : ',ITOA(lSecondTimer)"
 }
 
 
