@@ -53,6 +53,7 @@ DEFINE_FUNCTION fnStartTimer()
     IF (lSecondTimer = 60)
     {
 	nMinuteStamp = (nMinuteStamp + 1)
+	SEND_COMMAND dvTP_Shure, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(nHourStamp),' Hr(s) : ',ITOA(nMinuteStamp),' Min : 00 Second(s)'"
 	
 	IF (nMinuteStamp = 60)
 	{
