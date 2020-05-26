@@ -26,36 +26,37 @@ CR 					= 13
 LF 					= 10
 #END_IF
 
-SET_ADDRESS_IP			= '172.21.1.21'
-SET_ADDRESS_SUB		= '255.255.252.0'
-SET_ADDRESS_GW		= '172.21.0.1'
-SET_DEVICE_NAME		= 'Room-B170'//First Character must be a letter
-SET_ADDRESS_DNS		= '130.207.244.251'
+SET_ADDRESS_IP			= '172.21.0.180' //ic 115
+SET_ADDRESS_SUB			= '255.255.252.0'
+SET_ADDRESS_GW			= '172.21.0.1'
+SET_DEVICE_NAME			= 'Room-115' //No Spaces + Must Start with Letter
+SET_ADDRESS_DNS			= '130.207.244.251'
 SET_REC_DESTINATION		= 3 //Set Recording Destination (2=Front 3=Rear 1=Internal)
-SET_VERBOSE_MODE		= 3 //Full Feedback Query
-SET_LOCATION			= 'Crosland Library' //Up to 64 Characters
+SET_VERBOSE_MODE			= 3
+SET_LOCATION				= 'Instructional Center' //Up to 64 Characters
 
-RECORDING_STOP		= 0
-RECORDING_START		= 1
-RECORDING_PAUSE		= 2
+RECORDING_STOP			= 0
+RECORDING_START			= 1
+RECORDING_PAUSE			= 2
 
-TL_STATUS				= 19 //Recording Pull Status
 
-PBP_UL				= 1 //Camera to side Small - Content Full (No Overlay)
-PBP_UR				= 2
-PBP_ML				= 3
-PBP_MR				= 4
-PIP_UL				= 5 //BG Fills entire Screen
-PIP_UR				= 6 //BG Fills entire Screen
-SIDE_SIDE				= 7
+TL_TIMER					= 19 //Recording Timer ID
+
+PBP_UL					= 1 //Camera to side Small - Content Full (No Overlay)
+PBP_UR					= 2
+PBP_ML					= 3
+PBP_MR					= 4
+PIP_UL						= 5 //BG Fills entire Screen
+PIP_UR						= 6 //BG Fills entire Screen
+SIDE_SIDE					= 7
 FULL_CONTENT			= 9 //FullScreen A
-FULL_CAMERA			= 10 //FullScreen B
+FULL_CAMERA				= 10 //FullScreen B
 
-//LockOut Modes.. Uncomment the ONLY one you want...
-LOCK_MODE			= 3 //Use Record Controls Only
-//LOCK_MODE			= 0 //Off
-//LOCK_MODE			= 2 //Menu Only
-//LOCK_MODE			= 1 //Complete Lockout
+//LockOut Modes.. Uncomment the one you want...
+LOCK_MODE				= 3 //Use Record Controls Only
+//LOCK_MODE				= 0 //Off
+//LOCK_MODE				= 2 //Menu Only
+//LOCK_MODE				= 1 //Complete Lockout
 
 
 //Buttons...
@@ -75,16 +76,21 @@ BTN_FULL_CONTENT		= 12
 BTN_FULL_CAMERA		= 13
 BTN_SWAP_SOURCE   		= 15
 
-TXT_REC_STATUS		= 10
+TXT_REC_STATUS		= 10 //Readable Text Return
 TXT_USB_STATUS		= 11
+TXT_TIMER		= 12 //Only holds timer
 
 DEFINE_VARIABLE
-VOLATILE CHAR nExBuffer[1000] //Temp Buffer
+
+VOLATILE LONG lSecondTimer
+VOLATILE INTEGER nMinuteStamp
+VOLATILE INTEGER nHourStamp
+
 
 DEV vdvTP_Capture[] = {dvTP_Recorder}
 
-VOLATILE CHAR cExtron_Buffer[1000]
-VOLATILE LONG lRecordStatus[] = {5000} //5 Second Pull...
+VOLATILE CHAR nExBuffer[100]
+VOLATILE LONG lRecordTimer[] = {1000} //1 Second Pull...
 
 VOLATILE INTEGER nRecSends[] =
 {
@@ -123,11 +129,10 @@ VOLATILE INTEGER nLayoutCall[] =
     FULL_CAMERA
 }
 
-
 DEFINE_MUTUALLY_EXCLUSIVE
 
-([vdvTP_Capture, BTN_PBP_UL]..[vdvTP_Capture, BTN_FULL_CAMERA])
-([vdvTP_Capture, BTN_REC_START]..[vdvTP_Capture, BTN_REC_STOP])
+([dvTP_Recorder, BTN_PBP_UL]..[dvTP_Recorder, BTN_FULL_CAMERA])
+([dvTP_Recorder, BTN_REC_START]..[dvTP_Recorder, BTN_REC_STOP])
 
 (***********************************************************)
 (*        SUBROUTINE/FUNCTION DEFINITIONS GO BELOW         *)
@@ -136,15 +141,15 @@ DEFINE_MUTUALLY_EXCLUSIVE
 (* EXAMPLE: DEFINE_CALL '<NAME>' (<PARAMETERS>) *) 
 DEFINE_FUNCTION fnQueryStatus()
 {
-    SEND_STRING dvExtronRec, "$1B,'D',ITOA(SET_REC_DESTINATION),'RCDR',CR"
-
+    SEND_STRING dvExtronRec, "$1B,'D',ITOA(SET_REC_DESTINATION),'RCDR',CR" //Default Location
+    
     WAIT 20 SEND_STRING dvExtronRec, "ITOA(LOCK_MODE),'X',CR"
     WAIT 30 SEND_STRING dvExtronRec, "$1B,ITOA(SET_VERBOSE_MODE),'CV',CR" 
-    WAIT 40 SEND_STRING dvExtronRec, "$1B,'1*',SET_ADDRESS_IP,'*',SET_ADDRESS_SUB,'*',SET_ADDRESS_GW,'CISG',CR"
-    WAIT 50 SEND_STRING dvExtronRec, "$1B,SET_ADDRESS_DNS,'DI',CR" 
-    WAIT 60 SEND_STRING dvExtronRec, "$1B,SET_DEVICE_NAME,'CN',CR"
-    WAIT 70 SEND_STRING dvExtronRec, "$1B,'L',SET_LOCATION,'SNMP',CR"
-    WAIT 100 SEND_STRING dvExtronRec, "$1B,'YRCDR',CR" //Record Status
+    WAIT 50 SEND_STRING dvExtronRec, "$1B,'1*',SET_ADDRESS_IP,'*',SET_ADDRESS_SUB,'*',SET_ADDRESS_GW,'CISG',CR"
+    WAIT 60 SEND_STRING dvExtronRec, "$1B,SET_ADDRESS_DNS,'DI',CR" 
+    WAIT 70 SEND_STRING dvExtronRec, "$1B,SET_DEVICE_NAME,'CN',CR"
+    WAIT 80 SEND_STRING dvExtronRec, "$1B,'L',SET_LOCATION,'SNMP',CR"
+    WAIT 100 SEND_STRING dvExtronRec, "$1B,'YRCDR',CR" //Record StatusP',CR"
 }
 DEFINE_FUNCTION fnParseExtron()
 {
@@ -190,33 +195,41 @@ DEFINE_FUNCTION fnParseExtron()
 		    {
 			ON [vdvTP_Capture, BTN_REC_START]
 			SEND_STRING dvExtronRec, "'36I',CR" //Get USB Info
-			SEND_STRING dvExtronRec, "'35I',CR" //Record Timer...
-			//Start Timer~Timeline...
-			IF (TIMELINE_ACTIVE(TL_STATUS))
+			
+			//RecStart05
+			//RecStart04
+			//RecStart03
+			//RecStart02
+			//RecStart01
+			
+			//SEND_STRING dvExtronRec, "'35I',CR" //Record Timer...
+			IF (TIMELINE_ACTIVE(TL_TIMER))
 			{
-			    TIMELINE_RESTART(TL_STATUS)
+			    fnPausedTimer()
+			    TIMELINE_RESTART(TL_TIMER)
 			}
 			ELSE
 			{
-			    TIMELINE_CREATE(TL_STATUS,lRecordStatus,LENGTH_ARRAY(lRecordStatus),TIMELINE_ABSOLUTE,TIMELINE_REPEAT);
+			    fnResetTimerToZero()
+			    TIMELINE_CREATE(TL_TIMER,lRecordTimer,LENGTH_ARRAY(lRecordTimer),TIMELINE_ABSOLUTE,TIMELINE_REPEAT);
 			}
-			SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_REC_STATUS),',0,Recording Started'" 
+			SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_REC_STATUS),',0,Recording Started!'" 
 		    }
 		    CASE 2 :
 		    {
 			ON [vdvTP_Capture, BTN_REC_PAUSE]
 			SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_REC_STATUS),',0,Recording Paused'" 
 			
-			IF (TIMELINE_ACTIVE(TL_STATUS))
+			IF (TIMELINE_ACTIVE(TL_TIMER))
 			{
-			    TIMELINE_PAUSE(TL_STATUS)
+			    TIMELINE_PAUSE(TL_TIMER)
 			}
 		    }
 		    CASE 0 :
 		    {
 			ON [vdvTP_Capture, BTN_REC_STOP]
 
-			TIMELINE_KILL(TL_STATUS)
+			TIMELINE_KILL(TL_TIMER)
 			SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_REC_STATUS),',0,Recording Stopped'" 
 			WAIT 50
 			{
@@ -234,12 +247,12 @@ DEFINE_FUNCTION fnParseExtron()
 		IF(FIND_STRING(cUsbname,'usbrear/',1))
 		{
 		    REMOVE_STRING(cUsbname,'usbrear/',1)
-		    SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_USB_STATUS),',0,',cUsbname"
+		    SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_USB_STATUS),',0,Found : ',cUsbname"
 		}
 		IF(FIND_STRING(cUsbname,'usbfront/',1))
 		{
 		    REMOVE_STRING(cUsbname,'usbfront/',1)
-		    SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_USB_STATUS),',0,',cUsbname"
+		    SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_USB_STATUS),',0,Found : ',cUsbname"
 		}
 		IF (FIND_STRING(cUsbname,'N/A 00:00:00',1))
 		{
@@ -251,7 +264,7 @@ DEFINE_FUNCTION fnParseExtron()
 		REMOVE_STRING(cMsgs,'Inf35*',1)
 		cTimer = cMsgs //~should be left with time counter
 		
-		SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_USB_STATUS),',0,',cTimer"
+		//SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_USB_STATUS),',0,',cTimer"
 	    }	    
 	    ACTIVE(FIND_STRING(cMsgs,'E13',1)):
 	    {
@@ -284,6 +297,52 @@ DEFINE_FUNCTION fnRecordSwitch(INTEGER cIn)
 {
     SEND_STRING dvExtronRec, "$1B,'Y',ITOA(cIn),'RCDR',CR"
 }
+DEFINE_FUNCTION fnStartTimer()
+{
+    lSecondTimer = (GET_TIMER / 10)
+    
+    IF (lSecondTimer = 60)
+    {
+	nMinuteStamp = (nMinuteStamp + 1)
+	SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(nHourStamp),' Hr(s) : ',ITOA(nMinuteStamp),' Min(s) : 00'"
+	
+	IF (nMinuteStamp = 60)
+	{
+	    nHourStamp = (nHourStamp + 1)
+	    nMinuteStamp = 0
+	}
+	SET_TIMER (0)
+    }
+    ELSE IF (lSecondTimer <10)
+    {
+	SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(nHourStamp),' Hr(s) : ',ITOA(nMinuteStamp),' Min(s) : 0',ITOA(lSecondTimer)"
+    }
+    ELSE
+    {
+	SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(nHourStamp),' Hr(s) : ',ITOA(nMinuteStamp),' Min(s) : ',ITOA(lSecondTimer)"
+    }
+}
+DEFINE_FUNCTION fnResetTimerToZero()
+{
+    nMinuteStamp = 0
+    nHourStamp = 0
+    SET_TIMER (0)
+   SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(nHourStamp),' Hr(s) : ',ITOA(nMinuteStamp),' Min(s) : 00'"
+}
+DEFINE_FUNCTION fnPausedTimer()
+{
+    SET_TIMER (lSecondTimer * 10)
+    
+    IF (lSecondTimer < 10)
+    {
+	SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(nHourStamp),' Hr(s) : ',ITOA(nMinuteStamp),' Min(s) : 0',ITOA(lSecondTimer)"
+    }
+    ELSE
+    {
+	SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(nHourStamp),' Hr(s) : ',ITOA(nMinuteStamp),' Min(s) : ',ITOA(lSecondTimer)"
+    }
+    
+}
 
 DEFINE_START
 
@@ -297,7 +356,6 @@ DATA_EVENT [dvExtronRec]
 	SEND_COMMAND DATA.DEVICE, "'SET BAUD 9600,N,8,1'"
 	SEND_COMMAND DATA.DEVICE, "'RXON'"
 	SEND_COMMAND DATA.DEVICE, "'HSOFF'"
-	
 	WAIT 100
 	{
 	    fnQueryStatus()
@@ -336,18 +394,19 @@ BUTTON_EVENT [vdvTP_Capture, BTN_SWAP_SOURCE] //Swap Sources...
 	 SEND_STRING dvExtronRec, "'%',CR"
     }
 }
-TIMELINE_EVENT [TL_STATUS]
+TIMELINE_EVENT [TL_TIMER]
 {
-    SEND_STRING dvExtronRec, "'35I',CR" //Record Timer...
+    fnStartTimer() //Record Timer...
 }
-TIMELINE_EVENT[TL_FEEDBACK]
+TIMELINE_EVENT [TL_FEEDBACK] //Feedback...
 {
-    WAIT 100
+    
+    WAIT 100 //Get USB Status...
     {
 	SEND_STRING dvExtronRec, "'36I',CR" 
     }
     
-    WAIT ONE_MINUTE //Defined in Main source
+    WAIT 3500
     {
 	SEND_STRING dvExtronRec, "$1B,ITOA(SET_VERBOSE_MODE),'CV',CR"
     }
