@@ -372,13 +372,14 @@ BUTTON_EVENT [dvTP_Router, BTN_DGX_OUT_16]
     {
 	
 	    nSelectOutput_ = BUTTON.INPUT.CHANNEL - 3000
+	     ON [dvTP_Router, BUTTON.INPUT.CHANNEL]
 	    
 	    WAIT 5
 	    {
 		IF (nSelectInput_ > 0) //Must be something there...
 		{
 		    fnDGXSwitchIO(nSelectInput_, nSelectOutput_)
-		    ON [dvTP_Router, BUTTON.INPUT.CHANNEL]
+		   
 		}
 	    }
 	    WAIT 20
@@ -387,6 +388,7 @@ BUTTON_EVENT [dvTP_Router, BTN_DGX_OUT_16]
 		OFF [nSelectOutput_]
 		    TOTAL_OFF [dvTP_Router, nDgxInputBtns]
 		    TOTAL_OFF [dvTP_Router, nDgxOutputBtns]
+		    fnReadDGXRoutes() //may or may not need this. Feedback should be automatic
 	    }
     }
 }
@@ -404,35 +406,31 @@ DATA_EVENT [dvDGX]
 {
     ONLINE :
     {
-	WAIT 250
-	{
-	    fnLoadDGXVideoLabels()
-	    WAIT 50
-	    {
-		fnLoadDGXAudioLabels()
-	    }
-	}
+	WAIT 250 fnLoadDGXVideoLabels()
+	WAIT 300 fnLoadDGXAudioLabels()
+	    
+	WAIT 350 fnReadDGXRoutes()
     }
     COMMAND : //Parsing to Read Current Routes...
     {
-	CHAR cInput[5]
-	STACK_VAR INTEGER cOutput
-	INTEGER cInSource 
-	CHAR cData[20]
+	LOCAL_VAR CHAR cInput[5]
+	LOCAL_VAR INTEGER cOutput
+	LOCAL_VAR INTEGER cInSource 
+	CHAR cGotIt[20]
 	
-	cData = DATA.TEXT
+	cGotIt = DATA.TEXT
 	
 	SELECT
 	{
-	    ACTIVE (FIND_STRING(cData,"'SWITCH-LVIDEOI'",1)): //Parse Input Changes to Read what is selected
+	    ACTIVE (FIND_STRING(cGotIt,"'SWITCH-LVIDEOI'",1)): //Parse Input Changes to Read what is selected
 	    {
-		REMOVE_STRING(cData,"'SWITCH-LVIDEOI'",1)
+		REMOVE_STRING(cGotIt,"'SWITCH-LVIDEOI'",1)
 		
-		cInput = cData //Should Read #O##
+		cInput = cGotIt //Should Read #O##
 		
-		REMOVE_STRING(cData,"'O'",1) //Should only be left with Output #
+		REMOVE_STRING(cGotIt,"'O'",1) //Should only be left with Output #
 		
-		cOutput = ATOI(cData)
+		cOutput = ATOI(cGotIt)
 		
 		SWITCH (cOutput)
 		{
@@ -448,7 +446,7 @@ DATA_EVENT [dvDGX]
 		    {
 			cInput = LEFT_STRING(cInput,LENGTH_STRING(cInput)-2)
 			cInSource = ATOI(cInput)
-			    SEND_COMMAND dvTP_Router, "'^TXT-',ITOA(nDgxReadBtns[cInSource]),',0,',nDgxInputNames[cOutput]"
+			    SEND_COMMAND dvTP_Router, "'^TXT-',ITOA(nDgxReadBtns[cOutput]),',0,',nDgxInputNames[cInSource]"
 		    }
 		    CASE 10 :
 		    CASE 11 :
@@ -460,7 +458,7 @@ DATA_EVENT [dvDGX]
 		    {
 			cInput = LEFT_STRING(cInput,LENGTH_STRING(cInput)-3)
 			cInSource = ATOI(cInput)
-			    SEND_COMMAND dvTP_Router, "'^TXT-',ITOA(nDgxReadBtns[cInSource]),',0,',nDgxInputNames[cOutput]"
+			    SEND_COMMAND dvTP_Router, "'^TXT-',ITOA(nDgxReadBtns[cOutput]),',0,',nDgxInputNames[cInSource]"
 		    }
 		}
 	    }
