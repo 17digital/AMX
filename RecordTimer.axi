@@ -47,7 +47,8 @@ VOLATILE LONG lFeedback[] = {1000}
 (* EXAMPLE: DEFINE_CALL '<NAME>' (<PARAMETERS>) *)
 DEFINE_FUNCTION fnStartTimer()
 {
-    lSecondTimer = (GET_TIMER / 10)
+    //lSecondTimer = (GET_TIMER / 10) //Pulls from NX-Master
+    lSecondTimer = lSecondTimer + 1 //Use Plain math for same results
     
     IF (lSecondTimer = 60)
     {
@@ -59,7 +60,8 @@ DEFINE_FUNCTION fnStartTimer()
 	    nHourStamp = (nHourStamp + 1)
 	    nMinuteStamp = 0
 	}
-	SET_TIMER (0)
+	//SET_TIMER (0)
+	lSecondTimer = 0
     }
     ELSE IF (lSecondTimer <10)
     {
@@ -74,12 +76,14 @@ DEFINE_FUNCTION fnResetTimerToZero()
 {
     nMinuteStamp = 0
     nHourStamp = 0
-    SET_TIMER (0)
+    //SET_TIMER (0)
+    lSecondTimer = 0
    SEND_COMMAND dvTP_Shure, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(nHourStamp),' Hr(s) : ',ITOA(nMinuteStamp),' Min(s) : 00'"
 }
 DEFINE_FUNCTION fnPausedTimer()
 {
-    SET_TIMER (lSecondTimer * 10)
+    //SET_TIMER (lSecondTimer * 10)
+    lSecondTimer = lSecondTimer + 1
     
     IF (lSecondTimer < 10)
     {
