@@ -34,7 +34,7 @@ TL_FEEDBACK			= 1
 (***********************************************************)
 DEFINE_VARIABLE
 
-VOLATILE LONG lSecondTimer
+VOLATILE INTEGER lSecondTimer
 VOLATILE INTEGER nMinuteStamp
 VOLATILE INTEGER nHourStamp
 
