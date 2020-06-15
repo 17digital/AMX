@@ -90,16 +90,16 @@ Volume_Down_Single			= -1
 Volume_Down_Multiple			= -3
 
 //DVX Video Channels
-VIDEO_PC_MAIN 				= 1 //DVI
-VIDEO_PC_EXTENDED 			= 2 //DVI
-VIDEO_VGA					= 3 //DVI
-VIDEO_DOC_CAM				= 4 //DVI
-VIDEO_HDMI				= 5 //HDMI
-VIDEO_MERSIVE				= 6 //HDMI
-VIDEO_TUNER				= 7 //HDMI
-VIDEO_DL_1				= 8 //HDMI
-VIDEO_DL_2				= 9 //DxLink
-VIDEO_DL_3				= 10 //10 DxLink
+VIDEO_PC_MAIN 				= 1 
+VIDEO_PC_EXTENDED 			= 2 
+VIDEO_VGA				= 3 
+VIDEO_DOC_CAM				= 4 
+VIDEO_HDMI				= 5 
+VIDEO_MERSIVE				= 6 
+VIDEO_TUNER				= 7 
+VIDEO_DL_1				= 8 
+VIDEO_DL_2				= 9 
+VIDEO_DL_3				= 10 
 
 //DVX Audio Channels
 AUDIO_INPUT_11				= 11 //Input 11
@@ -114,20 +114,8 @@ MICROPHONE_MIX_2			= 43
 MAX_LEVEL_OUT				= 80 //Output Audio Level (0-100)
 
 OUT_PROJECTOR_LEFT			= 1
-OUT_PROJECTOR_RIGHT		= 3
+OUT_PROJECTOR_RIGHT			= 3
 OUT_AUDIO_MIX				= 2
-
-//DVX Inputs...
-VIDINPUT_1				= 'Desktop Main'
-VIDINPUT_2				= 'Desktop Ext'
-VIDINPUT_3				= 'Source VGA'
-VIDINPUT_4				= 'Doc Cam'
-VIDINPUT_5				= 'Source HDMI'
-VIDINPUT_6				= 'Mersive'
-VIDINPUT_7				= 'Not Used'
-VIDINPUT_8				= 'Not Used'
-VIDINPUT_9				= 'Not Used'
-VIDINPUT_10				= 'Not Used'
 
 //DXLink Calls...
 SET_MUTE_ON				= 'ENABLE'
@@ -206,7 +194,7 @@ BTN_SX80_L				= 17
 
 BTN_PC_MAIN_R				= 111
 BTN_PC_EXT_R				= 112
-BTN_VGA_R					= 113
+BTN_VGA_R				= 113
 BTN_HDMI_R				= 114
 BTN_DOCCAM_R				= 115
 BTN_MERSIVE_R				= 116
@@ -269,22 +257,6 @@ VOLATILE LONG lTLFeedback[] = {500}
 VOLATILE LONG lTLFlash[] = {1000} 
 VOLATILE INTEGER iFLASH 
 
-VOLATILE CHAR cPopup_Names[][16] = //Matches the Names on Actual Touch panel file!
-{
-    '_help me',
-    '_volume',
-    '_dvd',
-    '_lighting'
-}
-VOLATILE INTEGER nPopupBtns[] =
-{
-    1001, //Help...
-    1002, //mics
-    1003,  //volume
-    1004,  //
-    1005
-}
-
 VOLATILE INTEGER nVideoSources[] = 
 {
     VIDEO_PC_MAIN, 
@@ -328,6 +300,45 @@ VOLATILE INTEGER nAudioFBBtns[] =
     BTN_AUDIO_HDMI,			
     BTN_AUDIO_MERSIVE
 }   
+VOLATILE CHAR nDvxInputNames[10][31] =
+{
+    'Not Used',
+    'Not Used',
+    'Mersive Pod',
+    'Desktop',
+    'Table Source',
+    'Not Used',
+    'Input 7',
+    'Input 8',
+    'Input 9',
+    'Input 10'
+}
+VOLATILE DEV dcDVXVideoSlots[] =
+{
+    dvVIDEOIN_1,
+    dvVIDEOIN_2,
+    dvVIDEOIN_3,
+    dvVIDEOIN_4,
+    dvVIDEOIN_5,
+    dvVIDEOIN_6,
+    dvVIDEOIN_7,
+    dvVIDEOIN_8,
+    dvVIDEOIN_9,
+    dvVIDEOIN_10
+}
+VOLATILE CHAR nDvxInputEDID[10][15] =
+{ 
+    '1920x1080,60',
+    '1920x1080,60',
+    '1920x1080,60',
+    '1920x1080,60',
+    '1920x1080p,60',
+    '1280x720,60',
+    '1280x720,60',
+    '1280x720p,60',
+    '1920x1080p,60',
+    '1920x1080,60'
+}
 
 (***********************************************************)
 (*               LATCHING DEFINITIONS GO BELOW             *)
@@ -353,40 +364,63 @@ DEFINE_MUTUALLY_EXCLUSIVE
 (***********************************************************)
 (* EXAMPLE: DEFINE_FUNCTION <RETURN_TYPE> <NAME> (<PARAMETERS>) *)
 (* EXAMPLE: DEFINE_CALL '<NAME>' (<PARAMETERS>) *)
+DEFINE_FUNCTION fnLoadDVXVideoLabels()
+{
+    STACK_VAR INTEGER cLoop
+    
+    FOR (cLoop=1; cLoop<=MAX_LENGTH_ARRAY(dcDVXVideoSlots); cLoop++)
+    {
+	SEND_COMMAND dcDVXVideoSlots[cLoop], "'VIDIN_NAME-',nDvxInputNames[cLoop]"
+
+    }
+}
+DEFINE_FUNCTION fnLoadDVXEdids()
+{
+    STACK_VAR INTEGER cLoop
+    
+    FOR (cLoop=1; cLoop<=MAX_LENGTH_ARRAY(nDvxInputEDID); cLoop++)
+    {
+	SEND_COMMAND dcDVXVideoSlots[cLoop], "'VIDIN_PREF_EDID-',nDvxInputEDID[cLoop]"
+    }
+}
 DEFINE_FUNCTION fnDVXPull()
 {
-    WAIT 10 SEND_COMMAND dvDvxSwitcher, "'?INPUT-VIDEO,',ITOA(OUT_PROJECTOR_LEFT)" //Get INput of 1
-    WAIT 20 SEND_COMMAND dvDvxSwitcher, "'?INPUT-VIDEO,',ITOA(OUT_PROJECTOR_RIGHT)" //Get Input of 3
+    WAIT 10 SEND_COMMAND dvDvxSwitcher, "'?INPUT-VIDEO,',ITOA(OUT_PROJECTOR_LEFT)" 
+    WAIT 20 SEND_COMMAND dvDvxSwitcher, "'?INPUT-VIDEO,',ITOA(OUT_PROJECTOR_RIGHT)"
     WAIT 30 SEND_COMMAND dvDvxSwitcher, "'?INPUT-AUDIO,',ITOA(OUT_AUDIO_MIX)"
+}
+DEFINE_FUNCTION fnSetAudioLevels()
+{
+    WAIT 10 SEND_LEVEL dvProgram,OUTPUT_VOLUME,MAX_LEVEL_OUT
+    WAIT 20 CALL 'PROGRAM PRESET'
+    WAIT 30 SEND_LEVEL dvProgram,MICROPHONE_MIX_1,-100 //Turn Off to Front
+    WAIT 40 SEND_LEVEL dvProgram,MICROPHONE_MIX_2,-100 //Turn Off to Front
+}
+DEFINE_CALL 'DVX INPUT SETUP' //Setup Input Names...
+{
+    fnDVXPull()
     
-    WAIT 40 SEND_LEVEL dvProgram,OUTPUT_VOLUME,MAX_LEVEL_OUT
-    WAIT 50 CALL 'PROGRAM PRESET'
-    WAIT 60 SEND_LEVEL dvProgram,MICROPHONE_MIX_1,-100 //Turn Off to Front
-    WAIT 70 SEND_LEVEL dvProgram,MICROPHONE_MIX_2,-100 //Turn Off to Front
-    
-    WAIT 150 //Allow Network traffic to pass thru DxLink Outs...
+    WAIT 50
     {
-	SEND_COMMAND dvAVOUTPUT1, "'DXLINK_ETH-auto'"
-	SEND_COMMAND dvAVOUTPUT3, "'DXLINK_ETH-auto'"
-	
-	SEND_COMMAND dvVIDEOIN_9, "'DXLINK_IN_ETH-auto'"
+	fnSetAudioLevels()
     }
+    WAIT 150
+    {
+	fnLoadDVXEdids()
+    }
+    //Turn on Network Traffic...
     WAIT 250
     {
-	SEND_COMMAND dvVIDEOIN_1, "'VIDIN_NAME-',VIDINPUT_1"
-	SEND_COMMAND dvVIDEOIN_2, "'VIDIN_NAME-',VIDINPUT_2"
-	SEND_COMMAND dvVIDEOIN_3, "'VIDIN_NAME-',VIDINPUT_3"
-	SEND_COMMAND dvVIDEOIN_4, "'VIDIN_NAME-',VIDINPUT_4"
-	SEND_COMMAND dvVIDEOIN_5, "'VIDIN_NAME-',VIDINPUT_5"
-	SEND_COMMAND dvVIDEOIN_6, "'VIDIN_NAME-',VIDINPUT_6"
-	SEND_COMMAND dvVIDEOIN_7, "'VIDIN_NAME-',VIDINPUT_7"
-	SEND_COMMAND dvVIDEOIN_8, "'VIDIN_NAME-',VIDINPUT_8"
-	SEND_COMMAND dvVIDEOIN_9, "'VIDIN_NAME-',VIDINPUT_9"
-	SEND_COMMAND dvVIDEOIN_10, "'VIDIN_NAME-',VIDINPUT_10"
+	SEND_COMMAND dvVIDEOIN_9, "'DXLINK_IN_ETH-auto'"
+	SEND_COMMAND dvVIDEOIN_10, "'DXLINK_IN_ETH-auto'"
+	SEND_COMMAND dvAVOUTPUT1, "'DXLINK_ETH-auto'"
+	SEND_COMMAND dvAVOUTPUT3, "'DXLINK_ETH-auto'"
     }
-
-
-}
+    WAIT 300
+    {
+	fnLoadDVXVideoLabels()
+    }
+}   
 DEFINE_FUNCTION fnKill()
 {
     IF (TIME = TIME_KILL)
