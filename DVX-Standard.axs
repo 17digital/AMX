@@ -63,10 +63,10 @@ vdvProjector_right =		35012:1:0 //
 
 
 dvProjector_left 		=	6001:1:0 // Ties in Duet Module
-dvDxlink_left		=	6001:6:0	//DxLink Left -commands use Port 6
+dvProjector_dxLeft		=	6001:6:0	//DxLink Left -commands use Port 6
 
 dvProjector_right		=	6002:1:0 // Ties in Duet Modules
-dvDxlink_right		=	6002:6:0	//DxLink Right - connected to Right Projector
+dvProjector_dxRight		=	6002:6:0	//DxLink Right - connected to Right Projector
 
 
 (***********************************************************)
@@ -91,7 +91,7 @@ Volume_Down_Multiple			= -3
 
 //DVX Video Channels
 VIDEO_PC_MAIN 				= 1 
-VIDEO_PC_EXTENDED 			= 2 
+VIDEO_PC_EXT    			= 2 
 VIDEO_VGA				= 3 
 VIDEO_DOC_CAM				= 4 
 VIDEO_HDMI				= 5 
@@ -237,11 +237,10 @@ BTN_ONLINE_R			= 611
 (***********************************************************)
 DEFINE_VARIABLE
 
-DEV vdvTP_Main[] = {dvTP_MAIN}
-
 VOLATILE INTEGER nSourceLeft
 VOLATILE INTEGER nSourceRight
 VOLATILE INTEGER nSourceAudio
+VOLATILE INTEGER nBootup_
 
 VOLATILE SINTEGER nProgram_Level
 VOLATILE SINTEGER nProgram_Level_Preset = -40
@@ -251,11 +250,11 @@ VOLATILE SINTEGER nMicrophone_Level
 VOLATILE SINTEGER nMicrophone_Level_Preset = -40
 VOLATILE SINTEGER nMicrophone_Hold
 
-
-VOLATILE INTEGER nPop
 VOLATILE LONG lTLFeedback[] = {500}
 VOLATILE LONG lTLFlash[] = {1000} 
 VOLATILE INTEGER iFLASH 
+
+DEV vdvTP_Main[] = {dvTP_MAIN}
 
 VOLATILE INTEGER nVideoSources[] = 
 {
@@ -354,7 +353,7 @@ DEFINE_MUTUALLY_EXCLUSIVE
 ([dvTP_Main, nVideoLeftBtns[1]]..[dvTP_Main, nVideoLeftBtns[5]])
 ([dvTP_Main, nVideoRightBtns[1]]..[dvTP_Main, nVideoRightBtns[5]])
 
-([dvTP_Main, nAudioFBBtns[1]]..[dvTP_Main, nAudioFBBtns[5]])
+([dvTP_Main, BTN_AUDIO_PC]..[dvTP_Main, BTN_AUDIO_MERSIVE])
 
 ([dvTP_Main, BTN_PWR_ON_L],[dvTP_Main, BTN_PWR_OFF_L])
 ([dvTP_Main, BTN_PWR_ON_R],[dvTP_Main, BTN_PWR_OFF_R])
@@ -387,14 +386,20 @@ DEFINE_FUNCTION fnDVXPull()
 {
     WAIT 10 SEND_COMMAND dvDvxSwitcher, "'?INPUT-VIDEO,',ITOA(OUT_PROJECTOR_LEFT)" 
     WAIT 20 SEND_COMMAND dvDvxSwitcher, "'?INPUT-VIDEO,',ITOA(OUT_PROJECTOR_RIGHT)"
-    WAIT 30 SEND_COMMAND dvDvxSwitcher, "'?INPUT-AUDIO,',ITOA(OUT_AUDIO_MIX)"
+    WAIT 30 SEND_COMMAND dvDvxSwitcher, "'?INPUT-AUDIO,',ITOA(AUDIO_OUT_MAIN)"
 }
 DEFINE_FUNCTION fnSetAudioLevels()
 {
     WAIT 10 SEND_LEVEL dvProgram,OUTPUT_VOLUME,MAX_LEVEL_OUT
-    WAIT 20 CALL 'PROGRAM PRESET'
-    WAIT 30 SEND_LEVEL dvProgram,MICROPHONE_MIX_1,-100 //Turn Off to Front
-    WAIT 40 SEND_LEVEL dvProgram,MICROPHONE_MIX_2,-100 //Turn Off to Front
+    WAIT 20 SEND_LEVEL dvProgram,PROGRAM_MIX,nProgram_Level_Preset
+    WAIT 30 SEND_LEVEL dvMicrophone1,MICROPHONE_MIX_1,nMicrophone_Level_Preset
+    WAIT 40 SEND_LEVEL dvMicrophone2,MICROPHONE_MIX_2,-100 //Turn Off to Front
+    
+    //Set Audio Out to Vaddio Bridge...
+    WAIT 50 SEND_LEVEL dvAVOUTPUT3,OUTPUT_VOLUME,MAX_LEVEL_OUT
+    WAIT 60 SEND_LEVEL dvAVOUTPUT3,PROGRAM_MIX,-100
+    WAIT 70 SEND_LEVEL dvAVOUTPUT3,MICROPHONE_MIX_1,-15 
+    WAIT 80 SEND_LEVEL dvAVOUTPUT3,MICROPHONE_MIX_2,-100
 }
 DEFINE_CALL 'DVX INPUT SETUP' //Setup Input Names...
 {
@@ -427,8 +432,8 @@ DEFINE_FUNCTION fnKill()
     {
     	IF ([vdvProjector_Left, POWER] || [vdvProjector_Right, POWER])
 	{
-		fnProjectorPower('LEFTOFF')
-		fnProjectorPower('RIGHTOFF')
+	    fnPowerDisplays (BTN_PWR_OFF_L)
+		fnPowerDisplays (BTN_PWR_OFF_R)
 	}
     }
 }
@@ -439,9 +444,9 @@ DEFINE_FUNCTION fnReboot()
 	REBOOT (dvMaster)
     }
 }
-DEFINE_FUNCTION fnSCREEN(INTEGER cCmd)
+DEFINE_FUNCTION fnSCREEN(INTEGER nToggle) //Function Screen Up or Down
 {
-    PULSE [dvRelays, cCmd]
+    PULSE [dvRelays, nToggle]
 }
 DEFINE_FUNCTION fnMuteProjector(DEV cDevice, CHAR cState[MAX_VAL])
 {
@@ -455,10 +460,6 @@ DEFINE_FUNCTION fnMuteCheck(DEV cDevice)
 {
     SEND_COMMAND cDevice, "'?VIDOUT_MUTE'"
 }
-DEFINE_CALL 'PROGRAM PRESET'
-{
-    SEND_LEVEL dvProgram,PROGRAM_MIX,nProgram_Level_Preset
-}
 DEFINE_CALL 'PROGRAM MUTE'
 {
     IF (![vdvTP_Main, BTN_PRGM_MUTE]) 
@@ -468,17 +469,13 @@ DEFINE_CALL 'PROGRAM MUTE'
     }
     ELSE IF (nProgram_Hold = 0)
     {
-	CALL 'PROGRAM PRESET'
+	SEND_LEVEL dvProgram,PROGRAM_MIX,nProgram_Level_Preset
     }
     ELSE
     {
 	nProgram_Level = nProgram_Hold
 	SEND_LEVEL dvProgram,PROGRAM_MIX,nProgram_Level
     }
-}
-DEFINE_CALL 'MICROPHONE PRESET'
-{
-    SEND_LEVEL dvMicrophone1,MICROPHONE_MIX_1,nMicrophone_Level_Preset
 }
 DEFINE_CALL 'MICROPHONE MUTE'
 {
@@ -489,7 +486,7 @@ DEFINE_CALL 'MICROPHONE MUTE'
 	}
 	ELSE IF (nMicrophone_Hold = 0)
 	{
-	    CALL 'MICROPHONE PRESET'
+	    SEND_LEVEL dvMicrophone1,MICROPHONE_MIX_1,nMicrophone_Level_Preset
 	}
 	ELSE
 	{
@@ -497,52 +494,70 @@ DEFINE_CALL 'MICROPHONE MUTE'
 	    SEND_LEVEL dvMicrophone1,MICROPHONE_MIX_1,nMicrophone_Level
 	}
 }
-DEFINE_FUNCTION fnRouteVideoRm (INTEGER cIn, INTEGER cOut)
+DEFINE_FUNCTION fnRouteVideoLeft(INTEGER cIn)
 {
-    SEND_COMMAND dvDvxSwitcher, "'VI',ITOA(cIn),'O',ITOA(cOut)"
+    SEND_COMMAND dvDvxSwitcher, "'VI',ITOA(cIn),'O',ITOA(OUT_PROJECTOR_LEFT)" 
     
     SWITCH (cIn)
     {
 	CASE VIDEO_PC_MAIN :
-	CASE VIDEO_PC_EXTENDED :
+	CASE VIDEO_PC_EXT :
 	{
-	    SEND_COMMAND dvDvxSwitcher, "'AI',ITOA(VIDEO_PC_MAIN),'O',ITOA(OUT_AUDIO_MIX)"
+	    SEND_COMMAND dvDvxSwitcher, "'AI',ITOA(VIDEO_PC_MAIN),'O',ITOA(AUDIO_OUT_MAIN)"
 	}
+	CASE VIDEO_VGA :
 	CASE VIDEO_HDMI :
-	CASE VIDEO_MERSIVE :
 	{
-	    SEND_COMMAND dvDvxSwitcher, "'AI',ITOA(cIn),'O',ITOA(OUT_AUDIO_MIX)"
+	    SEND_COMMAND dvDvxSwitcher, "'AI',ITOA(cIn),'O',ITOA(AUDIO_OUT_MAIN)"
 	}
     }
 }
-DEFINE_FUNCTION fnProjectorPower (CHAR cPwr[9])
+DEFINE_FUNCTION fnRouteVideoRight(INTEGER cIn)
+{
+    SEND_COMMAND dvDvxSwitcher, "'VI',ITOA(cIn),'O',ITOA(OUT_PROJECTOR_RIGHT)" 
+    
+    SWITCH (cIn)
+    {
+	CASE VIDEO_PC_MAIN :
+	CASE VIDEO_PC_EXT :
+	{
+	    SEND_COMMAND dvDvxSwitcher, "'AI',ITOA(VIDEO_PC_MAIN),'O',ITOA(AUDIO_OUT_MAIN)"
+	}
+	CASE VIDEO_VGA :
+	CASE VIDEO_HDMI :
+	{
+	    SEND_COMMAND dvDvxSwitcher, "'AI',ITOA(cIn),'O',ITOA(AUDIO_OUT_MAIN)"
+	}
+    }
+}
+DEFINE_FUNCTION fnPowerDisplays(INTEGER cPwr)
 {
     SWITCH (cPwr)
     {
-	CASE 'LEFTON' :
+	CASE BTN_PWR_ON_L :
 	{
-	    PULSE [vdvProjector_left, POWER_ON]
-		fnSCREEN(SCREEN_DOWN_LEFT)
+	    PULSE [vdvProjector_left, POWER_ON] 
+		fnSCREEN (SCREEN_LEFT_DN)
 	}
-	CASE 'LEFTOFF' :
+	CASE BTN_PWR_OFF_L :
 	{
 	    PULSE [vdvProjector_left, POWER_OFF]
 	    WAIT 30
 	    {
-		fnSCREEN(SCREEN_UP_LEFT)
+		fnSCREEN (SCREEN_LEFT_UP)
 	    }
 	}
-	CASE 'RIGHTON' :
+	CASE BTN_PWR_ON_R :
 	{
 	    PULSE [vdvProjector_right, POWER_ON]
-		fnSCREEN(screen_down_right)
+	    fnSCREEN (SCREEN_RIGHT_DN)
 	}
-	CASE 'RIGHTOFF' :
+	CASE BTN_PWR_OFF_R :
 	{
 	    PULSE [vdvProjector_right, POWER_OFF]
 	    WAIT 30
 	    {
-		fnSCREEN(screen_up_right)
+		fnSCREEN (SCREEN_RIGHT_UP)
 	    }
 	}
     }
@@ -572,19 +587,33 @@ DEFINE_FUNCTION fnSetScale(DEV cDev)
       #END_IF
     }
 }
+DEFINE_FUNCTION fnToggleChannels()
+{
+    ON [vdvProjector_Left, POWER]
+	ON [vdvProjector_Right, POWER]
+	
+	    OFF [vdvProjector_Left, ON_LINE]
+	OFF [vdvProjector_Right, ON_LINE]
 
+}
 
 (***********************************************************)
 (*                STARTUP CODE GOES BELOW                  *)
 (***********************************************************)
 DEFINE_START
 
-WAIT 150
+ON [nBootup_]
+WAIT 250
 {
-    TIMELINE_CREATE(TL_FEEDBACK,lTLFeedback,1,TIMELINE_ABSOLUTE,TIMELINE_REPEAT);
-    TIMELINE_CREATE(TL_FLASH,lTLFlash,1,TIMELINE_ABSOLUTE,TIMELINE_REPEAT);
+    TIMELINE_CREATE (TL_FEEDBACK,lTLFeedback,LENGTH_ARRAY(lTLFeedback),TIMELINE_ABSOLUTE,TIMELINE_REPEAT);
+    //TIMELINE_CREATE (TL_FLASH,lTLFlash,LENGTH_ARRAY(lTLFlash),TIMELINE_ABSOLUTE,TIMELINE_REPEAT);
+    
+    fnToggleChannels()
 }
-
+WAIT ONE_MINUTE
+{
+    OFF [nBootup_]
+}
 (***********************************************************)
 (*                MODULE DEFINITIONS GO BELOW              *)
 (***********************************************************)
@@ -597,84 +626,68 @@ WAIT 150
 (*                THE EVENTS GO BELOW                      *)
 (***********************************************************)
 DEFINE_EVENT
-BUTTON_EVENT [vdvTP_Main, nPopupBtns]
+BUTTON_EVENT [vdvTP_Main, BTN_PWR_ON_L]
+BUTTON_EVENT [vdvTP_Main, BTN_PWR_OFF_L]
+BUTTON_EVENT [vdvTP_Main, BTN_MUTE_PROJ_L] //Left Pwr Controls...
 {
     PUSH :
     {
-	SEND_COMMAND dvTP_Main, "'PPON-',cPopup_Names[GET_LAST(nPopupBtns)]"
-	nPop = GET_LAST(nPopupBtns)
-    }
-}
-BUTTON_EVENT [vdvTp_Main, BTN_PWR_ON_L] 
-BUTTON_EVENT [vdvTp_Main, BTN_PWR_OFF_L]
-BUTTON_EVENT [vdvTp_Main, BTN_MUTE_PROJ_L]
-BUTTON_EVENT [vdvTp_Main, BTN_SCREEN_UP_L]
-BUTTON_EVENT [vdvTp_Main, BTN_SCREEN_DN_L] //Left Pwr On..Off
-{
-    PUSH:
-    {
 	SWITCH (BUTTON.INPUT.CHANNEL)
 	{
-	    CASE BTN_PWR_ON_L: fnProjectorPower('LEFTON')
-	    CASE BTN_PWR_OFF_L: fnProjectorPower('LEFTOFF')
+	    CASE BTN_PWR_ON_L : fnPowerDisplays(BTN_PWR_ON_L)
+	    CASE BTN_PWR_OFF_L : fnPowerDisplays(BTN_PWR_OFF_L)
 	    
-	    CASE BTN_MUTE_PROJ_L: 
+	    CASE BTN_MUTE_PROJ_L :
 	    {
 		IF (![vdvTP_Main, BTN_MUTE_PROJ_L])
 		{
-		    fnMuteProjector(dvDxlink_left, SET_MUTE_ON)
+		    fnMuteProjector(dvProjector_dxLeft, SET_MUTE_ON)
 		}
 		ELSE
 		{
-		    fnMuteProjector(dvDxlink_left, SET_MUTE_OFF)
+		    fnMuteProjector(dvProjector_dxLeft, SET_MUTE_OFF)
 		}
 	    }
-	    CASE BTN_SCREEN_UP_L: fnSCREEN(screen_down_left)
-	    CASE BTN_SCREEN_DN_L: fnSCREEN(screen_up_left)
 	}
     }
 }
-BUTTON_EVENT [vdvTp_Main, BTN_PWR_ON_R] 
-BUTTON_EVENT [vdvTp_Main, BTN_PWR_OFF_R]
-BUTTON_EVENT [vdvTp_Main, BTN_MUTE_PROJ_R]
-BUTTON_EVENT [vdvTp_Main, BTN_SCREEN_UP_R]
-BUTTON_EVENT [vdvTp_Main, BTN_SCREEN_DN_R] //Right Pwr On..Off
+BUTTON_EVENT [vdvTP_Main, BTN_PWR_ON_R]
+BUTTON_EVENT [vdvTP_Main, BTN_PWR_OFF_R]
+BUTTON_EVENT [vdvTP_Main, BTN_MUTE_PROJ_R] //Right Pwr Controls...
 {
-    PUSH:
+    PUSH :
     {
 	SWITCH (BUTTON.INPUT.CHANNEL)
 	{
-	    CASE BTN_PWR_ON_R: fnProjectorPower('RIGHTON')
-	    CASE BTN_PWR_OFF_R: fnProjectorPower('RIGHTOFF')
+	    CASE BTN_PWR_ON_R : fnPowerDisplays(BTN_PWR_ON_R)
+	    CASE BTN_PWR_OFF_R : fnPowerDisplays(BTN_PWR_OFF_R)
 	    
-	    CASE BTN_MUTE_PROJ_R: 
+	    CASE BTN_MUTE_PROJ_R :
 	    {
 		IF (![vdvTP_Main, BTN_MUTE_PROJ_R])
 		{
-		    fnMuteProjector(dvDxlink_right, SET_MUTE_ON)
+		    fnMuteProjector(dvProjector_dxRight, SET_MUTE_ON)
 		}
 		ELSE
 		{
-		    fnMuteProjector(dvDxlink_right, SET_MUTE_OFF)
+		    fnMuteProjector(dvProjector_dxRight, SET_MUTE_OFF)
 		}
 	    }
-	    CASE BTN_SCREEN_UP_R: fnSCREEN(screen_down_left)
-	    CASE BTN_SCREEN_DN_R: fnSCREEN(screen_up_left)
 	}
     }
 }
-BUTTON_EVENT [vdvTP_Main,nVideoLeftBtns] //Video Source Left Buttons
+BUTTON_EVENT [vdvTP_Main, nProjectorLeftVidBtns]
 {
-    PUSH:
+    PUSH :
     {
-	fnRouteVideoRm(nVideoSources[GET_LAST(nVideoLeftBtns)], OUT_PROJECTOR_LEFT)
+	fnRouteVideoLeft(nVideoSources[GET_LAST(nProjectorLeftVidBtns)])
     }
 }
-BUTTON_EVENT [vdvTP_Main,nVideoRightBtns] //Video Source Left Buttons
+BUTTON_EVENT [vdvTP_Main, nProjectorRightVidBtns]
 {
-    PUSH:
+    PUSH :
     {
-	fnRouteVideoRm(nVideoSources[GET_LAST(nVideoRightBtns)], OUT_PROJECTOR_RIGHT)
+	fnRouteVideoRight(nVideoSources[GET_LAST(nProjectorRightVidBtns)])
     }
 }
 BUTTON_EVENT [vdvTp_Main, nAudioBtns] //Audio Controls for Classroom!
@@ -689,12 +702,12 @@ BUTTON_EVENT [vdvTp_Main, nAudioBtns] //Audio Controls for Classroom!
 		CASE 1: CALL 'PROGRAM MUTE'
 		CASE 2: SEND_LEVEL dvProgram,PROGRAM_MIX,nProgram_Level + Volume_Up_Single
 		CASE 3: SEND_LEVEL dvProgram,PROGRAM_MIX,nProgram_Level + Volume_Down_Single
-		CASE 4: CALL 'PROGRAM PRESET'
+		CASE 4: SEND_LEVEL dvProgram,PROGRAM_MIX,nProgram_Level_Preset
 		
 		CASE 5: CALL 'MICROPHONE MUTE'
 		CASE 6: SEND_LEVEL dvMicrophone1,MICROPHONE_MIX_1,nMicrophone_Level + Volume_Up_Single
 		CASE 7: SEND_LEVEL dvMicrophone1,MICROPHONE_MIX_1,nMicrophone_Level + Volume_Down_Single
-		CASE 8: CALL 'MICROPHONE PRESET'
+		CASE 8: SEND_LEVEL dvMicrophone1,MICROPHONE_MIX_1,nMicrophone_Level_Preset
 	    }
     }
     HOLD [2,REPEAT]: //If you hold the Volume Change Buttons
@@ -853,9 +866,9 @@ DATA_EVENT [dvDvxSwitcher] //DVX SWitcher Online / Offline Events
 {
     ONLINE:
     {
-	WAIT 150
+	WAIT 80
 	{
-	    fnDVXPull()
+	    CALL 'DVX INPUT SETUP'
 	}
 
     }
@@ -929,21 +942,23 @@ DATA_EVENT [dvTp_Main] //TouchPanel Online
 {
     ONLINE:
     {
-	SEND_COMMAND DATA.DEVICE, "'ADBEEP'" //Make Your Presence Known...
-	SEND_COMMAND DATA.DEVICE, "'^TXT-',ITOA(TXT_RM),',0,',TXT_LOCATION"
-	SEND_COMMAND DATA.DEVICE, "'^TXT-',ITOA(TXT_HELP),',0,',TXT_PHONE"
+	SEND_COMMAND data.device, "'ADBEEP'"
+	SEND_COMMAND DATA.DEVICE, "'^TXT-',ITOA(TXT_ROOM),',0,',MY_ROOM"
+	SEND_COMMAND DATA.DEVICE, "'^TXT-',ITOA(TXT_HELP),',0,',MY_HELP_PHONE"
+	
+	IF (!nBootup_)
+	{
+	    fnToggleChannels()
+	    fnDVXPull()
+	}
     }
 }
 DATA_EVENT [dvDxlink_left]
 {
     ONLINE:
     {
-	fnSetScale(dvDxlink_left)
-	
-	WAIT 300
-	{
-		fnMuteCheck(dvDxlink_left)
-	}
+	WAIT 80 fnSetScale(dvProjector_dxLeft)
+	WAIT 120 SEND_COMMAND dvProjector_dxLeft, "'?VIDOUT_MUTE'"
     }
     COMMAND:
     {
@@ -976,12 +991,8 @@ DATA_EVENT [dvDxlink_right]
 {
     ONLINE:
     {
-	fnSetScale(dvDxlink_right)
-	
-	WAIT 300
-	{
-		fnMuteCheck(dvDxlink_right)
-	}
+	WAIT 80 fnSetScale(dvProjector_dxRight)
+	WAIT 120 SEND_COMMAND dvProjector_dxRight, "'?VIDOUT_MUTE'"
     }
     COMMAND:
     {
