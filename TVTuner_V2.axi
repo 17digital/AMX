@@ -170,7 +170,7 @@ DATA_EVENT [dvTP_TUNER2]
 	fnLoadChannelLabels()
     }
 }
-CHANNEL_EVENT [vdvTP_Tuner, POWER]
+CHANNEL_EVENT [vdvTuner, POWER]
 {
     ON :
     {
