@@ -74,14 +74,11 @@ dvProjector_dxRight		=	6002:6:0	//DxLink Right - connected to Right Projector
 (***********************************************************)
 DEFINE_CONSTANT
 
-//Screens
-screen_up_left				= 2
-screen_down_left				= 1
-
-screen_up_right				= 4
-screen_down_right			= 3
-screen_up_center			= 6
-screen_down_center			= 5 
+// Screen Relays
+SCREEN_LEFT_UP			= 4
+SCREEN_LEFT_DN   		= 3
+SCREEN_RIGHT_UP			= 2
+SCREEN_RIGHT_DN	 		= 1
 
 // Volume Adjustment Values
 Volume_Up_Single			= 1
@@ -169,13 +166,13 @@ ONE_HOUR					= 60*ONE_MINUTE
 CR 						= 13
 LF 						= 10
 
-TXT_PRGM					= 31
-TXT_MIC_1					= 32
-TXT_MIC_2					= 33
-TXT_HELP					= 99
-TXT_RM					= 100
-TXT_PHONE				= '404-894-4669'
-TXT_LOCATION				= 'COB 436'
+TXT_PRGM						= 31
+TXT_MIC_1			= 32
+TXT_MIC_2				= 33
+TXT_HELP						= 99
+TXT_ROOM					= 100
+MY_HELP_PHONE				= '404-894-4669'
+MY_ROOM						= 'ES&T 1255'
 
 // Time Lines
 TL_FLASH					= 2
