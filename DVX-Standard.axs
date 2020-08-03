@@ -22,6 +22,11 @@ PROGRAM_NAME='DVX3150'
 (***********************************************************)
 DEFINE_DEVICE
 
+//Define Touch Panel Type
+#WARN 'Check correct Panel Type'
+//#DEFINE G4PANEL
+#DEFINE G5PANEL //Ex..MT-702, MT1002, MXT701
+
 
 dvMaster 		=		0:1:0	//DVX Master
 dvTP_MAIN   	= 		10001:1:0
@@ -229,6 +234,10 @@ BTN_AUDIO_MERSIVE		= 516
 BTN_ONLINE_L			= 601
 BTN_ONLINE_R			= 611
 
+BTN_SET_NUMBER					= 1500
+BTN_SET_LOCATION				= 1501
+BTN_SET_ALL						= 1502
+
 (***********************************************************)
 (*               VARIABLE DEFINITIONS GO BELOW             *)
 (***********************************************************)
@@ -250,6 +259,9 @@ VOLATILE SINTEGER nMicrophone_Hold
 VOLATILE LONG lTLFeedback[] = {500}
 VOLATILE LONG lTLFlash[] = {1000} 
 VOLATILE INTEGER iFLASH 
+
+PERSISTENT CHAR nHelp_Phone_[15] //
+PERSISTENT CHAR nRoom_Location[30]
 
 DEV vdvTP_Main[] = {dvTP_MAIN}
 
@@ -721,12 +733,38 @@ BUTTON_EVENT [vdvTp_Main, nAudioBtns] //Audio Controls for Classroom!
 	}
     }
 }
-BUTTON_EVENT [vdvTp_Main, BTN_CLOSE_PG]
+BUTTON_EVENT [vdvTP_Main, BTN_SET_NUMBER]
 {
-    PUSH:
+    PUSH :
     {
-	SEND_COMMAND vdvTP_Main, "'@PPX'"
-	TO [BUTTON.INPUT.CHANNEL]
+	#IF_DEFINED G4PANEL
+	SEND_COMMAND vdvTP_Main, "'@TKP'"
+	#END_IF
+	
+	#IF_DEFINED G5PANEL
+	SEND_COMMAND vdvTP_Main, "'^TKP'"
+	#END_IF
+    }
+}
+BUTTON_EVENT [vdvTP_Main, BTN_SET_LOCATION]
+{
+    PUSH :
+    {
+	#IF_DEFINED G4PANEL 
+	SEND_COMMAND vdvTP_Main, "'@AKB'"
+	#END_IF
+	
+	#IF_DEFINED G5PANEL
+	SEND_COMMAND vdvTP_Main, "'^AKB'"
+	#END_IF
+    }
+}
+BUTTON_EVENT [vdvTP_Main, BTN_SET_ALL]
+{
+    PUSH :
+    {
+	SEND_COMMAND vdvTP_Main, "'^TXT-',ITOA(TXT_ROOM),',0,',nRoom_Location"
+	SEND_COMMAND vdvTP_Main, "'^TXT-',ITOA(TXT_HELP),',0,',nHelp_Phone_"
     }
 }
 
@@ -939,14 +977,58 @@ DATA_EVENT [dvTp_Main] //TouchPanel Online
 {
     ONLINE:
     {
-	SEND_COMMAND data.device, "'ADBEEP'"
-	SEND_COMMAND DATA.DEVICE, "'^TXT-',ITOA(TXT_ROOM),',0,',MY_ROOM"
-	SEND_COMMAND DATA.DEVICE, "'^TXT-',ITOA(TXT_HELP),',0,',MY_HELP_PHONE"
+	#IF_DEFINED G4PANEL
+	SEND_COMMAND DATA.DEVICE, "'ADBEEP'" //Make Your Presence Known...
+	#END_IF
+	
+	#IF_DEFINED G5PANEL 
+	SEND_COMMAND DATA.DEVICE, "'^ADP'" //Make Your Presence Known...
+	#END_IF
+	
+	SEND_COMMAND DATA.DEVICE, "'^TXT-',ITOA(TXT_ROOM),',0,',nRoom_Location"
+	SEND_COMMAND DATA.DEVICE, "'^TXT-',ITOA(TXT_HELP),',0,',nHelp_Phone_"
 	
 	IF (!nBootup_)
 	{
 	    fnToggleChannels()
 	    fnDVXPull()
+	}
+    }
+    STRING :
+    {
+	LOCAL_VAR CHAR sTmp[30]
+	
+	sTmp = DATA.TEXT
+	
+	IF (FIND_STRING(sTmp,'KEYB-',1)OR FIND_STRING(sTmp,'AKB-',1)) //G4 or G5 Parsing
+	{
+	   REMOVE_STRING(sTmp,'-',1)
+	   
+		IF (FIND_STRING(sTmp,'ABORT',1))
+		{
+		    nRoom_Location = 'Set Default'
+		    SEND_COMMAND vdvTP_Main, "'^TXT-',ITOA(TXT_ROOM),',0,',nRoom_Location"
+		}
+		ELSE
+		{
+		     nRoom_Location = sTmp
+		    SEND_COMMAND vdvTP_Main, "'^TXT-',ITOA(TXT_ROOM),',0,',nRoom_Location"
+		}
+	}
+	IF (FIND_STRING(sTmp,'KEYP-',1)OR FIND_STRING(sTmp,'TKP-',1)) //G4 or G5
+	{
+	    REMOVE_STRING(sTmp,'-',1)
+	    
+	    IF (FIND_STRING(sTmp,'ABORT',1)) //Keep Default if it was set...
+	    {
+		nHelp_Phone_ = nHelp_Phone_
+		SEND_COMMAND vdvTP_Main, "'^TXT-',ITOA(TXT_HELP),',0,',nHelp_Phone_"
+	    }
+	    ELSE
+	    {
+		nHelp_Phone_ = sTmp
+		SEND_COMMAND vdvTP_Main, "'^TXT-',ITOA(TXT_HELP),',0,',nHelp_Phone_"
+	    }
 	}
     }
 }
