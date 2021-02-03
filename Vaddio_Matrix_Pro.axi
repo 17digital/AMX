@@ -38,17 +38,10 @@ CR 				= 13
 LF 				= 10
 #END_IF
 
-CAMERA_FRONT			= 2
-CAMERA_REAR				= 1
-
-
-CAM_PRESET_1				= 1
-CAM_PRESET_2				= 2
-CAM_PRESET_3				= 3
-CAM_PRESET_4				= 4
-CAM_PRESET_5				= 5 
-
-TL_CAM_FEEDBACK			= 5
+//Camera Positions....
+CAMERA_FRONT			= 2 //Looking @ Students
+CAMERA_REAR			= 1 //Looking @ Instructor
+CAMERA_DOC_CAM			= 3
 
 TXT_CAMERA_SAVED			= 22
 
@@ -70,20 +63,36 @@ VOL_DN					= -1
 MAX_AUD_VOL				= 12
 MIN_AUD_VOL				= -12
 
-CAM_FRNT_BTN					= 51
-CAM_REAR_BTN					= 52
-RESTART_BTN					= 90
+BTN_CAMERA_FRONT		= 52
+BTN_CAMERA_REAR		= 51
+BTN_CAMERA_DOC			= 53
+BTN_RESTART				= 90
+BTN_ACTIVE_PAGE			= 54
+
+BTN_PRESET_1				= 71
+BTN_PRESET_2				= 72
+BTN_PRESET_3				= 73
+BTN_PRESET_4				= 74
+BTN_PRESET_5				= 75
+
+BTN_SAVE_1				= 81
+BTN_SAVE_2				= 82
+BTN_SAVE_3				= 83
+BTN_SAVE_4				= 84
+BTN_SAVE_5				= 85
+
+BTN_TILT_UP				= 132
+BTN_TILT_DOWN			= 133
+BTN_PAN_LEFT			= 134
+BTN_PAN_RIGHT			= 135
+BTN_ZOOM_IN 			= 158
+BTN_ZOOM_OUT			= 159
 
 (***********************************************************)
 (*               VARIABLE DEFINITIONS GO BELOW             *)
 (***********************************************************)
 DEFINE_VARIABLE
 
-//DEV vdvTP_Camera[] = {dvTP_Main}
-
-VOLATILE INTEGER nVaddioCameraSelect
-VOLATILE INTEGER nVaddioPresets
-VOLATILE CHAR nVaddioBuffer[1000] //Temp Buffer
 VOLATILE INTEGER cLocked
 
 VOLATILE SINTEGER nPgrmPreset = 0 //Max = +12
@@ -93,26 +102,48 @@ VOLATILE SINTEGER nWirelessVol
 VOLATILE INTEGER nPgrmMute
 VOLATILE INTEGER nWirelessMute
 VOLATILE INTEGER nCeilingMute
+VOLATILE INTEGER nCameraSelect //Holds Active ID
 
-VOLATILE LONG lTLVaddioFeedback[] = {250};
 
-VOLATILE INTEGER nCameraVaddioBtns[] =
+VOLATILE INTEGER nPresetSelect[] =
 {
-    61, //Tilt Up
-    62, //Tilt Down
-    63, //Left
-    64, //Right
-    65, //Zoom In
-    66  //Zoom Out
+    BTN_PRESET_1,
+    BTN_PRESET_2,
+    BTN_PRESET_3,
+    BTN_PRESET_4,
+    BTN_PRESET_5
+} 
+VOLATILE INTEGER nVaddioCameraBtns[] =
+{
+    BTN_TILT_UP,					
+    BTN_TILT_DOWN,				
+    BTN_PAN_LEFT,					
+    BTN_PAN_RIGHT,				
+    BTN_ZOOM_IN, 						
+    BTN_ZOOM_OUT					
 }
-VOLATILE INTEGER nPresetVaddioBtns[] =
+VOLATILE INTEGER nSelectCameraBtns[] =
 {
-    //Call Presets..
-    71,72,73,74,75,
-    
-    //Save...
-    81,82,83,84,85
-}  
+    BTN_CAMERA_REAR,
+    BTN_CAMERA_FRONT,
+    BTN_CAMERA_DOC
+}
+VOLATILE INTEGER nCameraIDs[] =
+{
+    CAMERA_REAR,
+    CAMERA_FRONT,
+    CAMERA_DOC_CAM
+}
+VOLATILE CHAR nPopUpPages[3][15] =
+{
+    'VTC_Cameras',
+    'VTC_Cameras',
+    'DocCam'
+}
+DEFINE_MUTUALLY_EXCLUSIVE
+
+([dvTP_MAIN, BTN_CAMERA_REAR]..[dvTP_MAIN, BTN_CAMERA_DOC])
+([dvTP_Main, BTN_PRESET_1]..[dvTP_Main, BTN_PRESET_5])
 
 (***********************************************************)
 (*        SUBROUTINE/FUNCTION DEFINITIONS GO BELOW         *)
@@ -149,321 +180,226 @@ DEFINE_FUNCTION fnVolumeDN(SINTEGER cVol)
 	SEND_STRING dvVaddioMatrix, "'audio line_out_',ITOA(OUT_MIX_PROGRAM),' crosspoint-gain line_in_',ITOA(IN_PRGM),' set ',ITOA(cVol + VOL_DN),CR"
     }
 }
-DEFINE_FUNCTION fnRunStart()
+DEFINE_FUNCTION fnVaddioRouteCamera(INTEGER cIn)
+{    
+    SEND_STRING dvVaddioMatrix, "'camera ',ITOA(cIn),' standby off',CR"
+    
+    
+    WAIT 10
+    {
+       SEND_STRING dvVaddioMatrix, "'video program source set input',ITOA(cIn),CR"
+	    SEND_STRING dvVaddioMatrix, "'video stream source set input',ITOA(cIn),CR" //Switches USB
+    }
+}
+DEFINE_FUNCTION fnVaddioMatrixLogin()
 {
     SEND_STRING dvVaddioMatrix, "LOGIN,CR"
-    WAIT 10
+    
+    WAIT 20
     {
 	SEND_STRING dvVaddioMatrix, "PASS,CR"
     }
 }
 DEFINE_FUNCTION fnParseVaddio()
 {
-    STACK_VAR CHAR cResponse[100]
+    LOCAL_VAR CHAR cData[1000]
+    LOCAL_VAR INTEGER cInput
+    LOCAL_VAR CHAR cLookup[100]
     
-    WHILE(FIND_STRING(nVaddioBuffer,"CR,LF",1))
+    cData = DATA.TEXT
+    
+    SELECT
     {
-    
-	cResponse = REMOVE_STRING(nVaddioBuffer,"CR,LF",1)
-    
-	SELECT
+	ACTIVE(FIND_STRING(cData,'source: input',1)): //Query Response...
 	{
-
-	    ACTIVE(FIND_STRING(cResponse,'source: input1',1)):
-	    {
-		nVaddioCameraSelect = CAMERA_REAR
+		REMOVE_STRING(cData,'source: input',1)
+		cInput = ATOI(cData)
 		OFF [cLocked]
-	    }
-	    ACTIVE(FIND_STRING(cResponse,'source: input2',1)):
-	    {
-		nVaddioCameraSelect = CAMERA_FRONT
-		OFF [cLocked]
-	    }
-	    ACTIVE(FIND_STRING(cResponse,'Password:',1)):
-	    {
+		
+		SWITCH (cInput)
+		{
+		    CASE CAMERA_REAR : 
+		    {
+			ON [dvTP_MAIN, BTN_CAMERA_REAR]
+			    nCameraSelect = CAMERA_REAR
+		    }
+		    CASE CAMERA_FRONT :
+		    {
+			ON [dvTP_MAIN, BTN_CAMERA_FRONT]
+			    nCameraSelect = CAMERA_FRONT
+		    }
+		    CASE CAMERA_DOC_CAM :
+		    {
+			ON [dvTP_MAIN, BTN_CAMERA_DOC]
+			    nCameraSelect = CAMERA_DOC_CAM
+		    }
+		}
+	}
+	ACTIVE(FIND_STRING(cData,'Password:',1)):
+	{
 		//That mean password is needed son! - may want to lock this out to prevent other commands..
 		ON [cLocked]
+		
 		WAIT 20
 		{
-		    fnRunStart()
+		    SEND_STRING dvVaddioMatrix, "PASS,CR"
 		}
-	    }
-	    ACTIVE(FIND_STRING(cResponse,'login:',1)):
-	    {
+	}
+	ACTIVE(FIND_STRING(cData,'login:',1)):
+	{
 		ON [cLocked]
+		
 		WAIT 20
 		{
-		    fnRunStart()
+		    fnVaddioMatrixLogin()
 		}
-	    }
-	    ACTIVE(FIND_STRING(cResponse,'Login incorrect',1)):
-	    {
+	}
+	ACTIVE(FIND_STRING(cData,'Login incorrect',1)):
+	 {
 		ON [cLocked]
-		WAIT 20
+		
+		WAIT 50
 		{
-		    fnRunStart()
+		    fnVaddioMatrixLogin()
 		}
-	    }
-	    ACTIVE(FIND_STRING(cResponse,'Welcome admin',1)):
-	    {
+	}
+	ACTIVE(FIND_STRING(cData,'Welcome admin',1)):
+	{
 		OFF [cLocked]
-	    }
-	    ACTIVE(FIND_STRING(cResponse,'Authorized Access Only',1)):
-	    {
+	}
+	ACTIVE(FIND_STRING(cData,'Authorized Access Only',1)):
+	{
 		OFF [cLocked]
-	    }
+	}
+	ACTIVE(FIND_STRING(cData,'Login timed out after',1)):
+	{
+		ON [cLocked]
+
+		WAIT 50
+		{
+		    fnVaddioMatrixLogin()
+		}
 	}
     }
 }
+
 
 (***********************************************************)
 (*                STARTUP CODE GOES BELOW                  *)
 (***********************************************************)
 DEFINE_START
 
-CREATE_BUFFER dvVaddioMatrix,nVaddioBuffer;
+WAIT 80
+{
+    SEND_STRING dvVaddioMatrix, "'video program source get',CR"
+}
 
 (***********************************************************)
 (*                THE EVENTS GO BELOW                      *)
 (***********************************************************)
 DEFINE_EVENT
-BUTTON_EVENT [dvTP_Main, CAM_FRNT_BTN] //Front
-BUTTON_EVENT [dvTP_Main, CAM_REAR_BTN] //Rear
+BUTTON_EVENT [dvTP_MAIN, BTN_ACTIVE_PAGE]
 {
     PUSH :
     {
-	SWITCH (BUTTON.INPUT.CHANNEL)
+	SEND_COMMAND dvTP_MAIN, "'^PPN-',nPopUpPages[nCameraSelect]" //"nCamersSelect...should Pull Correct Array Order 
+    }
+}
+BUTTON_EVENT [dvTP_Main, nSelectCameraBtns] //Select Active Camera...
+{
+    PUSH :
+    {
+	nCameraSelect = GET_LAST (nSelectCameraBtns)
+	SEND_COMMAND dvTP_MAIN, "'^PPX'" //Remove PopUp First...
+		    
+		    SEND_COMMAND dvTP_MAIN, "'^PPN-',nPopUpPages[GET_LAST(nSelectCameraBtns)]"
+	
+	IF (!cLocked)
 	{
-	    CASE CAM_FRNT_BTN :
-	    {
-		IF (!cLocked)
-		{
-		    nVaddioCameraSelect = CAMERA_FRONT
-		    SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_FRONT),' standby off',CR"
-		    WAIT 10
-		    {
-			SEND_STRING dvVaddioMatrix, "'video program source set input',ITOA(CAMERA_FRONT),CR"
-			SEND_STRING dvVaddioMatrix, "'video stream source set input',ITOA(CAMERA_FRONT),CR"
-		    }
-		}
-		
-	    }
-	    CASE CAM_REAR_BTN :
-	    {
-		IF(!cLocked)
-		{
-		    SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_REAR),' standby off',CR"
-		    nVaddioCameraSelect = CAMERA_REAR
-		    WAIT 10
-		    {
-			SEND_STRING dvVaddioMatrix, "'video program source set input',ITOA(CAMERA_REAR),CR"
-			SEND_STRING dvVaddioMatrix, "'video stream source set input',ITOA(CAMERA_REAR),CR"
-		    }
-		}
-	    }
+	    fnVaddioRouteCamera(nCameraIDs[GET_LAST(nSelectCameraBtns)])
+		    ON [dvTP_MAIN, nCameraSelect+50]
 	}
     }
 }
-BUTTON_EVENT [dvTP_Main, nCameraVaddioBtns]
+BUTTON_EVENT [dvTP_Main, BTN_TILT_UP]
+BUTTON_EVENT [dvTP_Main, BTN_TILT_DOWN]				
+BUTTON_EVENT [dvTP_Main, BTN_PAN_LEFT]				
+BUTTON_EVENT [dvTP_Main, BTN_PAN_RIGHT]				
+BUTTON_EVENT [dvTP_Main, BTN_ZOOM_IN]			
+BUTTON_EVENT [dvTP_Main, BTN_ZOOM_OUT]						
 {
     PUSH :
     {
-	STACK_VAR INTEGER nCameraIdx
-	
-	OFF [nVaddioPresets]
-	nCameraIdx = GET_LAST (nCameraVaddioBtns)
-	
-	SELECT
-	{
-	    ACTIVE ( nVaddioCameraSelect == CAMERA_FRONT):
+	TOTAL_OFF [dvTP_MAIN, nPresetSelect]
+
+	    SWITCH (BUTTON.INPUT.CHANNEL)
 	    {
-		SWITCH (nCameraIdx)
-		{
-		    CASE 1 : SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_FRONT),' tilt up',CR"
-		    CASE 2 : SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_FRONT),' tilt down',CR"
-		    CASE 3 : SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_FRONT),' pan left',CR"
-		    CASE 4 : SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_FRONT),' pan right',CR"
-		    CASE 5 : SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_FRONT),' zoom in 4',CR"
-		    CASE 6 : SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_FRONT),' zoom out 4'  ,CR"
-		}
+		    CASE BTN_TILT_UP : SEND_STRING dvVaddioMatrix, "'camera ',ITOA(nCameraSelect),' tilt up 6',CR"
+		    CASE BTN_TILT_DOWN : SEND_STRING dvVaddioMatrix, "'camera ',ITOA(nCameraSelect),' tilt down 6',CR"
+		    CASE BTN_PAN_LEFT : SEND_STRING dvVaddioMatrix, "'camera ',ITOA(nCameraSelect),' pan left 6',CR"
+		    CASE BTN_PAN_RIGHT : SEND_STRING dvVaddioMatrix, "'camera ',ITOA(nCameraSelect),' pan right 6',CR"
+		    CASE BTN_ZOOM_IN : SEND_STRING dvVaddioMatrix, "'camera ',ITOA(nCameraSelect),' zoom in 3',CR"
+		    CASE BTN_ZOOM_OUT : SEND_STRING dvVaddioMatrix, "'camera ',ITOA(nCameraSelect),' zoom out 3'  ,CR"
 	    }
-	    
-	    ACTIVE (nVaddioCameraSelect == CAMERA_REAR):
-	    {
-		SWITCH (nCameraIdx)
-		{
-		    CASE 1 : SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_REAR),' tilt up',CR"
-		    CASE 2 : SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_REAR),' tilt down',CR"
-		    CASE 3 : SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_REAR),' pan left',CR"
-		    CASE 4 : SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_REAR),' pan right',CR"
-		    CASE 5 : SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_REAR),' zoom in 4',CR"
-		    CASE 6 : SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_REAR),' zoom out 4',CR"
-		}
-	    }
-	}
     }
     RELEASE :
     {
-	//SET_PULSE_TIME (3) 
-	STACK_VAR INTEGER nCameraIdx
-	
-	nCameraIdx = GET_LAST (nCameraVaddioBtns)
-	SWITCH (nCameraIdx)
+	SWITCH (BUTTON.INPUT.CHANNEL)
 	{
-	    CASE 1 :
-	    CASE 2 :
+	    CASE BTN_TILT_UP :
+	    CASE BTN_TILT_DOWN :
 	    {
-		SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_FRONT),' tilt stop',CR"
-		SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_REAR),' tilt stop',CR"
+		SEND_STRING dvVaddioMatrix, "'camera ',ITOA(nCameraSelect),' tilt stop',CR"
 	    }
-	    CASE 3 :
-	    CASE 4 :
+	    CASE BTN_PAN_LEFT :
+	    CASE BTN_PAN_RIGHT :
 	    {
-		SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_FRONT),' pan stop',CR"
-		SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_REAR),' pan stop',CR"
+		SEND_STRING dvVaddioMatrix, "'camera ',ITOA(nCameraSelect),' pan stop',CR"
 	    }
-	    CASE 5 :
-	    CASE 6 :
+	    CASE BTN_ZOOM_IN :
+	    CASE BTN_ZOOM_OUT :
 	    {
-		SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_FRONT),' zoom stop',CR"
-		SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_REAR),' zoom stop',CR"
+		SEND_STRING dvVaddioMatrix, "'camera ',ITOA(nCameraSelect),' zoom stop',CR"
 	    }
-	    
 	}
     }
 }
-BUTTON_EVENT [dvTP_Main, nPresetVaddioBtns]
+BUTTON_EVENT [dvTP_Main, BTN_PRESET_1]
+BUTTON_EVENT [dvTP_Main, BTN_PRESET_2]
+BUTTON_EVENT [dvTP_Main, BTN_PRESET_3]
+BUTTON_EVENT [dvTP_Main, BTN_PRESET_4]
+BUTTON_EVENT [dvTP_Main, BTN_PRESET_5] //Recall Presets...
 {	
     PUSH :
     {
-	STACK_VAR INTEGER nPresetIdx
+	ON [dvTP_Main, BUTTON.INPUT.CHANNEL]
 	
-	nPresetIdx = GET_LAST (nPresetVaddioBtns)
+		SEND_STRING dvVaddioMatrix, "'camera ',ITOA(nCameraSelect),' preset recall ',ITOA(BUTTON.INPUT.CHANNEL -70),CR"
+    }
+}
+BUTTON_EVENT [dvTP_Main, BTN_SAVE_1] 
+BUTTON_EVENT [dvTP_Main, BTN_SAVE_2]
+BUTTON_EVENT [dvTP_Main, BTN_SAVE_3]
+BUTTON_EVENT [dvTP_Main, BTN_SAVE_4]
+BUTTON_EVENT [dvTP_Main, BTN_SAVE_5]
+{
+    HOLD [30] :
+    {
+	SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Preset Saved!'"
 	
-	SELECT
+	SEND_STRING dvVaddioMatrix, "'camera ',ITOA(nCameraSelect),' preset store ',ITOA(BUTTON.INPUT.CHANNEL -80),CR"
+
+	WAIT 50 
 	{
-	    ACTIVE (nVaddioCameraSelect == CAMERA_REAR):
-	    {
-		SWITCH (nPresetIdx)
-		{
-		    CASE 1 : SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_REAR),' preset recall 1',CR"
-		    CASE 2 : SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_REAR),' preset recall 2',CR"
-		    CASE 3 : SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_REAR),' preset recall 3',CR"
-		    CASE 4 : SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_REAR),' preset recall 4',CR"
-		    CASE 5 : SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_REAR),' preset recall 5',CR"
-		    
-		    CASE 6 : 
-		    {
-			SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_REAR),' preset store 1',CR"
-			SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Preset Saved!'"
-				WAIT 50 
-				{
-				    SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Save Camera Presets'"
-				}
-		    }
-		    CASE 7 :
-		    {
-			SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_REAR),' preset store 2',CR"
-			SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Preset Saved!'"
-				WAIT 50 
-				{
-				    SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Save Camera Presets'"
-				}
-		    }
-		    CASE 8 : 
-		    {
-			SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_REAR),' preset store 3',CR"
-			SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Preset Saved!'"
-				WAIT 50 
-				{
-				    SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Save Camera Presets'"
-				}
-		    }
-		    CASE 9 : 
-		    {
-			SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_REAR),' preset store 4',CR"
-			SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Preset Saved!'"
-				WAIT 50 
-				{
-				    SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Save Camera Presets'"
-				}
-		    }
-		    CASE 10 : 
-		    {
-			SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_REAR),' preset store 5',CR"
-			SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Preset Saved!'"
-				WAIT 50 
-				{
-				    SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Save Camera Presets'"
-				}
-		    }
-		}                                                                                           
-	    }	    
-	    ACTIVE (nVaddioCameraSelect == CAMERA_FRONT) :
-	    {
-		SWITCH (nPresetIdx)
-		{
-		    CASE 1 : SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_FRONT),' preset recall 1',CR"
-		    CASE 2 : SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_FRONT),' preset recall 2',CR"
-		    CASE 3 : SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_FRONT),' preset recall 3',CR"
-		    CASE 4 : SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_FRONT),' preset recall 4',CR"
-		    CASE 5 : SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_FRONT),' preset recall 5',CR"
-		    
-		    CASE 6 : 
-		    {
-			SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_FRONT),' preset store 1',CR"
-			SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Preset Saved!'"
-				WAIT 50 
-				{
-				    SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Save Camera Presets'"
-				}
-		    }
-		    CASE 7 :
-		    {
-			SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_FRONT),' preset store 2',CR"
-			SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Preset Saved!'"
-				WAIT 50 
-				{
-				    SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Save Camera Presets'"
-				}
-		    }
-		    CASE 8 : 
-		    {
-			SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_FRONT),' preset store 3',CR"
-			SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Preset Saved!'"
-				WAIT 50 
-				{
-				    SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Save Camera Presets'"
-				}
-		    }
-		    CASE 9 : 
-		    {
-			SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_FRONT),' preset store 4',CR"
-			SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Preset Saved!'"
-				WAIT 50 
-				{
-				    SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Save Camera Presets'"
-				}
-		    }
-		    CASE 10 : 
-		    {
-			SEND_STRING dvVaddioMatrix, "'camera ',ITOA(CAMERA_FRONT),' preset store 5',CR"
-			SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Preset Saved!'"
-				WAIT 50 
-				{
-				    SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Save Camera Presets'"
-				}
-		    }
-		}                                                                              
-	    }
+	    SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Hold for 3 Seconds to Save Camera Presets'"
 	}
     }
 }
-BUTTON_EVENT [dvTP_MAIN, RESTART_BTN] //Re Input Password
+BUTTON_EVENT [dvTP_MAIN, BTN_RESTART] //Re Input Password
 {
     PUSH :
     {
-	fnRunStart()
+	fnVaddioMatrixLogin()
     }
 }
 
@@ -477,10 +413,6 @@ DATA_EVENT [dvVaddioMatrix]
 	SEND_COMMAND DATA.DEVICE, "'RXON'"
 	SEND_COMMAND DATA.DEVICE, "'HSOFF'"
 	
-	WAIT 50
-	{
-	    SEND_STRING dvVaddioMatrix, "'video program source get',CR"
-	}
     }
     STRING :
     {
@@ -491,19 +423,9 @@ DATA_EVENT [dvTP_Main]
 {
     ONLINE :
     {
-	SEND_COMMAND DATA.DEVICE, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Save Camera Presets'"
+	SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Hold for 3 Seconds to Save Camera Presets'"
     }
 }
-TIMELINE_EVENT [TL_FEEDBACK]
-{
-    [dvTP_Main, CAM_FRNT_BTN] = nVaddioCameraSelect = CAMERA_FRONT
-    [dvTP_Main, CAM_REAR_BTN] = nVaddioCameraSelect = CAMERA_REAR
-    
-    [dvTP_MAIN, RESTART_BTN] = cLocked
-    
-	[dvTP_Main, 61] = nVaddioPresets = CAM_PRESET_1
-	[dvTP_Main, 62] = nVaddioPresets = CAM_PRESET_2
-	[dvTP_Main, 63] = nVaddioPresets = CAM_PRESET_3
-}                                                                
+                                                               
 
 
