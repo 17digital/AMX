@@ -63,17 +63,6 @@ PAN_RIGHT				= 135
 ZOOM_IN 						= 158
 ZOOM_OUT					= 159
 
-CAM_PRESET_1				= 1
-CAM_PRESET_2				= 2
-CAM_PRESET_3				= 3
-CAM_PRESET_4				= 4
-CAM_PRESET_5				= 5 
-
-CAM_PRESET_6				= 6
-CAM_PRESET_7				= 7
-CAM_PRESET_8				= 8
-CAM_PRESET_9				= 9
-
 TXT_CAMERA_SAVED			= 22
 
 BTN_CAM_FRONT				= 51
@@ -91,12 +80,17 @@ BTN_SAVE_3				= 83
 BTN_SAVE_4				= 84
 BTN_SAVE_5				= 85
 
+BTN_BOARD_1					= 96
+BTN_BOARD_2					= 97
+BTN_BOARD_3					= 98
+BTN_BOARD_4					= 99
+
 (***********************************************************)
 (*               VARIABLE DEFINITIONS GO BELOW             *)
 (***********************************************************)
 DEFINE_VARIABLE
 
-//DEV vdvTP_Camera[] = {dvTP_Main}
+VOLATILE INTEGER nVaddioCameraSelect
 
 VOLATILE INTEGER nPresetSelect[] =
 {
@@ -106,12 +100,36 @@ VOLATILE INTEGER nPresetSelect[] =
     BTN_PRESET_4,
     BTN_PRESET_5
 }
+VOLATILE INTEGER nBoardSelect[] =
+{
+    BTN_BOARD_1,
+    BTN_BOARD_2,
+    BTN_BOARD_3,
+    BTN_BOARD_4
+}
+VOLATILE INTEGER nCameraVaddioBtns[] =
+{
+    BTN_CAM_FRONT,
+    BTN_CAM_REAR
+}
+VOLATILE INTEGER nSourceInputs[] =
+{
+    INPUT_CAMERA_FRONT,
+    INPUT_CAMERA_REAR
+}
+VOLATILE DEV dcCameras[] =
+{
+    vdvVaddioFront,
+    vdvVaddioRear
+}
 
 DEFINE_MUTUALLY_EXCLUSIVE
 
 ([dvTP_Main, BTN_CAM_FRONT],[dvTP_Main, BTN_CAM_REAR])
-
 ([dvTP_Main, BTN_PRESET_1]..[dvTP_Main, BTN_PRESET_5])
+
+([dvTP_Main2, BTN_CAM_FRONT]..[dvTP_Main2, BTN_CAM_REAR_LEFT])
+([dvTP_Main2, BTN_PRESET_1]..[dvTP_Main2, BTN_PRESET_5])
 
 
 (***********************************************************)
@@ -119,22 +137,9 @@ DEFINE_MUTUALLY_EXCLUSIVE
 (***********************************************************)
 (* EXAMPLE: DEFINE_FUNCTION <RETURN_TYPE> <NAME> (<PARAMETERS>) *)
 (* EXAMPLE: DEFINE_CALL '<NAME>' (<PARAMETERS>) *)
-
-DEFINE_FUNCTION fnDGXRouteCamera(INTEGER cIn)
+DEFINE_FUNCTION fnRouteCamera(INTEGER cIn) //This is for DGX Switching...May not be needed
 {
     SEND_COMMAND dvDgx, "'VI',ITOA(cIn),'O',ITOA(OUTPUT_SMP_CAMERA),',',ITOA(OUTPUT_AVB)"
-    
-    SWITCH (cIn)
-    {
-	CASE INPUT_CAMERA_FRONT :
-	{
-	    ON [dvTP_Main, BTN_CAM_FRONT]
-	}
-	CASE INPUT_CAMERA_REAR :
-	{
-	    ON [dvTP_Main, BTN_CAM_REAR]
-	}
-    }
 }
 
 (***********************************************************)
@@ -144,7 +149,9 @@ DEFINE_START
 
 WAIT 350
 {
-	fnDGXRouteCamera(INPUT_CAMERA_REAR)
+	fnRouteCamera(INPUT_CAMERA_REAR)
+		nVaddioCameraSelect = 2 //Rear Camera is #2 in the Array!
+	ON [vdvTp_Main, BTN_CAM_REAR]
 }
 
 (***********************************************************)
@@ -159,97 +166,88 @@ DEFINE_MODULE 'Vaddio_RoboShot12_Comm' VaddioRearMod(vdvVaddioRear, dvVaddioRear
 (*                THE EVENTS GO BELOW                      *)
 (***********************************************************)
 DEFINE_EVENT
-BUTTON_EVENT [dvTP_Main, BTN_CAM_FRONT] //Front
-BUTTON_EVENT [dvTP_Main, BTN_CAM_REAR] //Rear
+BUTTON_EVENT [vdvTP_Main, nCameraVaddioBtns] //Sets the Active Camera and Powers On..
 {
     PUSH :
     {
-	SWITCH (BUTTON.INPUT.CHANNEL)
+       fnRouteCamera(nSourceInputs[GET_LAST(nCameraVaddioBtns)]) //
+       
+	    nVaddioCameraSelect = GET_LAST (nCameraVaddioBtns) 
+	    WAIT 10
+	    {
+		PULSE [dcCameras[nVaddioCameraSelect], POWER_ON]
+		    ON [vdvTP_Main, nVaddioCameraSelect + 50]
+	    }
+    }
+}
+BUTTON_EVENT [vdvTP_Main, TILT_UP] 
+BUTTON_EVENT [vdvTP_Main, TILT_DOWN] 
+BUTTON_EVENT [vdvTP_Main, PAN_LEFT] 
+BUTTON_EVENT [vdvTP_Main, PAN_RIGHT] 
+BUTTON_EVENT [vdvTP_Main, ZOOM_IN] 
+BUTTON_EVENT [vdvTP_Main, ZOOM_OUT] //Camera Move
+{
+    PUSH :
+    {
+	TOTAL_OFF [vdvTP_Main, nPresetSelect]
+	
+	    TO [dcCameras[nVaddioCameraSelect], BUTTON.INPUT.CHANNEL]
+    }
+    RELEASE :
+    {
+	PULSE [dcCameras[nVaddioCameraSelect], CAM_STOP]
+    }
+}
+BUTTON_EVENT [vdvTP_Main, BTN_PRESET_1]
+BUTTON_EVENT [vdvTP_Main, BTN_PRESET_2]
+BUTTON_EVENT [vdvTP_Main, BTN_PRESET_3]
+BUTTON_EVENT [vdvTP_Main, BTN_PRESET_4]
+BUTTON_EVENT [vdvTP_Main, BTN_PRESET_5] //Recall Presets...
+{	
+    PUSH :
+    {
+	ON [vdvTP_Main, BUTTON.INPUT.CHANNEL]
+	
+	    SEND_COMMAND dcCameras[nVaddioCameraSelect], "'CAMERAPRESET-',ITOA(BUTTON.INPUT.CHANNEL - 70)"
+    }
+}
+BUTTON_EVENT [vdvTP_Main, BTN_SAVE_1]
+BUTTON_EVENT [vdvTP_Main, BTN_SAVE_2]
+BUTTON_EVENT [vdvTP_Main, BTN_SAVE_3]
+BUTTON_EVENT [vdvTP_Main, BTN_SAVE_4]
+BUTTON_EVENT [vdvTP_Main, BTN_SAVE_5] //Save Preset from Local Room
+{	
+    HOLD [30] :
+    {
+	SEND_COMMAND vdvTP_Main, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Preset Saved!'"
+	    SEND_COMMAND dcCameras[nVaddioCameraSelect], "'CAMERAPRESETSAVE-',ITOA(BUTTON.INPUT.CHANNEL - 80)"
+	
+	WAIT 50 
 	{
-	    CASE BTN_CAM_FRONT :
-	    {
-		PULSE [vdvVaddioFront, POWER_ON]
-		fnDGXRouteCamera(INPUT_CAMERA_FRONT)
-	    }
-	    CASE BTN_CAM_REAR :
-	    {
-		PULSE [vdvVaddioRear, POWER_ON]
-		fnDGXRouteCamera(INPUT_CAMERA_REAR)
-	    }
+		SEND_COMMAND vdvTP_Main, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Hold for 3 Seconds to Save Camera Presets'"
 	}
     }
 }
-BUTTON_EVENT [dvTP_Main, TILT_UP] 
-BUTTON_EVENT [dvTP_Main, TILT_DOWN] 
-BUTTON_EVENT [dvTP_Main, PAN_LEFT] 
-BUTTON_EVENT [dvTP_Main, PAN_RIGHT] 
-BUTTON_EVENT [dvTP_Main, ZOOM_IN] 
-BUTTON_EVENT [dvTP_Main, ZOOM_OUT] //Camera Move
+BUTTON_EVENT [vdvTP_Main, BTN_BOARD_1]
+BUTTON_EVENT [vdvTP_Main, BTN_BOARD_2]
+BUTTON_EVENT [vdvTP_Main, BTN_BOARD_3]
+BUTTON_EVENT [vdvTP_Main, BTN_BOARD_4] //Store + Recall Board Presets....
 {
-    PUSH :
-    {
-	TOTAL_OFF [dvTP_Main, nPresetSelect]
-	
-	IF ([dvTP_Main, BTN_CAM_FRONT])
+    HOLD [50] :
+    {   
+	SEND_COMMAND vdvTP_Main, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Preset Saved!'"
+
+	SEND_COMMAND dcCameras[nVaddioCameraSelect], "'CAMERAPRESETSAVE-',ITOA(BUTTON.INPUT.CHANNEL -90)"
+
+    	WAIT 50 
 	{
-	    PULSE [vdvVaddioFront, BUTTON.INPUT.CHANNEL] 
-	}
-	ELSE
-	{
-	    PULSE [vdvVaddioRear, BUTTON.INPUT.CHANNEL ]
+	    SEND_COMMAND vdvTP_Main, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Hold for 3 Seconds to Save Camera Presets'"
 	}
     }
     RELEASE :
     {
-	    PULSE [vdvVaddioFront, CAM_STOP]
-		PULSE [vdvVaddioRear, CAM_STOP]
-    }
-}
-BUTTON_EVENT [dvTP_Main, BTN_PRESET_1]
-BUTTON_EVENT [dvTP_Main, BTN_PRESET_2]
-BUTTON_EVENT [dvTP_Main, BTN_PRESET_3]
-BUTTON_EVENT [dvTP_Main, BTN_PRESET_4]
-BUTTON_EVENT [dvTP_Main, BTN_PRESET_5] //Recall Presets...
-{	
-    PUSH :
-    {
-	ON [dvTP_Main, BUTTON.INPUT.CHANNEL]
-	
-	IF ([dvTP_Main, BTN_CAM_FRONT])
-	{
-		
-	    SEND_COMMAND vdvVaddioFront, "'CAMERAPRESET-',ITOA(BUTTON.INPUT.CHANNEL - 70)"
-	}
-	ELSE
-	{
-	    SEND_COMMAND vdvVaddioRear, "'CAMERAPRESET-',ITOA(BUTTON.INPUT.CHANNEL - 70)"
-	}
-    }
-}
-BUTTON_EVENT [dvTP_Main, BTN_SAVE_1] 
-BUTTON_EVENT [dvTP_Main, BTN_SAVE_2]
-BUTTON_EVENT [dvTP_Main, BTN_SAVE_3]
-BUTTON_EVENT [dvTP_Main, BTN_SAVE_4]
-BUTTON_EVENT [dvTP_Main, BTN_SAVE_5]
-{
-    HOLD [30] :
-    {
-	SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Preset Saved!'"
-			
-	IF ([dvTP_Main, BTN_CAM_FRONT])
-	{
-	    SEND_COMMAND vdvVaddioFront, "'CAMERAPRESETSAVE-',ITOA(BUTTON.INPUT.CHANNEL - 80)"
-	}
-	ELSE
-	{
-	    SEND_COMMAND vdvVaddioRear, "'CAMERAPRESETSAVE-',ITOA(BUTTON.INPUT.CHANNEL - 80)"
-	}
-	
-	WAIT 50 
-	{
-	    SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Hold for 3 Seconds to Save Camera Presets'"
-	}
-
+	    SEND_COMMAND dcCameras[nVaddioCameraSelect], "'CAMERAPRESET-',ITOA(BUTTON.INPUT.CHANNEL - 90)"
+		ON [vdvTP_Main, BUTTON.INPUT.CHANNEL]
     }
 }
 
