@@ -1,15 +1,11 @@
-PROGRAM_NAME='MySX80'
+PROGRAM_NAME='Cisco_SX80_VTC'
 (***********************************************************)
-(*  FILE_LAST_MODIFIED_ON: 08/25/2018  AT: 09:26:49        *)
+(*  FILE_LAST_MODIFIED_ON: 09/07/2019  AT: 08:55:37        *)
 (***********************************************************)
 
 //Notes...
 
 (*
-    http://consulting129.vtc.gatech.edu
-    admin
-
-
     Add BlueJeans ...
     meet@sip.bjn.vc
     111@sip.bjn.vc
@@ -20,32 +16,32 @@ PROGRAM_NAME='MySX80'
 (***********************************************************)
 DEFINE_DEVICE
 
-#IF_NOT_DEFINED dvTP
-dvTP =					10001:4:0
+#IF_NOT_DEFINED dvTP_Codec
+dvTP_Codec =					10001:2:0
 #END_IF
 
-#IF_NOT_DEFINED dvTP2
-dvTP2 =					10002:4:0
+#IF_NOT_DEFINED dvTP2_Codec
+dvTP2_Codec =					10002:2:0
 #END_IF
 
 #IF_NOT_DEFINED dvCodec
 dvCodec =					5001:2:0
 #END_IF
 
-
-
 (***********************************************************)
 (*               CONSTANT DEFINITIONS GO BELOW             *)
 (***********************************************************)
 DEFINE_CONSTANT
 
-INTEGER MAX_TEXT_LENGTH 	= 100
-TXT_CALLID				= 2001
-TXT_MYSIP					= 2002
-TXT_STATE				= 2003
-TXT_CALLTYPE				= 2004
-TXT_DIAL					= 2019
-TXT_RETURN_ITEMS			= 2020
+//From Main Program...
+
+#IF_NOT_DEFINED VIDEO_CAMERA_FRONT
+VIDEO_CAMERA_FRONT			= 1
+#END_IF
+
+#IF_NOT_DEFINED VIDEO_CAMERA_REAR
+VIDEO_CAMERA_REAR			= 2
+#END_IF
 
 #IF_NOT_DEFINED CR 
 CR 						= 13 //~$0D
@@ -55,20 +51,23 @@ CR 						= 13 //~$0D
 LF						= 10 //~$0A
 #END_IF
 
-#IF_NOT_DEFINED IS_ON 
-IS_ON					= 1
-#END_IF
-
-#IF_NOT_DEFINED IS_OFF 
-IS_OFF					= 0 //~$0A
-#END_IF
-
 #IF_NOT_DEFINED POWER 
 POWER 					= 255
 #END_IF
 
-CAMERA_FRONT				= 1
-CAMERA_REAR				= 2
+//Text Fields
+MAX_TEXT_LENGTH 		= 100
+TXT_CALLID				= 2001
+TXT_MYSIP				= 2002
+TXT_STATE				= 2003
+TXT_CALLTYPE				= 2004
+TXT_DIAL					= 2019
+TXT_RETURN_ITEMS			= 2020
+TXT_CAMERA_SAVED		= 22
+
+SOURCE_CAMERA_FRONT				= 1
+SOURCE_CAMERA_REAR				= 2
+SOURCE_CONTENT_SHARE			= 3
 
 SET_ON					= 'On'
 SET_OFF					= 'Off'
@@ -80,26 +79,62 @@ DO_NOT_DISTURB			= 'Activate'
 DO_DISTURB				= 'Deactivate'
 
 
-//Cam Presets..
-PRESET_1				= 1
-PRESET_2				= 2
-PRESET_3				= 3
-PRESET_4				= 4
-PRESET_5				= 5
-PRESET_6				= 6
-PRESET_7				= 7
-PRESET_8				= 8
+//Btns...
+BTN_NAV_PAGE_1			= 201
+BTN_NAV_PAGE_2			= 202
+BTN_NAV_PAGE_3			= 203
+BTN_NAV_PAGE_4			= 204
+BTN_NAV_PAGE_5			= 205
+BTN_NAV_PAGE_6			= 206
+BTN_NAV_PAGE_7			= 207
 
-//Phone Book Directories
-ATL_END				= 1
-SAV_END				= 2
-GTL_END				= 3
-GT_END				= 4
-BLUE_JEANS			= 5
-LOCAL_DIR				= 6
+BTN_NAV_DIAL			= 210
+BTN_DISTURB_ALLOW			= 106
+BTN_DISTURB_NO				= 107
 
-TL_VTC				= 7
-TL_RECALL				= 8
+BTN_START_SHARING		= 108
+BTN_STOP_SHARING		= 109
+BTN_TOGGLE_SELFVIEW		= 110
+BTN_PIP_CYCLE			= 111
+BTN_LAYOUT_VIEW			= 112
+BTN_MIC_MUTE_VTC		= 113
+BTN_HOME_SELECT		= 117
+
+BTN_CAM_FRONT			= 52
+BTN_CAM_REAR			= 51
+
+BTN_TILT_UP				= 61
+BTN_TILT_DOWN			= 62
+BTN_PAN_LEFT			= 63
+BTN_PAN_RIGHT			= 64
+BTN_ZOOM_IN 			= 65
+BTN_ZOOM_OUT			= 66
+
+BTN_RECALL_PRESET_1		= 71
+BTN_RECALL_PRESET_2		= 72
+BTN_RECALL_PRESET_3		= 73
+BTN_RECALL_PRESET_4		= 74
+BTN_RECALL_PRESET_5		= 75
+
+BTN_STORE_PRESET_1		= 81
+BTN_STORE_PRESET_2		= 82
+BTN_STORE_PRESET_3		= 83
+BTN_STORE_PRESET_4		= 84
+BTN_STORE_PRESET_5		= 85
+
+BTN_CALL_ANSWER		= 100
+BTN_CALL_HANGUP		= 101
+BTN_CALL_IGNORE			= 102
+BTN_CALL_REJECT			= 103
+BTN_SYSTEM_SLEEP		= 104
+BTN_SYSTEM_WAKE		= 105
+
+BTN_SHOW_KEYB			= 1500
+
+BTN_BJN_SPEED 			= 3001
+
+BTN_PRESENTATION_ON	= 108
+BTN_PRESENTATION_OFF	= 109
 
 
 (***********************************************************)
@@ -107,33 +142,19 @@ TL_RECALL				= 8
 (***********************************************************)
 DEFINE_VARIABLE
 
-DEV vdvTP_Codec[] = {dvTP, dvTP2} //
-
-VOLATILE CHAR nVTCBuffer[1000]
-//VOLATILE LONG lVTCTimer[] = {15000} //15Seconds
-
-//Phone Book Directories..
-CHAR nAtlEnd[10] = 'PAGE 1'
-CHAR nSavEnd[10] = 'PAGE 2'
-CHAR nGtlEnd[10] = 'PAGE 3'
-CHAR nGtEnd[10] = 'PAGE 4'
-CHAR nBjn[10] = 'BlueJeans'
-CHAR nLocalSearch[10] = 'Local'
-
 //Place Caller ID
 CHAR cNameReturn[30] =''
 CHAR cSecondaryReturn[35] ='' //GT Book Return
 CHAR cPrimaryReturn[35] = '' //Blue Jeans + Local Return
 
-VOLATILE INTEGER nSX80Online
-VOLATILE LONG lTlCodecFeedback[] = {250}
-VOLATILE LONG lTlCodecReCheck[] = {300000} //5 Minutes
 VOLATILE CHAR cSX80Buffer[500]
+VOLATILE INTEGER nSX80Online
 
 VOLATILE INTEGER nJustBooted
-VOLATILE INTEGER nCameraSelect //Front or Rear?
+NON_VOLATILE INTEGER nCameraSelect //Front or Rear?
 VOLATILE INTEGER nCameraPreset 
 VOLATILE INTEGER sPowerStatus
+NON_VOLATILE INTEGER nBlueJeansStarted
 
 VOLATILE INTEGER nDisturb
 VOLATILE INTEGER nSelfView
@@ -141,23 +162,25 @@ VOLATILE INTEGER nPresentation
 VOLATILE INTEGER nPIPCounter //PIP Cycle
 VOLATILE INTEGER nVolumeOutput = 80 //Volume Max 
 VOLATILE INTEGER nVTC_Mic_Mute
-
-VOLATILE INTEGER nPowerStatus //Power Track
 VOLATILE INTEGER nCallInProgress //In Call? or Not?
 
-VOLATILE INTEGER nPage //Phonebook Page
-VOLATILE INTEGER nListCount = 14 //How many list items are we displaying?? 10 is Temp
+VOLATILE INTEGER nListCount = 14 //How many list items are we displaying from Phonebook?? 10 is Temp
 VOLATILE CHAR sEntriesFound[3] = '' //How many directories?
-CHAR cFolderGT[4] =''
-CHAR cFolderTest[4] =''
-CHAR cFolderBlueJeans[4] =''
-VOLATILE INTEGER cDialGTBook //Am I using the GT phonebook or naw??
+VOLATILE CHAR cFolderGT[4] ='' //Holds pulled ID
+VOLATILE CHAR cFolderTest[4] =''
+VOLATILE CHAR cFolderBlueJeans[4] =''
+VOLATILE INTEGER cDialGTBook //Am I using the GT phonebook or no?? (With Latest Update to Codec...May not be necessary
 
 VOLATILE CHAR dialNumber[MAX_TEXT_LENGTH]  // stores the number being dialed
 
-VOLATILE CHAR cSlot_Secondary[14][35] = {'','','','','','','','','','','','','',''} //Hold GT Numbers...
+VOLATILE CHAR cSlot_Secondary[14][35] = {'','','','','','','','','','','','','',''} //Hold PhoneBook Numbers...
 VOLATILE CHAR cSlot_Primary[14][35] = {'','','','','','','','','','','','','',''} //Hold GT Numbers...
 
+VOLATILE DEV vdvTP_Codec[] = 
+{
+    dvTP_Codec, 
+    dvTP2_Codec
+}
 VOLATILE CHAR cPIP_Names[][16] =
 {
     'UpperLeft',
@@ -167,56 +190,60 @@ VOLATILE CHAR cPIP_Names[][16] =
     'LowerRight',
     'LowerLeft'
 }
-VOLATILE INTEGER nCameraControlBtns[] =
+VOLATILE INTEGER nCameraControlsBtns[] =
 {
-    51, //Tilt Up
-    52, //Tilt Down
-    53, //Pan Left
-    54, //Pan Right
-    55, //Zoom Out
-    56  //Zoom In
+    BTN_TILT_UP,					
+    BTN_TILT_DOWN,				
+    BTN_PAN_LEFT,					
+    BTN_PAN_RIGHT,				
+    BTN_ZOOM_IN, 						
+    BTN_ZOOM_OUT
 }
-VOLATILE INTEGER nCameraPresets[] =
+VOLATILE INTEGER nPresetSelectBtns[] =
 {
-    //Recall..
-    61,62,63,64,65,
-    
-    //Save...
-    71,72,73,74,75
+    BTN_RECALL_PRESET_1,
+    BTN_RECALL_PRESET_2,
+    BTN_RECALL_PRESET_3,
+    BTN_RECALL_PRESET_4,
+    BTN_RECALL_PRESET_5
 }
-VOLATILE INTEGER nVTCControlBtns[] =
+VOLATILE INTEGER nPresetStoreBtns[] =
 {
-    100, //Answer
-    101, //Hangup
-    102, //Ignore
-    103, //Reject
-    104, //Sleep
-    105, //Wake
-    
-    106, //Do not disturb (Available)
-    107, //Do not distub (No Calls!!)
-    
-    108, //Presentation On
-    109, //Presentation off
-    
-    110, //Selfview On /Off
-    111, //PIP cycle
-     
-    113, //Mute Microphone
-    114, //Output Volume Up
-    115, //Output Volume Dn
-    116  //Output Preset
-    
+    BTN_STORE_PRESET_1,
+    BTN_STORE_PRESET_2,
+    BTN_STORE_PRESET_3,
+    BTN_STORE_PRESET_4,
+    BTN_STORE_PRESET_5
 }
-VOLATILE INTEGER nPhonenav[] =
+VOLATILE INTEGER nSelectCameraBtns[] =
 {
-    //Page Flips...
-    201,
-    202,
-    203,
-    204,
-    205,
-    206
+    BTN_CAM_REAR,
+    BTN_CAM_FRONT
+}
+VOLATILE INTEGER nCameraIds[] =
+{
+    SOURCE_CAMERA_REAR,
+    SOURCE_CAMERA_FRONT
+}
+VOLATILE INTEGER nPhonenavBtns[] =
+{
+    BTN_NAV_PAGE_1,
+    BTN_NAV_PAGE_2,
+    BTN_NAV_PAGE_3,
+    BTN_NAV_PAGE_4,
+    BTN_NAV_PAGE_5,
+    BTN_NAV_PAGE_6,
+    BTN_NAV_PAGE_7
+}
+VOLATILE CHAR nPhoneNavNames[7][10] =
+{
+    'PAGE 1',
+    'PAGE 2',
+    'PAGE 3',
+    'PAGE 4',
+    'Blue Jeans',
+    'Local',
+    'Local'
 }
 VOLATILE INTEGER nPhoneSelect[] =
 {
@@ -241,7 +268,13 @@ VOLATILE INTEGER nPhoneSelect[] =
 (***********************************************************)
 DEFINE_MUTUALLY_EXCLUSIVE
 
-([vdvTP_Codec,nPhoneSelect[1]]..[vdvTP_Codec,nPhoneSelect[14]])
+([dvTP_Codec,nPhoneSelect[1]]..[dvTP_Codec,nPhoneSelect[14]])
+
+([dvTP_Codec, BTN_CAM_FRONT],[dvTP_Codec, BTN_CAM_REAR])
+([dvTP_Codec, BTN_NAV_PAGE_1]..[dvTP_Codec, BTN_NAV_PAGE_7])
+([dvTP_Codec, BTN_DISTURB_ALLOW],[dvTP_Codec, BTN_DISTURB_NO])
+([dvTP_Codec, BTN_START_SHARING],[dvTP_Codec, BTN_STOP_SHARING])
+([dvTP_Codec, BTN_PRESENTATION_ON],[dvTP_Codec, BTN_PRESENTATION_OFF])
 
 (***********************************************************)
 (*        SUBROUTINE/FUNCTION DEFINITIONS GO BELOW         *)
@@ -270,25 +303,33 @@ DEFINE_FUNCTION fnPresentation(CHAR cPresentation[9])
     {
 	CASE 'START' :
 	{
-	    SEND_STRING dvCodec, "'xCommand Presentation Start SendingMode:LocalRemote',CR"
-	    WAIT 10
-	    {
-		SEND_STRING dvCodec, "'xStatus Conference Presentation Mode',CR"
-	    }
+	    SEND_STRING dvCodec, "'xCommand Presentation Start SendingMode:LocalRemote ConnectorId:',ITOA(SOURCE_CONTENT_SHARE),CR"
+		ON [vdvTP_Codec, BTN_START_SHARING]
 	}
 	CASE 'STOP' :
 	{
 	    SEND_STRING dvCodec, "'xCommand Presentation Stop',CR"
-	    WAIT 10
-	    {
-		SEND_STRING dvCodec, "'xStatus Conference Presentation Mode',CR"
-	    }
+		ON [vdvTP_Codec, BTN_STOP_SHARING]
 	}
     }
 }
 DEFINE_FUNCTION fnDisturbOrNot(CHAR cState[12])
 {
     SEND_STRING dvCodec, "'xCommand Conference DoNotDisturb ',cState,CR"
+
+    SWITCH (cState)
+    {
+	CASE DO_NOT_DISTURB :
+	{
+	    OFF [nDisturb]
+		    ON [vdvTP_Codec, BTN_DISTURB_ALLOW]
+	}
+	CASE DO_DISTURB :
+	{
+	    ON [nDisturb]
+		    ON [vdvTP_Codec, BTN_DISTURB_NO]
+	}
+    }    
 }
 DEFINE_FUNCTION fnFullScreenMode(CHAR cScreen[3])
 {
@@ -337,57 +378,14 @@ DEFINE_FUNCTION fnPIPCycle(nPIPCounter)
 	}
     }
 }
-DEFINE_FUNCTION fnCallCommands(CHAR cCommand[15])
-{
-    SWITCH (cCommand)
-    {
-	CASE 'ACCEPT' :
-	{
-	    SEND_STRING dvCodec, "'xCommand Call Accept CallId:0',CR"
-	    SEND_COMMAND vdvTP_Codec, "'PPOF-_incomingcall'"
-	    WAIT 10
-	    {
-		SEND_COMMAND vdvTP_Codec, "'PAGE-Conference'"
-		WAIT 10
-		{
-		    SEND_COMMAND vdvTP_Codec, "'PPON-VTC_Dialer'"
-		    SEND_STRING dvCodec, "'xStatus SystemUnit State System',CR" //InCall?
-		}
-	    }
-	}
-	CASE 'HANGUP' :
-	{
-	    SEND_STRING dvCodec, "'xCommand Call Disconnect CallId:0',CR"
-	    //SEND_STRING dvCodec, "'xCommand Call DisconnectAll',$0D"
-	}
-	CASE 'SLEEP' :
-	{
-	    SEND_STRING dvCodec, "'xCommand Standby Activate',CR"
-	}
-	CASE 'WAKE' :
-	{
-	    SEND_STRING dvCodec, "'xCommand Standby Deactivate',CR"
-	}
-	CASE 'REJECT':
-	{
-	    SEND_STRING dvCodec, "'xCommand Call Reject CallId:0',CR"
-	    SEND_COMMAND vdvTP_Codec, "'PPOF-_incomingcall'"
-	}
-	CASE 'IGNORE':
-	{
-	    SEND_STRING dvCodec, "'xCommand Call Ignore CallId:0',CR"
-	    SEND_COMMAND vdvTP_Codec, "'PPOF-_incomingcall'"
-	}
-    }
-}
 DEFINE_FUNCTION fnDirectoryNav()
 {
-    SEND_COMMAND vdvTP_Codec, "'^TXT-201,0,',nAtlEnd"
-    SEND_COMMAND vdvTP_Codec, "'^TXT-202,0,',nSavEnd"
-    SEND_COMMAND vdvTP_Codec, "'^TXT-203,0,',nGtlEnd"
-    SEND_COMMAND vdvTP_Codec, "'^TXT-204,0,',nGtEnd"
-    SEND_COMMAND vdvTP_Codec, "'^TXT-205,0,',nBjn"
-    SEND_COMMAND vdvTP_Codec, "'^TXT-206,0,',nLocalSearch"
+    STACK_VAR INTEGER cLoop
+    
+    FOR (cLoop=1; cLoop<=MAX_LENGTH_ARRAY(nPhonenavBtns); cLoop++)
+    {
+	SEND_COMMAND vdvTP_Codec, "'^TXT-',ITOA(nPhonenavBtns[cLoop]),',0,',nPhoneNavNames[cLoop]"
+    }
 }
 DEFINE_FUNCTION fnMicrophoneMute(CHAR cMuteState[6])
 {
@@ -395,6 +393,14 @@ DEFINE_FUNCTION fnMicrophoneMute(CHAR cMuteState[6])
     WAIT 10
     {
 	SEND_STRING dvCodec, "'xStatus Audio Microphones Mute',CR"
+    }
+}
+DEFINE_FUNCTION fnSelectCamera(INTEGER cIn)
+{
+    SEND_STRING dvCodec, "'xCommand Video Input SetMainVideoSource ConnectorId: ',ITOA(cIn),CR"
+    WAIT 10
+    {
+	SEND_STRING dvCodec, "'xStatus Video Input MainVideoSource',CR"
     }
 }
 DEFINE_FUNCTION fnSetVolumeOut()
@@ -411,22 +417,14 @@ DEFINE_FUNCTION fnPollCodec()
     WAIT 70 SEND_STRING dvCodec, "'xStatus Standby',CR" //Sleep or Naw...
     WAIT 90 SEND_STRING dvCodec, "'xStatus SystemUnit State System',CR" //InCall? 
     
-	//SEND_STRING dvCodec, "'xStatus Call',$0D" //Query on going call
+    WAIT 100 SEND_STRING dvCodec, "'xCommand Standby ResetHalfwakeTimer Delay: 480',CR" 
     WAIT 110 SEND_STRING dvCodec, "'xStatus SIP Registration URI',CR" //Get My URI
     WAIT 140 fnSetVolumeOut()
     WAIT 160 SEND_STRING dvCodec, "'xCommand Phonebook Search PhonebookID:0 PhonebookType:Corporate Offset:0',CR" //Get Phonebook Folders...
 }
-DEFINE_FUNCTION fnSelectCamera(INTEGER cCamera)
-{
-    SEND_STRING dvCodec, "'xCommand Video Input SetMainVideoSource ConnectorId: ',ITOA(cCamera),CR"
-    WAIT 10
-    {
-	SEND_STRING dvCodec, "'xStatus Video Input MainVideoSource',CR"
-    }
-}
 DEFINE_FUNCTION fnParseSX80()
 {
-    STACK_VAR CHAR cResponse[500] CHAR cTrash[500]
+    STACK_VAR CHAR cResponse[500] 
     
     LOCAL_VAR CHAR sURI[30]
     LOCAL_VAR CHAR sCallerId[30]
@@ -507,58 +505,62 @@ DEFINE_FUNCTION fnParseSX80()
 	    }
 	    ACTIVE (FIND_STRING(cResponse,'*s Conference Presentation Mode: ',1)):
 	    {
-		cTrash = REMOVE_STRING(cResponse,'*s Conference Presentation Mode: ',1)
+		REMOVE_STRING(cResponse,'*s Conference Presentation Mode: ',1)
 		
 		IF (FIND_STRING(cResponse,'Off',1))
 		{
-		    nPresentation = IS_OFF 
+		    OFF [nPresentation]
+			ON [vdvTP_Codec, BTN_STOP_SHARING]
 		}
-		IF (FIND_STRING(cResponse,'On',1))
+		IF (FIND_STRING(cResponse,'Sending',1))
 		{
-		    nPresentation = IS_ON
+		    ON [ nPresentation]
+			ON [vdvTP_Codec, BTN_START_SHARING]
 		}
-		cTrash = ''
-	    }
-	    ACTIVE (FIND_STRING(cResponse,'xCommand Video Input SetMainVideoSource ConnectorId:2',1)):
-	    {
-		nCameraSelect = CAMERA_REAR
-	    }
-	    ACTIVE (FIND_STRING(cResponse,'xCommand Video Input SetMainVideoSource ConnectorId:1',1)):
-	    {
-		nCameraSelect = CAMERA_FRONT
 	    }
 	    ACTIVE (FIND_STRING(cResponse,'*s Video Input MainVideoSource: 1',1)):
 	    {
-		nCameraSelect = CAMERA_FRONT
+		nCameraSelect = SOURCE_CAMERA_FRONT
+		    ON [vdvTP_Codec, BTN_CAM_FRONT]
+		    fnRouteCamera(VIDEO_CAMERA_FRONT) //From Main Prgm
 	    }
 	    ACTIVE (FIND_STRING(cResponse,'*s Video Input MainVideoSource: 2',1)):
 	    {
-		nCameraSelect = CAMERA_REAR
+		nCameraSelect = SOURCE_CAMERA_REAR
+		    ON [vdvTP_Codec, BTN_CAM_REAR]
+			fnRouteCamera(VIDEO_CAMERA_REAR) //From Main Prgm
 	    }
-
-	    ACTIVE (FIND_STRING(cResponse,'xCommand Conference DoNotDisturb DeActivate',1)):
+	    ACTIVE(FIND_STRING(cResponse,'xCommand Video Input SetMainVideoSource ConnectorId: 1',1)):
 	    {
-		nDisturb = IS_OFF
+		nCameraSelect = SOURCE_CAMERA_FRONT
+		     ON [vdvTP_Codec, BTN_CAM_FRONT]
+			fnRouteCamera(VIDEO_CAMERA_FRONT) //From Main Prgm
 	    }
-	    ACTIVE (FIND_STRING(cResponse,'xStatus Conference DoNotDisturb: Inactive',1)):
+	    ACTIVE(FIND_STRING(cResponse,'xCommand Video Input SetMainVideoSource ConnectorId: 2',1)):
 	    {
-		nDisturb = IS_OFF
+		nCameraSelect = SOURCE_CAMERA_REAR
+		     ON [vdvTP_Codec, BTN_CAM_REAR]
+			fnRouteCamera(VIDEO_CAMERA_REAR) //From Main Prgm
 	    }
-	    ACTIVE (FIND_STRING(cResponse,'xStatus Conference DoNotDisturb: Active',1)):
+	    ACTIVE (FIND_STRING(cResponse,'*s Conference DoNotDisturb: Inactive',1)):
 	    {
-		nDisturb = IS_ON
+		OFF [nDisturb]
+		    ON [vdvTP_Codec, BTN_DISTURB_ALLOW]
 	    }
-	    ACTIVE (FIND_STRING(cResponse,'xCommand Conference DoNotDisturb Activate',1)):
+	    ACTIVE (FIND_STRING(cResponse,'*s Conference DoNotDisturb: Active',1)):
 	    {
-		nDisturb = IS_ON
+		ON [nDisturb]
+		    ON [vdvTP_Codec, BTN_DISTURB_NO]
 	    }
 	    ACTIVE(FIND_STRING(cResponse,'*s Video Selfview Mode: Off',1)):
 	    {
-		nSelfView = IS_OFF
+		OFF [nSelfView]
+		    OFF [vdvTP_Codec, BTN_TOGGLE_SELFVIEW]
 	    }
 	    ACTIVE(FIND_STRING(cResponse,'*s Video Selfview Mode: On',1)):
 	    {
-		nSelfView = IS_ON
+		ON [nSelfView]
+		    ON [vdvTP_Codec, BTN_TOGGLE_SELFVIEW]
 	    }
 	    ACTIVE(FIND_STRING(cResponse,'*e IncomingCallIndication RemoteURI: "sip:',1)):
 	    {
@@ -567,8 +569,7 @@ DEFINE_FUNCTION fnParseSX80()
 		SET_LENGTH_STRING(sCallerId,LENGTH_STRING(sCallerId) -3);
 		
 		SEND_COMMAND vdvTP_Codec, "'^TXT-',ITOA(TXT_CALLID),',0,',sCallerId" 
-		
-		SEND_COMMAND vdvTP_Codec, "'PPON-_incomingcall'"
+		    SEND_COMMAND vdvTP_Codec, "'PPON-_incomingcall'"
 	    }
 	    ACTIVE(FIND_STRING(cResponse,'*s SIP Registration 1 URI: "',1)):
 	    {
@@ -578,67 +579,72 @@ DEFINE_FUNCTION fnParseSX80()
 		SET_LENGTH_STRING(sURI,LENGTH_STRING(sURI) -3); //Set to -18 to leave only host name
 		SEND_COMMAND vdvTP_Codec, "'^TXT-',ITOA(TXT_MYSIP),',0,',sURI"
 	    }
-	    //ACTIVE(FIND_STRING(cResponse,'*e CallDisconnect CauseType: "RemoteDisconnect"',1)):
 	    ACTIVE(FIND_STRING(cResponse,'*e CallDisconnect',1)):
 	    {
 		SEND_COMMAND vdvTP_Codec, "'^TXT-',ITOA(TXT_STATE),',0,Disconnected'"
-		nCallInProgress = IS_OFF
+		OFF [nCallInProgress]
+		    OFF [vdvTP_Codec, BTN_BJN_SPEED ]
+		    OFF [nBlueJeansStarted]
 	    }
 	    ACTIVE(FIND_STRING(cResponse,'*e CallDisconnect CauseType: "NetworkRejected"',1)):
 	    {
 		SEND_COMMAND vdvTP_Codec, "'^TXT-',ITOA(TXT_STATE),',0,Disconnected'"
+		SEND_COMMAND vdvTP_Codec, "'^TXT-',ITOA(TXT_STATE),',0,Disconnected'"
 		//Invalid Address...
-		nCallInProgress = IS_OFF
+		OFF [nCallInProgress]
+		    OFF [vdvTP_Codec, BTN_BJN_SPEED ]
+			    OFF [nBlueJeansStarted]
 	    }
 	    ACTIVE(FIND_STRING(cResponse,'*e OutgoingCallIndication CallId:',1)):
 	    {
 		SEND_COMMAND vdvTP_Codec, "'^TXT-',ITOA(TXT_STATE),',0,Connecting'"
-		nCallInProgress = IS_ON
+		ON [nCallInProgress]
 	    }
 	    ACTIVE(FIND_STRING(cResponse,'Status: Connected',1)):
 	    {
 		SEND_COMMAND vdvTP_Codec, "'^TXT-',ITOA(TXT_STATE),',0,Connected'"
-		nCallInProgress = IS_ON
+		ON [nCallInProgress]
 	    }
 	    ACTIVE(FIND_STRING(cResponse,'*s Audio Microphones Mute: ',1)):
 	    {
-		cTrash = REMOVE_STRING(cResponse,'*s Audio Microphones Mute: ',1)
+		REMOVE_STRING(cResponse,'*s Audio Microphones Mute: ',1)
 		
 		IF (FIND_STRING(cResponse,'Off',1))
 		{
-		    nVTC_Mic_Mute = IS_OFF
+		     OFF [nVTC_Mic_Mute]
+			OFF [vdvTP_Codec, BTN_MIC_MUTE_VTC]
 		}
 		IF (FIND_STRING(cResponse,'On',1))
 		{
-		    nVTC_Mic_Mute = IS_ON
+		    ON [nVTC_Mic_Mute]
+			ON [vdvTP_Codec, BTN_MIC_MUTE_VTC]
 		}
 	    }
-	    ACTIVE(FIND_STRING(cResponse,'*s Standby State: Standby',1)):
+	    ACTIVE(FIND_STRING(cResponse,'*s Standby State: Standby',1) OR FIND_STRING(cResponse,'*s Standby State: On',1)):
 	    {
 		//Sleep
-		sPowerStatus = IS_OFF
-		nCallInProgress = IS_OFF
+		OFF [sPowerStatus]
+		    OFF [nCallInProgress]
+			OFF [vdvTP_Codec, POWER]
+			    OFF [vdvTP_Codec, BTN_BJN_SPEED ]
+				OFF [nBlueJeansStarted]
 	    }
 	    ACTIVE(FIND_STRING(cResponse,'*s Standby State: Off',1)):
 	    {
-		sPowerStatus = IS_ON
-	    }
-	    ACTIVE(FIND_STRING(cResponse,'*s Standby State: On',1)):
-	    {
-		sPowerStatus = IS_OFF
-		nCallInProgress = IS_OFF
+		ON [sPowerStatus]
+		    ON [vdvTP_Codec, POWER]
 	    }
 	    ACTIVE(FIND_STRING(cResponse,'*s SystemUnit State System: Initialized',1)):
 	    {
 		//State Disconnected
 		SEND_COMMAND vdvTP_Codec, "'^TXT-',ITOA(TXT_STATE),',0,Ready'"
-		nCallInProgress = IS_OFF
+		OFF [nCallInProgress]
 	    }
 	    ACTIVE(FIND_STRING(cResponse,'*s SystemUnit State System: InCall',1)):
 	    {
 		//State connected
 		SEND_COMMAND vdvTP_Codec, "'^TXT-',ITOA(TXT_STATE),',0,Connected'"
-		nCallInProgress = IS_ON
+		ON [nCallInProgress]
 	    }
 	}
     }
@@ -662,7 +668,7 @@ DEFINE_FUNCTION fnRegisterFeedback()
     WAIT 80 SEND_STRING dvCodec, "'xFeedback register /Configuration/Video/MainVideoSource',CR"
     WAIT 90 SEND_STRING dvCodec, "'xFeedback register /Status/Camera',CR"
     WAIT 110 SEND_STRING dvCodec, "'xFeedback register /Status/Conference',CR"
-    //Event IncomingCallIndication CallId
+   WAIT 160 SEND_STRING dvCodec, "'xStatus Video Input MainVideoSource',CR"
 }
 DEFINE_FUNCTION fnUpdateList()
 {
@@ -679,13 +685,17 @@ DEFINE_START
 
 ON [nJustBooted]
 CREATE_BUFFER dvCodec, cSX80Buffer;
-//TIMELINE_CREATE (TL_VTC,lTlCodecFeedback,1,TIMELINE_ABSOLUTE,TIMELINE_REPEAT);
 
 WAIT 600
 {
     OFF [nJustBooted]
-    TIMELINE_CREATE (TL_RECALL,lTlCodecReCheck,1,TIMELINE_ABSOLUTE,TIMELINE_REPEAT);
+
 }
+
+
+(***********************************************************)
+(*                MODULE DEFINITIONS GO BELOW              *)
+(***********************************************************)
 
 
 (***********************************************************)
@@ -724,7 +734,7 @@ BUTTON_EVENT [vdvTP_Codec, 16] //DTMF- ##
 	    CASE 9 :
 	    CASE 10:	
 	    {
-		IF (nCallInProgress == IS_ON)
+		IF (nCallInProgress)
 		{
 		     SEND_STRING dvCodec, "'xCommand Call DTMFSend CallId:0 DTMFString:',ITOA(BUTTON.INPUT.CHANNEL -1),CR"
 		}
@@ -743,13 +753,13 @@ BUTTON_EVENT [vdvTP_Codec, 16] //DTMF- ##
 		IF (LENGTH_STRING(dialNumber))
 		{
 		    SET_LENGTH_STRING(dialNumber,LENGTH_STRING(dialNumber) -1);
-		    SEND_COMMAND vdvTP_Codec, "'^TXT-19,0,',dialNumber"
+			SEND_COMMAND vdvTP_Codec, "'^TXT-',ITOA(TXT_DIAL),',0,',dialNumber"
 		}
 	    }
 	    CASE 13 :
 	    {
                 dialNumber = ''
-		SEND_COMMAND vdvTP_Codec, "'^TXT-',ITOA(TXT_DIAL),',0,',dialNumber"
+		    SEND_COMMAND vdvTP_Codec, "'^TXT-',ITOA(TXT_DIAL),',0,',dialNumber"
 	    }
 	    CASE 14 :
 	    {
@@ -767,298 +777,219 @@ BUTTON_EVENT [vdvTP_Codec, 16] //DTMF- ##
 	}
     }
 }
-BUTTON_EVENT [vdvTP_Codec, 41] //Camera Front
-BUTTON_EVENT [vdvTP_Codec, 42] //Camera Rear
+BUTTON_EVENT [vdvTP_Codec, nSelectCameraBtns] //Camera Select
 {
     PUSH :
     {
-	SWITCH (BUTTON.INPUT.CHANNEL)
-	{
-	    CASE 41: 
-	    {
-		fnSelectCamera(CAMERA_FRONT)
-		fnDGXSetCameraDefault()
-		//nCameraSelect = CAMERA_FRONT
-		fnDGXSwitchCamera(INPUT_CAMERA_FRONT) //Set AVB
-	    }
-	    CASE 42: 
-	    {
-		fnSelectCamera(CAMERA_REAR)
-		fnDGXSetCameraDefault()
-		//nCameraSelect = CAMERA_REAR
-		fnDGXSwitchCamera(INPUT_CAMERA_REAR) //Set AVB
-	    }
-	}
+	nCameraSelect = GET_LAST (nSelectCameraBtns)
+	
+        fnSelectCamera(nCameraIds[GET_LAST(nSelectCameraBtns)])
+		ON [dvTP_Codec, nCameraSelect + 50] //Set Feedback
     }
 }
-BUTTON_EVENT [vdvTP_Codec, nCameraControlBtns]
+BUTTON_EVENT [vdvTP_Codec, nCameraControlsBtns]
 {
     PUSH :
     {
 	STACK_VAR INTEGER nCamIdx
-	//OFF [nCameraPreset]
+	TOTAL_OFF [nPresetSelectBtns]
 	
-	nCamIdx = GET_LAST(nCameraControlBtns)
+	nCamIdx = GET_LAST(nCameraControlsBtns)
 	
-	SELECT
+	SWITCH (nCamIdx)
 	{
-	    ACTIVE ( nCameraSelect == CAMERA_FRONT) :
-	    {
-		SWITCH (nCamIdx)
-		{
-		    CASE 1: SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:1 Tilt:Up TiltSpeed:1',CR"
-		    CASE 2: SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:1 Tilt:Down TiltSpeed:1',CR"
-		    CASE 3: SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:1 Pan:Left PanSpeed:1',CR"
-		    CASE 4: SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:1 Pan:Right PanSpeed:1',CR"
-		    CASE 5: SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:1 Zoom:In ZoomSpeed:12',CR"
-		    CASE 6: SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:1 Zoom:Out ZoomSpeed:12',CR"
-		}
-	    }
-	    ACTIVE ( nCameraSelect == CAMERA_REAR) :
-	    {
-		SWITCH (nCamIdx)
-		{
-		    CASE 1: SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:2 Tilt:Up TiltSpeed:1',CR"
-		    CASE 2: SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:2 Tilt:Down TiltSpeed:1',CR"
-		    CASE 3: SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:2 Pan:Left PanSpeed:1',CR"
-		    CASE 4: SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:2 Pan:Right PanSpeed:1',CR"
-		    CASE 5: SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:2 Zoom:In ZoomSpeed:1',CR"
-		    CASE 6: SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:2 Zoom:Out ZoomSpeed:1',CR"
-		}
-	    }
+	    CASE 1: SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:',ITOA(nCameraSelect),' Tilt:Up TiltSpeed:1',CR"
+	    CASE 2: SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:',ITOA(nCameraSelect),' Tilt:Down TiltSpeed:1',CR"
+	    CASE 3: SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:',ITOA(nCameraSelect),' Pan:Left PanSpeed:1',CR"
+	    CASE 4: SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:',ITOA(nCameraSelect),' Pan:Right PanSpeed:1',CR"
+	    CASE 5: SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:',ITOA(nCameraSelect),' Zoom:In ZoomSpeed:12',CR"
+	    CASE 6: SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:',ITOA(nCameraSelect),' Zoom:Out ZoomSpeed:12',CR"
 	}
     }
     RELEASE :
     {
 	STACK_VAR INTEGER nCamIdx
-	//OFF [nCameraPreset]
 	
-	nCamIdx = GET_LAST(nCameraControlBtns)
+	nCamIdx = GET_LAST(nCameraControlsBtns)
 	SWITCH (nCamIdx)
 	{
 	    CASE 1:
 	    CASE 2: //Stop Panning
 	    {
-		SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:1 Tilt:Stop',CR"
-		SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:2 Tilt:Stop',CR"
+		SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:',ITOA(nCameraSelect),' Pan:Stop',CR"
 	    }
 	    CASE 3:
 	    CASE 4: //Stop Tilt
 	    {
-		SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:1 Pan:Stop',CR"
-		SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:2 Pan:Stop',CR"
+		SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:',ITOA(nCameraSelect),' Tilt:Stop',CR"
 	    }
 	    CASE 5:
 	    CASE 6: //Stop Zoom
 	    {
-		SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:1 Zoom:Stop',CR"
-		SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:2 Zoom:Stop',CR"
+		SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:',ITOA(nCameraSelect),' Zoom:Stop',CR"
 	    }
 	}
     }
 } 
-BUTTON_EVENT [vdvTP_Codec, nCameraPresets]
+BUTTON_EVENT [vdvTP_Codec, nPresetSelectBtns]
 {
     PUSH :
     {
 	STACK_VAR INTEGER nPresetIdx
 	
-	nPresetIdx = GET_LAST (nCameraPresets)
+	nPresetIdx = GET_LAST (nPresetSelectBtns)
 	
-	SELECT
-	{
-	    ACTIVE (nCameraSelect == CAMERA_FRONT):
-	    {
-		SWITCH (nPresetIdx)
-		{
-		    CASE 1 : SEND_STRING dvCodec, "'xCommand Camera Preset Activate PresetId:1',CR"
-		    CASE 2 : SEND_STRING dvCodec, "'xCommand Camera Preset Activate PresetId:2',CR"
-		    CASE 3 : SEND_STRING dvCodec, "'xCommand Camera Preset Activate PresetId:3',CR"
-		    CASE 4 : SEND_STRING dvCodec, "'xCommand Camera Preset Activate PresetId:4',CR"
-		    CASE 5 : SEND_STRING dvCodec, "'xCommand Camera Preset Activate PresetId:5',CR"
-		    
-		    CASE 6 : SEND_STRING dvCodec,"'xCommand Camera Preset Store PresetId:1 CameraId:1 ListPosition:1 Name:Preset1 DefaultPosition:True',CR"
-		    CASE 7 : SEND_STRING dvCodec,"'xCommand Camera Preset Store PresetId:2 CameraId:1 ListPosition:2 Name:Preset2',CR"
-		    CASE 8 : SEND_STRING dvCodec,"'xCommand Camera Preset Store PresetId:3 CameraId:1 ListPosition:3 Name:Preset3',CR"
-		    CASE 9 : SEND_STRING dvCodec,"'xCommand Camera Preset Store PresetId:4 CameraId:1 ListPosition:4 Name:Preset4',CR"
-		    CASE 10 : SEND_STRING dvCodec,"'xCommand Camera Preset Store PresetId:5 CameraId:1 ListPosition:5 Name:Preset5',CR"
-		}
-	    }
-	    ACTIVE (nCameraSelect == CAMERA_REAR):
-	    {
-		SWITCH (nPresetIdx)
-		{
-		    CASE 1 : SEND_STRING dvCodec, "'xCommand Camera Preset Activate PresetId:6',CR"
-		    CASE 2 : SEND_STRING dvCodec, "'xCommand Camera Preset Activate PresetId:7',CR"
-		    CASE 3 : SEND_STRING dvCodec, "'xCommand Camera Preset Activate PresetId:8',CR"
-		    CASE 4 : SEND_STRING dvCodec, "'xCommand Camera Preset Activate PresetId:9',CR"
-		    CASE 5 : SEND_STRING dvCodec, "'xCommand Camera Preset Activate PresetId:10',CR"
-		    
-		    CASE 6 : SEND_STRING dvCodec,"'xCommand Camera Preset Store PresetId:6 CameraId:2 ListPosition:6 Name:Preset6 DefaultPosition:True',CR"
-		    CASE 7 : SEND_STRING dvCodec,"'xCommand Camera Preset Store PresetId:7 CameraId:2 ListPosition:7 Name:Preset7',CR"
-		    CASE 8 : SEND_STRING dvCodec,"'xCommand Camera Preset Store PresetId:8 CameraId:2 ListPosition:8 Name:Preset8',CR"
-		    CASE 9 : SEND_STRING dvCodec,"'xCommand Camera Preset Store PresetId:9 CameraId:2 ListPosition:9 Name:Preset9',CR"
-		    CASE 10 : SEND_STRING dvCodec,"'xCommand Camera Preset Store PresetId:10 CameraId:2 ListPosition:10 Name:Preset10',CR"
-		}
-	    }
-	}
-    }
-    RELEASE :
-    {
-    	STACK_VAR INTEGER nPresetIdx
-	
-	nPresetIdx = GET_LAST (nCameraPresets)
-	SWITCH (nPresetIdx)
-	{
-	    CASE 1: 
-	    CASE 2: 
-	    CASE 3: 
-	    CASE 4:
-	    CASE 5:
-//	    {
-//		WAIT 10 SEND_STRING dvCodec, "'xStatus Video Input MainVideoSource',CR"
-//	    }
-	    CASE 6:
-	    CASE 7:
-	    CASE 8:
-	    CASE 9:
-	    CASE 10:
-	    {
-		SEND_COMMAND vdvTP_Codec, "'ADBEEP'"
-	    }
-	}
+	SEND_STRING dvCodec, "'xCommand Camera PositionActivateFromPreset CameraId:',ITOA(nCameraSelect), 'PresetId:',ITOA(nPresetIdx),CR"
+	    ON [dvTP_Codec, nPresetIdx + 70] //Send Feedback
     }
 }
-BUTTON_EVENT [vdvTP_Codec, nVTCControlBtns] //Codec Controls...
+BUTTON_EVENT [vdvTP_Codec, nPresetStoreBtns]
 {
-    PUSH :
+    HOLD [30] :
     {
-	STACK_VAR INTEGER nControlIdx
+	STACK_VAR INTEGER nStoreIdx
 	
-	nControlIdx = GET_LAST (nVTCControlBtns)
-	SWITCH (nControlIdx)
-	{
-	    CASE 1: fnCallCommands('ACCEPT')
-	    CASE 2: fnCallCommands('HANGUP')
-	    CASE 3: fnCallCommands('IGNORE')
-	    CASE 4: fnCallCommands('REJECT')
-	    CASE 5: fnCallCommands('SLEEP')
-	    CASE 6: fnCallCommands('WAKE')
+	nStoreIdx = GET_LAST (nPresetStoreBtns)
+	SEND_COMMAND dvTP_Codec, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Preset Saved!'"
+	    SEND_STRING dvCodec, "'xCommand Camera Preset Store PresetId: ',ITOA(nStoreIdx), ' CameraId: ',ITOA(nCameraSelect),CR"
 	    
-	    //Disturb Sign..
-	    CASE 7: fnDisturbOrNot(SET_OFF)
-	    CASE 8: fnDisturbOrNot(SET_ON)
-
-	    //Presentation
-	    CASE 9: fnPresentation('START')
-	    CASE 10: 
+	    WAIT 50
 	    {
-		fnPresentation('STOP')
-		fnDGXSwitchIn(INPUT_SX80_MAIN,OUTPUT_MON_LEFT)
-		fnDGXSwitchIn(INPUT_SX80_EXT,OUTPUT_MON_RIGHT)
+		 SEND_COMMAND dvTP_Codec, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Hold for 3 Seconds to Save Camera Presets'"
 	    }
-	    CASE 11 : 
+    }
+}
+BUTTON_EVENT [vdvTP_Codec, BTN_CALL_ANSWER]
+BUTTON_EVENT [vdvTP_Codec, BTN_CALL_HANGUP]
+BUTTON_EVENT [vdvTP_Codec, BTN_CALL_IGNORE]
+BUTTON_EVENT [vdvTP_Codec, BTN_CALL_REJECT] //Receiving Calls...
+{
+    PUSH :
+    {
+	SWITCH (BUTTON.INPUT.CHANNEL)
+	{
+	    CASE BTN_CALL_ANSWER :
 	    {
-		IF (nSelfView == IS_OFF)
+		SEND_STRING dvCodec, "'xCommand Call Accept CallId:0',CR"
+		ON [nCallInProgress]
+		
+		WAIT 20
 		{
-		    fnSelfViewMode(SET_ON)
-		}
-		ELSE
-		{
-		    fnSelfViewMode(SET_OFF)
+		    SEND_STRING dvCodec, "'xStatus SystemUnit State System',CR" //InCall?
 		}
 	    }
-	    CASE 12 : fnPIPCycle(nPIPCounter)
-
-	    //Mic Mute
-	    CASE 13:
+	    CASE BTN_CALL_HANGUP :
 	    {
-		IF (nVTC_Mic_Mute == IS_OFF)
-		{
-		    fnMicrophoneMute(MIC_MUTE_ON)
-		}
-		ELSE
-		{
-		    fnMicrophoneMute(MIC_MUTE_OFF)
-		}
+		SEND_STRING dvCodec, "'xCommand Call DisconnectAll',CR"
+		    OFF [nCallInProgress]
+	    }
+	    CASE BTN_CALL_IGNORE :
+	    {
+		SEND_STRING dvCodec, "'xCommand Call Ignore CallId:0',CR"
+	    }
+	    CASE BTN_CALL_REJECT :
+	    {
+		SEND_STRING dvCodec, "'xCommand Call Reject CallId:0',CR"
 	    }
 	}
     }
 }
-BUTTON_EVENT [vdvTP_Codec, 1500] //keyboard Lectern..
+BUTTON_EVENT [vdvTP_Codec, BTN_DISTURB_NO]
+BUTTON_EVENT [vdvTP_Codec, BTN_DISTURB_ALLOW]
 {
     PUSH :
-    {	
-	//SEND_COMMAND dvTP, "'@AKB'" //Call System Keyboard...
-	SEND_COMMAND dvTP, "'PPON-_Keyboard'"
+    {
+	SWITCH (BUTTON.INPUT.CHANNEL)
+	{
+	    CASE BTN_DISTURB_NO : fnDisturbOrNot(DO_NOT_DISTURB)
+	    CASE BTN_DISTURB_ALLOW : fnDisturbOrNot(DO_DISTURB)
+	}
     }
 }
-BUTTON_EVENT [vdvTP_Codec, nPhonenav]
+BUTTON_EVENT [vdvTP_Codec, BTN_TOGGLE_SELFVIEW]
+{
+    PUSH :
+    {
+	IF (!nSelfView)
+	{
+	    fnSelfViewMode(SET_ON)
+	}
+	ELSE
+	{
+	    fnSelfViewMode(SET_OFF)
+	}
+    }
+}
+BUTTON_EVENT [vdvTP_Codec, BTN_PRESENTATION_ON]
+BUTTON_EVENT [vdvTP_Codec, BTN_PRESENTATION_OFF]
+{
+    PUSH :
+    {
+	SWITCH (BUTTON.INPUT.CHANNEL)
+	{
+	    CASE BTN_PRESENTATION_ON : fnPresentation('START')
+	    CASE BTN_PRESENTATION_OFF : fnPresentation('STOP')
+	}
+    }
+}
+BUTTON_EVENT [vdvTP_Codec, BTN_PIP_CYCLE]
+{
+    PUSH :
+    {
+	fnPIPCycle(nPIPCounter)
+    }
+}
+BUTTON_EVENT [vdvTP_Codec, BTN_MIC_MUTE_VTC]
+{
+    PUSH :
+    {
+	IF (!nVTC_Mic_Mute)
+	{
+	    fnMicrophoneMute(MIC_MUTE_ON)
+	}
+	ELSE
+	{
+	    fnMicrophoneMute(MIC_MUTE_OFF)
+	}
+    }
+}
+BUTTON_EVENT [vdvTP_Codec, nPhonenavBtns]
 {
     PUSH :
     {
 	STACK_VAR INTEGER nDirectory
+	nDirectory = GET_LAST (nPhonenavBtns)
 	
-	nDirectory = GET_LAST (nPhonenav)
+	TOTAL_OFF [vdvTP_Codec, nPhoneSelect]
+	    SEND_COMMAND vdvTP_Codec,"'^TXT-',ITOA(TXT_RETURN_ITEMS),',0,Please Wait...'"  
+		ON [vdvTP_Codec, nDirectory +200] //Send Feedback..
+	fnUpdateList()
+	
 	SWITCH (nDirectory)
 	{
 	    CASE 1: //ATL Enpoints
 	    {
-		TOTAL_OFF [vdvTP_Codec, nPhoneSelect]
-		nPage = ATL_END  
-		ON [cDialGTBook]
-		fnUpdateList()
-		SEND_COMMAND vdvTP_Codec,"'^TXT-',ITOA(TXT_RETURN_ITEMS),',0,Please Wait...'"  
 		SEND_STRING dvCodec, "'xCommand Phonebook Search PhonebookID:0 PhonebookType:Corporate Offset:0 FolderId:',cFolderGT,' Limit:',ITOA(nListCount),CR"		
-		
 	    }
 	    CASE 2:
 	    {
-		TOTAL_OFF [vdvTP_Codec, nPhoneSelect]
-		nPage = SAV_END
-		ON [cDialGTBook]
-		fnUpdateList()
-		SEND_COMMAND vdvTP_Codec,"'^TXT-',ITOA(TXT_RETURN_ITEMS),',0,Please Wait...'"  
-		
 		SEND_STRING dvCodec, "'xCommand Phonebook Search PhonebookID:0 PhonebookType:Corporate Offset:14 FolderId:',cFolderGT,' Limit:',ITOA(nListCount),CR"
 	    }
 	    CASE 3:
 	    {
-		TOTAL_OFF [vdvTP_Codec, nPhoneSelect]
-		nPage = GTL_END 
-		ON [cDialGTBook]
-		fnUpdateList()
-		SEND_COMMAND vdvTP_Codec,"'^TXT-',ITOA(TXT_RETURN_ITEMS),',0,Please Wait...'"  
 		SEND_STRING dvCodec, "'xCommand Phonebook Search PhonebookID:0 PhonebookType:Corporate Offset:28 FolderId:',cFolderGT,' Limit:',ITOA(nListCount),CR"	                          
 	    }
 	    CASE 4:
 	    {
-		TOTAL_OFF [vdvTP_Codec, nPhoneSelect]
-		nPage = GT_END
-		ON [cDialGTBook]
-		fnUpdateList()
-		SEND_COMMAND vdvTP_Codec,"'^TXT-',ITOA(TXT_RETURN_ITEMS),',0,Please Wait...'"  
-		
 		SEND_STRING dvCodec, "'xCommand Phonebook Search PhonebookID:0 PhonebookType:Corporate Offset:42 FolderId:',cFolderGT,' Limit:',ITOA(nListCount),CR"
 	    }
 	    CASE 5:
 	    {
-		TOTAL_OFF [vdvTP_Codec, nPhoneSelect]
-		nPage = BLUE_JEANS 
-		OFF [cDialGTBook]
-		fnUpdateList()
-		SEND_COMMAND vdvTP_Codec,"'^TXT-',ITOA(TXT_RETURN_ITEMS),',0,Please Wait...'"  
-		
 		SEND_STRING dvCodec, "'xCommand Phonebook Search PhonebookID:0 PhonebookType:Corporate Offset:0 FolderId:',cFolderBlueJeans,' Limit:',ITOA(nListCount),CR" 
 	    }
 	    CASE 6:
 	    {
-		TOTAL_OFF [vdvTP_Codec, nPhoneSelect]
-		OFF [cDialGTBook]
-		fnUpdateList()
-		SEND_COMMAND vdvTP_Codec,"'^TXT-',ITOA(TXT_RETURN_ITEMS),',0,Please Wait...'"  
 		SEND_STRING dvCodec, "'xCommand Phonebook Search PhonebookID:0 PhonebookType:Local Offset: 0',CR" //Search Local
-		nPage = LOCAL_DIR
 	    }
 	}
     }
@@ -1067,112 +998,23 @@ BUTTON_EVENT [vdvTP_Codec, nPhoneSelect]
 {
     PUSH :
     {
+
 	STACK_VAR INTEGER nDirectorySet
 	nDirectorySet = GET_LAST (nPhoneSelect)
 	
-	TOTAL_OFF [vdvTP_Codec, nPhoneSelect]
-	dialNumber = ''
+	    ON [vdvTP_Codec, nDirectorySet + 300] //Send Feedback..
 	
-		SWITCH (nDirectorySet)
-		{
-		    CASE 1:
-		    {
-			dialNumber = cSlot_Primary[1]
-			send_command vdvTP_Codec,"'^TXT-',ITOA(TXT_DIAL),',0,',dialNumber"
-			ON [vdvTP_Codec, 301]
-		    }
-		    CASE 2:
-		    {
-			dialNumber = cSlot_Primary[2]
-			send_command vdvTP_Codec,"'^TXT-',ITOA(TXT_DIAL),',0,',dialNumber"
-			ON [vdvTP_Codec, 302]
-		    }
-		    CASE 3:
-		    {
-			dialNumber = cSlot_Primary[3]
-			send_command vdvTP_Codec,"'^TXT-',ITOA(TXT_DIAL),',0,',dialNumber"
-			ON [vdvTP_Codec, 303]
-		    }
-		    CASE 4:
-		    {
-			dialNumber = cSlot_Primary[4]
-			send_command vdvTP_Codec,"'^TXT-',ITOA(TXT_DIAL),',0,',dialNumber"
-			ON [vdvTP_Codec, 304]
-		    }
-		    CASE 5:
-		    {
-			dialNumber = cSlot_Primary[5]
-			send_command vdvTP_Codec,"'^TXT-',ITOA(TXT_DIAL),',0,',dialNumber"
-			ON [vdvTP_Codec, 305]
-		    }
-		    CASE 6:
-		    {
-			dialNumber = cSlot_Primary[6]
-			send_command vdvTP_Codec,"'^TXT-',ITOA(TXT_DIAL),',0,',dialNumber"
-			ON [vdvTP_Codec, 306]
-		    }
-		    CASE 7:
-		    {
-			dialNumber = cSlot_Primary[7]
-			send_command vdvTP_Codec,"'^TXT-',ITOA(TXT_DIAL),',0,',dialNumber"
-			ON [vdvTP_Codec, 307]
-		    }
-		    CASE 8:
-		    {
-			dialNumber = cSlot_Primary[8]
-			send_command vdvTP_Codec,"'^TXT-',ITOA(TXT_DIAL),',0,',dialNumber"
-			ON [vdvTP_Codec, 308]
-		    }
-		    CASE 9:
-		    {
-			dialNumber = cSlot_Primary[9]
-			send_command vdvTP_Codec,"'^TXT-',ITOA(TXT_DIAL),',0,',dialNumber"
-			ON [vdvTP_Codec, 309]
-		    }
-		    CASE 10:
-		    {
-			dialNumber = cSlot_Primary[10]
-			send_command vdvTP_Codec,"'^TXT-',ITOA(TXT_DIAL),',0,',dialNumber"
-			ON [vdvTP_Codec, 310]
-		    }
-		    CASE 11:
-		    {
-			dialNumber = cSlot_Primary[11]
-			send_command vdvTP_Codec,"'^TXT-',ITOA(TXT_DIAL),',0,',dialNumber"
-			ON [vdvTP_Codec, 311]
-		    }
-		    CASE 12:
-		    {
-			dialNumber = cSlot_Primary[12]
-			send_command vdvTP_Codec,"'^TXT-',ITOA(TXT_DIAL),',0,',dialNumber"
-			ON [vdvTP_Codec, 312]
-		    }
-		    CASE 13:
-		    {
-			dialNumber = cSlot_Primary[13]
-			send_command vdvTP_Codec,"'^TXT-',ITOA(TXT_DIAL),',0,',dialNumber"
-			ON [vdvTP_Codec, 313]
-		    }
-		    CASE 14:
-		    {
-			dialNumber = cSlot_Primary[14]
-			send_command vdvTP_Codec,"'^TXT-',ITOA(TXT_DIAL),',0,',dialNumber"
-			ON [vdvTP_Codec, 314]
-		    }
-		}
-	    }
+	    dialNumber = cSlot_Primary[nDirectorySet]
+		send_command vdvTP_Codec,"'^TXT-',ITOA(TXT_DIAL),',0,',dialNumber"
+    }
 }
-BUTTON_EVENT [vdvTP_Codec, 210] //Dialing from PhoneBook...
+BUTTON_EVENT [vdvTP_Codec, BTN_NAV_DIAL] //Dial from Contact List...
 {
     PUSH :
     {
-	SEND_COMMAND vdvTP_Codec, "'@PPK-VTC_Contacts'"
 	TOTAL_OFF [vdvTP_Codec, nPhoneSelect]
-	WAIT 10
-	{
-	    SEND_COMMAND vdvTP_Codec, "'@PPG-VTC_Dialer'"
+
 	    SEND_STRING dvCodec, "'xCommand Dial Number:',dialNumber,CR"
-	}
     }
 }
 BUTTON_EVENT [vdvTP_Codec, POWER]
@@ -1181,30 +1023,35 @@ BUTTON_EVENT [vdvTP_Codec, POWER]
     {
 	IF (!sPowerStatus)
 	{
-	    fnCallCommands('WAKE')
-	}
-	ELSE
-	{
-	    fnCallCommands('SLEEP')
+	    SEND_STRING dvCodec, "'xCommand Standby Deactivate',CR"
+		ON [vdvTP_Codec, POWER]
 	}
     }
 }
-BUTTON_EVENT [vdvTP_Codec, TXT_DIAL]
+BUTTON_EVENT [vdvTP_Codec, BTN_SHOW_KEYB] //keyboard Lectern..
 {
-    HOLD [30]:
+    PUSH :
+    {	
+	SEND_COMMAND dvTP_Codec, "'^AKB'" //Call System Keyboard...
+    }
+}
+BUTTON_EVENT [vdvTP_Codec, BTN_BJN_SPEED]
+{
+    PUSH :
     {
-	SEND_STRING dvCodec, "'xCommand Phonebook Contact Add Name: "',dialNumber,'" Number:',dialNumber,CR"
-	SEND_COMMAND vdvTP_Codec, "'ADBEEP'"
+	    SEND_STRING dvCodec, "'xCommand Dial Number: meet@bjn.vc',CR"
+		ON [vdvTP_Codec, BTN_BJN_SPEED ]
+		    SEND_COMMAND vdvTP_Codec, "'^TXT-',ITOA(TXT_CALLID),',0,meet@bjn.vc'"
     }
 }
 	
 DEFINE_EVENT
-DATA_EVENT[dvTP.NUMBER:1:0] 
-DATA_EVENT[dvTP2.NUMBER:1:0] 
+DATA_EVENT[dvTP_Codec]
 {
     ONLINE :
     {
 	fnDirectoryNav()
+	    SEND_COMMAND dvTP_Codec, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Hold for 3 Seconds to Save Camera Presets'"
 	
 	IF (!nJustBooted)
 	{
@@ -1214,18 +1061,22 @@ DATA_EVENT[dvTP2.NUMBER:1:0]
     }
     STRING:
     {
-	CHAR sTmp[40]
+	LOCAL_VAR CHAR sTmp[40]
 	sTmp = DATA.TEXT
 	
-	IF (FIND_STRING(sTmp, 'KEYB-ABORT',1))
+	IF (FIND_STRING(sTmp,'KEYB-',1)OR FIND_STRING(sTmp,'AKB-',1)) //G4 or G5 Parsing
 	{
-	    // Do  nothing
-	}
-	ELSE IF (find_string(sTmp, 'KEYB-', 1))
-	{
-	    REMOVE_STRING(sTmp, '-', 1)
-	    dialNumber = sTmp
-	    SEND_COMMAND vdvTP_Codec, "'^TXT-',ITOA(TXT_DIAL),',0,',dialNumber"
+	    REMOVE_STRING (sTmp,'-',1)
+	    
+	    IF (FIND_STRING(sTmp,'ABORT',1))
+	    {
+		    //
+	    }
+	    ELSE
+	    {
+		dialNumber = sTmp
+		SEND_COMMAND vdvTP_Codec, "'^TXT-',ITOA(TXT_DIAL),',0,',dialNumber"
+	    }
 	}
     }
 }
@@ -1237,7 +1088,6 @@ DATA_EVENT [dvCodec]
 	SEND_COMMAND DATA.DEVICE, 'HSOFF'
 	SEND_COMMAND DATA.DEVICE, 'RXON'
 	SEND_COMMAND DATA.DEVICE, 'XOFF'
-	// echo on $OD
 	
 	ON [nSX80Online]
 	WAIT 50
@@ -1261,56 +1111,16 @@ DATA_EVENT [dvCodec]
 }
 
 DEFINE_EVENT
-TIMELINE_EVENT [TL_RECALL]
-{
-    WAIT 10 SEND_STRING dvCodec, "'xFeedback register /Event/IncomingCallIndication',CR"
-    WAIT 20 SEND_STRING dvCodec, "'xFeedback register /Event/OutgoingCallIndication',CR"
-    WAIT 30 SEND_STRING dvCodec, "'xFeedback register /Event/Standby',CR"
-    WAIT 40 SEND_STRING dvCodec, "'xFeedback register /Status/Call',CR"
-    WAIT 50 SEND_STRING dvCodec, "'xFeedback register /Event/CallDisconnect',CR"
-    WAIT 60 SEND_STRING dvCodec, "'xFeedback register /Status/Camera',CR"
-    
-}
 TIMELINE_EVENT [TL_FEEDBACK]
 {
-    [vdvTP_Codec, 255] = sPowerStatus
     
-    [vdvTP_Codec, 106] = !nDisturb
-    [vdvTP_Codec, 107] = nDisturb
-    
-    [vdvTP_Codec, 109] = nPresentation
-                  
-    [vdvTP_Codec, 201] = nPage = ATL_END
-    [vdvTP_Codec, 202] = nPage = SAV_END
-    [vdvTP_Codec, 203] = nPage = GTL_END
-    [vdvTP_Codec, 204] = nPage = GT_END
-    [vdvTP_Codec, 205] = nPage = BLUE_JEANS
-     [vdvTP_Codec, 206] = nPage = LOCAL_DIR
-
-    [vdvTP_Codec, 110] = nSelfView
-    [vdvTP_Codec, 113] = nVTC_Mic_Mute
-    
-    [vdvTP_Codec, 41] = nCameraSelect = CAMERA_FRONT
-    [vdvTP_Codec, 42] = nCameraSelect = CAMERA_REAR
-    
-    WAIT 300
+    WAIT 4000
     {
-	SEND_STRING dvCodec, "'xStatus Video Input MainVideoSource',CR"
+	SEND_STRING dvCodec, "'xCommand Standby ResetHalfwakeTimer Delay: 480',CR" 
+	WAIT 50
+	{
+	    fnRegisterFeedback()
+	}
     }
-
 }
-
-(***********************************************************)
-(*            THE ACTUAL PROGRAM GOES BELOW                *)
-(***********************************************************)
-DEFINE_PROGRAM
-
-
-
-
-
-(***********************************************************)
-(*                     END OF PROGRAM                      *)
-(*        DO NOT PUT ANY CODE BELOW THIS COMMENT           *)
-(***********************************************************)
 
