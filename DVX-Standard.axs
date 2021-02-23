@@ -79,12 +79,14 @@ dvProjector_dxRight		=	6002:6:0	//DxLink Right - connected to Right Projector
 DEFINE_CONSTANT
 
 // Screen Relays
-SCREEN_LEFT_UP			= 4
-SCREEN_LEFT_DN   		= 3
-SCREEN_RIGHT_UP			= 2
-SCREEN_RIGHT_DN	 		= 1
+screen_up_left					= 2
+screen_down_left				= 1
+screen_up_right				= 4
+screen_down_right				= 3
+screen_up_center				= 6 
+screen_down_center			= 5 
 
-// Volume Adjustment Values
+//DVX Volume Adjustment Values
 Volume_Up_Single			= 1
 Volume_Up_Multiple			= 3
 Volume_Down_Single			= -1
@@ -123,7 +125,7 @@ SET_MUTE_ON				= 'ENABLE'
 SET_MUTE_OFF				= 'DISABLE'
 MAX_VAL 					= 8
 
-//Set DxLinks...
+//Set DxLink Receivers...
 //Uncomment the Desired Scaling...
 //#DEFINE AUTO
 #DEFINE MANUAL 
@@ -163,8 +165,8 @@ BLANK					= 211
 
 //Times..
 ONE_SECOND				= 10 
-ONE_MINUTE				= 60*ONE_SECOND
-ONE_HOUR					= 60*ONE_MINUTE
+ONE_MINUTE				= 60 * ONE_SECOND
+ONE_HOUR					= 60 * ONE_MINUTE
 
 //Misc..
 CR 						= 13
