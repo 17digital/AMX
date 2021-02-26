@@ -1,4 +1,4 @@
-PROGRAM_NAME='MySX80'
+PROGRAM_NAME='Cisco_SX80_VTC'
 (***********************************************************)
 (*  FILE_LAST_MODIFIED_ON: 06/08/2020  AT: 08:31:42        *)
 (***********************************************************)
@@ -6,10 +6,6 @@ PROGRAM_NAME='MySX80'
 //Notes...
 
 (*
-    http://consulting129.vtc.gatech.edu
-    admin
-
-
     Add BlueJeans ...
     meet@sip.bjn.vc
     111@sip.bjn.vc
@@ -31,7 +27,6 @@ dvTP2_Codec =					10002:2:0
 #IF_NOT_DEFINED dvCodec
 dvCodec =					5001:2:0
 #END_IF
-
 
 (***********************************************************)
 (*               CONSTANT DEFINITIONS GO BELOW             *)
