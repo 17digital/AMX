@@ -1059,7 +1059,7 @@ BUTTON_EVENT [vdvTP_Codec, BTN_PAGE_NEXT]
 	    {
 		IF (nPageTrack > 4 )
 		{
-		    OFF [dvTP2_Codec, BTN_PAGE_NEXT]
+		    OFF [dvTP_Codec, BTN_PAGE_NEXT]
 		    nPageTrack = 4 //Stop Here
 		}
 	    }
@@ -1076,10 +1076,11 @@ BUTTON_EVENT [vdvTP_Codec, BTN_PAGE_PREV]
 	{
 	    CASE 0 :
 	    {
-		OFF [dvTP2_Codec, BTN_PAGE_PREV]
+		
 		IF (nPageTrack < 1 )
 		{
 		    nPageTrack = 1 //Stop Here
+		    OFF [dvTP_Codec, BTN_PAGE_PREV]
 		}
 	    }
 	    CASE 1 : 
@@ -1124,6 +1125,7 @@ BUTTON_EVENT [vdvTP_Codec, BTN_BJN_SPEED]
 }
 	
 DEFINE_EVENT
+//DATA_EVENT[dvTP_Codec] //UnComment if Using G5 Panel!!
 DATA_EVENT[dvTP_Codec.NUMBER:1:0] //Pull from Port 1 instead of 2 as defined. G4 limitation
 {
     ONLINE :
@@ -1135,7 +1137,6 @@ DATA_EVENT[dvTP_Codec.NUMBER:1:0] //Pull from Port 1 instead of 2 as defined. G4
 	{
 	    fnUpdateList() //Reset List to Blank...
 	    fnPollCodec()
-		fnDirectoryNav()
 	}
     }
     STRING:
