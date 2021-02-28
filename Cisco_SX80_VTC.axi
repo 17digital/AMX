@@ -1105,7 +1105,7 @@ BUTTON_EVENT [vdvTP_Codec, BTN_SHOW_KEYB] //keyboard Lectern..
 {
     PUSH :
     {	
-	//SEND_COMMAND dvTP_Codec, "'^AKB'" //Call System Keyboard for G5...
+	SEND_COMMAND dvTP_Codec, "'^AKB'" //Call System Keyboard for G5...
 	//SEND_COMMAND dvTP_Codec, "'@AKB'" //Call System Keyboard for G4...
     }
 }
@@ -1113,9 +1113,16 @@ BUTTON_EVENT [vdvTP_Codec, BTN_BJN_SPEED]
 {
     PUSH :
     {
+	IF (nCallInProgress)
+	{
+	    SEND_COMMAND vdvTP_Codec, "'^PPN-VTC_BlueJeans'"
+	}
+	ELSE
+	{
 	    SEND_STRING dvCodec, "'xCommand Dial Number: meet@bjn.vc',CR"
 		ON [vdvTP_Codec, BTN_BJN_SPEED ]
 		    SEND_COMMAND vdvTP_Codec, "'^TXT-',ITOA(TXT_CALLID),',0,meet@bjn.vc'"
+	}
     }
 }
 	
