@@ -2,7 +2,7 @@ PROGRAM_NAME='Tesira_Phone2'
 
 (***********************************************************)
 (***********************************************************)
-(*  FILE_LAST_MODIFIED_ON: 02/08/2019  AT: 10:08:17        *)
+(*  FILE_LAST_MODIFIED_ON: 08/21/2019  AT: 07:07:15        *)
 (***********************************************************)
 (* System Type : NetLinx                                   *)
 (***********************************************************)
@@ -15,8 +15,7 @@ PROGRAM_NAME='Tesira_Phone2'
 	
 	?? RIBED$0D$0A - Returning Feedback
 	
-	"'SESSION set verbose true',$0A"
-	"'SESSION set detailedResponse true',$0A"
+	"'DEVICE get ipStatus control',13"
 	
 	Output 1 = Vadio..
 	Output 2 = Ceiling...
@@ -36,8 +35,8 @@ dvTP_Biamp =					10001:5:0
 dvTP_Biamp2 =					10002:5:0
 #END_IF
 
-#IF_NOT_DEFINED dvTesira
-dvTesira =						5001:3:0 
+#IF_NOT_DEFINED dvBiamp
+dvBiamp =						5001:7:0 //Tesira TOP Biamp
 #END_IF
 
 
@@ -45,7 +44,6 @@ dvTesira =						5001:3:0
 (*               CONSTANT DEFINITIONS GO BELOW             *)
 (***********************************************************)
 DEFINE_CONSTANT
-
 
 #IF_NOT_DEFINED CR
 CR				= 13
@@ -58,16 +56,22 @@ LF				= 10
 
 MAX_COMP				= 88
 MAX_SPAN				= 6
-PHONE_ID			= 1 ////Phone Block ID (Typcially should be 1)
 
 VOL_UP				= 1
 VOL_DN				= -1
 
-ON_HOOK				= 0 //not connected
-OFF_HOOK				= 1
+ID_PROGRAM			= 1
+ID_CEILING				= 1
+ID_LAV_1				= 1
+ID_LAV_2				= 2
+ID_LAV_3				= 3
+ID_LAV_4				= 4
 
-TXT_PROGRAM			= 10
-TXT_CALLER			= 11
+TXT_LAV_1				= 1
+TXT_LAV_2				= 2
+TXT_LAV_3				= 3
+TXT_LAV_4				= 4
+TXT_PROGRAM	 		= 9
 
 TXT_MYPHONE			= 20
 TXT_SIPDISAPLAY_NAME		= 22
@@ -76,23 +80,18 @@ TXT_CID_NAME			= 18
 TXT_PHONE_STATE			= 21
 TXT_NUMBER_DISPLAY			= 17
 
-
 YES_ON				= 'true'
 YES_OFF				= 'false'
 
-TAG_PRGM			= 'Program'
+TAG_PRGM				= 'Program'
 TAG_CEILING			= 'privacymute'
-
-ID_PROGRAM			= 1
-ID_CEILING			= 1 //Logic Block
-ID_LAV_1			= 1
-ID_LAV_2			= 2
-
+TAG_MIC_MUTE		= 'MicMutes'
+TAG_MIC_MIX			= 'MixOuts'
 
 //Buttons...
 BTN_MUTE_LAV1			= 21
 BTN_MUTE_LAV2			= 25
-BTN_MUTE_MIXER			= 33
+BTN_MUTE_LAV3			= 29
 BTN_MUTE_PRGM			= 37
 BTN_MUTE_CEILING		= 50
 BTN_MUTE_RINGER			= 60
@@ -111,27 +110,52 @@ VOLATILE CHAR dialPhone[20] //Dialer1
 VOLATILE CHAR sLastNumber[20]
 VOLATILE CHAR sIncomingCall[20]
 VOLATILE INTEGER nPhoneState //On / Off
-
-VOLATILE INTEGER nBiampOnline
-
-
-VOLATILE CHAR nBiampBuffer[2500]
-
-VOLATILE SINTEGER nProgram_Preset = -15 //Set Default Level
-VOLATILE SINTEGER nProgram_Level //Caller + Speakers
-
+VOLATILE INTEGER nSubscribed
 
 //Biamp Level Ranges...
 VOLATILE SINTEGER nMaximum = 12 //Max...
 VOLATILE SINTEGER nMinimum = -88 //Minimum...
 
-DEV vdvTP_Biamp[] = {dvTP_Biamp, dvTP_Biamp2}
+VOLATILE INTEGER nBiampOnline
+VOLATILE CHAR nBiampBuffer[2500]
 
+VOLATILE SINTEGER nProgram_PresetMix = -10 //Set Default Level
+VOLATILE SINTEGER nProgram_LevelMix //Caller + Speakers
+VOLATILE INTEGER nProgram_MuteMix
+
+VOLATILE SINTEGER nMic1_Preset = -8
+VOLATILE SINTEGER nMic1_Level
+VOLATILE INTEGER nMic1_Mute
+
+VOLATILE SINTEGER nMic2_Preset = -10
+VOLATILE SINTEGER nMic2_Level
+VOLATILE INTEGER nMic2_Mute
+
+VOLATILE SINTEGER nMic3_Preset = -8
+VOLATILE SINTEGER nMic3_Level
+VOLATILE INTEGER nMic3_Mute
+
+VOLATILE INTEGER nCeiling_Mute //Ceiling Mics
+
+VOLATILE DEV vdvTP_Biamp[] = 
+{
+    dvTP_Biamp, 
+    dvTP_Biamp2
+}
 VOLATILE INTEGER nChnlbtns[] =
 {
-    //Program...
-    37,38,39,40,
+    //Lav 1
+    21,22,23,24,
     
+    //Lav 2
+    25,26,27,28,
+    
+    //Lav 3
+    29,30,31,32,
+    
+    //Prgm
+    37,38,39,40,
+       
     //Ceiling Mute
     50 //
 }
@@ -142,50 +166,67 @@ VOLATILE INTEGER nChnlbtns[] =
 (***********************************************************)
 (* EXAMPLE: DEFINE_FUNCTION <RETURN_TYPE> <NAME> (<PARAMETERS>) *)
 (* EXAMPLE: DEFINE_CALL '<NAME>' (<PARAMETERS>) *)  
-DEFINE_FUNCTION fnMuteLogic(CHAR cTag[], INTEGER cIn, CHAR cToggle[MAX_SPAN])
+DEFINE_FUNCTION fnMuteLogic(CHAR cTag[], INTEGER cIn, CHAR cMute[MAX_SPAN])
 {
-    SEND_STRING dvTesira, "cTag,' set state ',ITOA(cIn),' ',cToggle,CR" 
+    SEND_STRING dvBiamp, "cTag,' set state ',ITOA(cIn),' ',cMute,CR" 
 }
 DEFINE_FUNCTION fnMuteVolume(CHAR cTag[], INTEGER cIn, CHAR cValue[MAX_SPAN]) 
 {
-    SEND_STRING dvTesira, "cTag,' set mute ',ITOA(cIn),' ',cValue,CR"
+    SEND_STRING dvBiamp, "cTag,' set mute ',ITOA(cIn),' ',cValue,CR"
 }
 DEFINE_FUNCTION fnSetVolumeUp(CHAR cTag[], INTEGER cIn, SINTEGER cVolume)
 {
     IF (cVolume < nMaximum )
     {
-	SEND_STRING dvTesira, "cTag,' set level ',ITOA(cIn),' ',ITOA(cVolume + VOL_UP),CR"
+	SEND_STRING dvBiamp, "cTag,' set level ',ITOA(cIn),' ',ITOA(cVolume + VOL_UP),CR"
     }
 }
 DEFINE_FUNCTION fnSetVolumeDown(CHAR cTag[], INTEGER cIn, SINTEGER cVolume)
 {
     IF (cVolume > nMinimum )
     {
-	SEND_STRING dvTesira, "cTag,' set level ',ITOA(cIn),' ',ITOA(cVolume + VOL_DN),CR"
+	SEND_STRING dvBiamp, "cTag,' set level ',ITOA(cIn),' ',ITOA(cVolume + VOL_DN),CR"
     }
 }
 DEFINE_FUNCTION fnSetVolumePreset(CHAR cTag[], INTEGER cIn, SINTEGER cLevel)
 {
-    SEND_STRING dvTesira, "cTag,' set level ',ITOA(cIn),' ',ITOA(cLevel),CR"
+    SEND_STRING dvBiamp, "cTag,' set level ',ITOA(cIn),' ',ITOA(cLevel),CR"
 }
 DEFINE_FUNCTION fnGetValues()
 {
-    WAIT 10 fnSetVolumePreset(TAG_PRGM, ID_PROGRAM, nProgram_Preset)
-    WAIT 20 fnMuteVolume(TAG_PRGM, ID_PROGRAM, YES_OFF)
-    WAIT 30 fnMuteLogic(TAG_CEILING, ID_CEILING, YES_OFF)
+    WAIT 10 fnSetVolumePreset (TAG_MIC_MIX, ID_LAV_1, nMic1_Preset)
+    WAIT 20 fnMuteVolume(TAG_MIC_MUTE, ID_LAV_1, YES_OFF)
+
+    WAIT 30 fnSetVolumePreset (TAG_MIC_MIX, ID_LAV_2, nMic2_Preset)
+    WAIT 40 fnMuteVolume(TAG_MIC_MUTE, ID_LAV_2, YES_OFF)
     
-    WAIT 50 SEND_STRING dvTesira, "'VoIPControlStatus1 get protocols',CR"
-    WAIT 120 SEND_STRING dvTesira, "'VoIPControlStatus1 subscribe callState Calling',CR"
-    WAIT 200 SEND_STRING dvTesira, "'VoIPControlStatus1 get callState',CR"
+    WAIT 50 fnSetVolumePreset (TAG_MIC_MIX, ID_LAV_3, nMic3_Preset)
+    WAIT 60 fnMuteVolume(TAG_MIC_MUTE, ID_LAV_3, YES_OFF)
+    WAIT 70 fnSetVolumePreset(TAG_PRGM, ID_PROGRAM, nProgram_PresetMix)
+    WAIT 80 fnMuteVolume(TAG_PRGM, ID_PROGRAM, YES_OFF)
+    WAIT 90 fnMuteLogic(TAG_CEILING, ID_CEILING, YES_OFF)
+
+    WAIT 110 SEND_STRING dvBiamp, "'VoIPControlStatus1 get protocols',CR"
+    
+    WAIT 150 fnSubscribeCalls()
+    
 }
 DEFINE_FUNCTION fnSubscribeCalls()
 {
-    SEND_STRING dvTesira, "'VoIPControlStatus1 subscribe callState Calling',CR"
+    IF (!nSubscribed)
+    {
+	SEND_STRING dvBiamp, "'VoIPControlStatus1 subscribe callState Calling',CR"
+	    WAIT 50 SEND_STRING dvBiamp, "'VoIPControlStatus1 get callState',CR"
+    }
+    ELSE
+    {
+	SEND_STRING dvBiamp, "'VoIPControlStatus1 get callState',CR"
+    }
+    
 }
 DEFINE_FUNCTION fnNoDisturb(CHAR cValue[MAX_SPAN])
 {
-    SEND_STRING dvTesira, "'VoIPControlStatus1 set dndEnable 1 ',cValue,CR"
-    //SEND_STRING dvBiamp, "'VoIPControlStatus1 get dndEnable 1',CR"
+    SEND_STRING dvBiamp, "'VoIPControlStatus1 set dndEnable 1 ',cValue,CR"
 }
 DEFINE_FUNCTION fnParseTesira()
 {
@@ -195,6 +236,8 @@ DEFINE_FUNCTION fnParseTesira()
 	LOCAL_VAR CHAR cCallState[10]
 	LOCAL_VAR CHAR cVoipStatus[10]
 	LOCAL_VAR CHAR cDbug[20]
+	STACK_VAR INTEGER cID
+	LOCAL_VAR CHAR cAudioLev[4]
 
 	WHILE(FIND_STRING(nBiampBuffer,"CR,LF",1))
 	{	
@@ -205,23 +248,20 @@ DEFINE_FUNCTION fnParseTesira()
 	    //Full Caller ID Parse...
 	    ACTIVE(FIND_STRING(cResponse,'! "publishToken":"Calling" "value":{"callStateInfo":[{"state":VOIP_CALL_STATE_RINGING "lineId":0 "callId":0 "action":UI_DISPLAY_STATUS "cid":"\"',1)):
 	    {
-
 		REMOVE_STRING(cResponse,'! "publishToken":"Calling" "value":{"callStateInfo":[{"state":VOIP_CALL_STATE_RINGING "lineId":0 "callId":0 "action":UI_DISPLAY_STATUS "cid":"\"',1) //Left with --> 04011103\"\"6789929391\"\"Wireless Caller\""$0D$0A
-
+		
 		REMOVE_STRING(cResponse,'\"\"',1) //Should be left with --> 6789929391\"\"Wireless Caller\""$0D$0A
 	    
 		cMsg = LEFT_STRING(cResponse, 10) //Just get 10 digit phone number
 		REMOVE_STRING(cResponse, '\"\"',1) //Should be left with --> Wireless Caller\""$0D$0A
-	
+		
 		cMsgId = cResponse 
-
 		cMsgId = LEFT_STRING(cMsgId,LENGTH_STRING(cMsgId) -5) //Should be left with --> Wireless Caller$0D$0A
-		
-		
+				
 		SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_CID_NUMBER),',0,',cMsg" //Place the Number
 		    SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_CID_NAME),',0,',cMsgId" //Place the Name...
 		
-		SEND_COMMAND vdvTP_Biamp, "'PPON-_Phone'" //Show Caller PopuP
+		SEND_COMMAND vdvTP_Biamp, "'^PPN-_Phone'" //Show Caller PopuP
 		SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_PHONE_STATE),',0,Incoming Call'"
 	    }
 	    ACTIVE(FIND_STRING(cResponse,'"channelProtoSipInfo":[{"sipUser":"',1)): //Pull SIP Number
@@ -257,7 +297,7 @@ DEFINE_FUNCTION fnParseTesira()
 		    SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_CID_NAME),',0,',cMsgId" //Place the Name...
 		}
 	    }
-	    ACTIVE(FIND_STRING(cResponse,'VoIPControlStatus1 answer 1 1',1)):
+    	    ACTIVE(FIND_STRING(cResponse,'VoIPControlStatus1 answer 1 1',1)):
 	    {
 		SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_PHONE_STATE),',0,Connected'"
 		ON [nPhoneState]
@@ -271,7 +311,7 @@ DEFINE_FUNCTION fnParseTesira()
 		{
 		
 		    SEND_COMMAND vdvTP_Biamp, "'@PPX'"
-		    SEND_COMMAND vdvTP_Biamp, "'PPON-IncomingCall'" //Show Caller PopuP
+		    SEND_COMMAND vdvTP_Biamp, "'^PPN-_Phone'" //Show Caller PopuP
 		    SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_PHONE_STATE),',0,Incoming Call'"
 		}
 		IF (FIND_STRING(cCallState,'DIALING',1))
@@ -280,11 +320,11 @@ DEFINE_FUNCTION fnParseTesira()
 		    ON [nPhoneState]
 		    WAIT 200
 		    {
-			SEND_STRING dvTesira, "'VoIPControlStatus1 get callState',CR"
+			SEND_STRING dvBiamp, "'VoIPControlStatus1 get callState',CR"
 		    }
     		    WAIT 350
 		    {
-			SEND_STRING dvTesira, "'VoIPControlStatus1 get callState',CR"
+			SEND_STRING dvBiamp, "'VoIPControlStatus1 get callState',CR"
 		    }
 		}
 		IF (FIND_STRING(cCallState,'IDLE',1))
@@ -303,26 +343,52 @@ DEFINE_FUNCTION fnParseTesira()
 		     SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_PHONE_STATE),',0,Connected'"
 		}
 	    }
-	    ACTIVE(FIND_STRING(cResponse,'"value":{"callStateInfo":[]{"state":VOIP_CALL_STATE_IDLE',1)):
+	    ACTIVE(FIND_STRING(cResponse,'+OK "value":{"callStateInfo":[]{"state":VOIP_CALL_STATE_IDLE',1)): //Get State Return...
 	    {
 		cDbug = cResponse
 				OFF [nPhoneState]
 			    SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_PHONE_STATE),',0,Disconnected'"
 	    }
-	    ACTIVE(FIND_STRING(cResponse,'"value":{"callStateInfo":[]{"state":VOIP_CALL_STATE_ACTIVE',1)):
+	    ACTIVE(FIND_STRING(cResponse,'+OK "value":{"callStateInfo":[]{"state":VOIP_CALL_STATE_ACTIVE',1)):
 	    {
-		
-			SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_PHONE_STATE),',0,Connected'"
-			ON [nPhoneState]
-	
+		SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_PHONE_STATE),',0,Connected'"
+		    ON [nPhoneState]
 	    }
-	    //Program Levels...
-	    ACTIVE(FIND_STRING(cResponse,'Program set level 1',1)):
+	    ACTIVE (FIND_STRING(cResponse,'-ERR ALREADY_SUBSCRIBED',1)):
 	    {
-		REMOVE_STRING(cResponse,'Program set level 1',1)
-		nProgram_Level = ATOI(cResponse)
-		
-		SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_PROGRAM),',0,',ITOA(nProgram_Level + MAX_COMP),'%'"
+		ON [nSubscribed]
+	    }
+	    ACTIVE(FIND_STRING(cResponse,"TAG_PRGM,' set level ',ITOA(ID_PROGRAM)",1)):
+	    {
+		REMOVE_STRING(cResponse,"TAG_PRGM,' set level ',ITOA(ID_PROGRAM)",1)
+		    nProgram_LevelMix = ATOI(cResponse)
+			SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_PROGRAM),',0,',ITOA(nProgram_LevelMix + MAX_COMP),'%'"
+	    }
+	    ACTIVE(FIND_STRING(cResponse,"TAG_MIC_MIX,' set level '",1)):
+	    {
+		REMOVE_STRING(cResponse,"TAG_MIC_MIX,' set level '",1)    
+		    
+		cID = ATOI(LEFT_STRING(cResponse,1))
+		cAudioLev = MID_STRING (cResponse,2,4)
+		    
+		SWITCH (cID)
+		{
+		    CASE ID_LAV_1 :
+		    {
+			nMic1_Level = ATOI(cAudioLev)
+			    SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_LAV_1),',0,',ITOA(nMic1_Level + MAX_COMP),'%'"
+		    }
+		    CASE ID_LAV_2 :
+		    {
+			nMic2_Level = ATOI(cAudioLev)
+			    SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_LAV_2),',0,',ITOA(nMic2_Level + MAX_COMP),'%'"
+		    }
+		    CASE ID_LAV_3 :
+		    {
+			nMic3_Level = ATOI(cAudioLev)
+			    SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_LAV_3),',0,',ITOA(nMic3_Level + MAX_COMP),'%'"
+		    }
+		}
 	    }
 	}
     }
@@ -334,7 +400,7 @@ DEFINE_FUNCTION fnParseTesira()
 DEFINE_START
 
 ON [nBiampOnline]
-CREATE_BUFFER dvTesira,nBiampBuffer;
+CREATE_BUFFER dvBiamp,nBiampBuffer;
 
 
 WAIT 600 //1 Minute
@@ -390,7 +456,7 @@ BUTTON_EVENT [vdvTP_Biamp, 12] //Dial Pad...
 	
 	IF (nPhoneState)
 	{
-	    SEND_STRING dvTesira, "'VoIPControlStatus1 dtmf  1 ',nDigit,CR"
+	    SEND_STRING dvBiamp, "'VoIPControlStatus1 dtmf  1 ',nDigit,CR"
 	}
 	
 	SEND_COMMAND vdvTP_Biamp, "'^TXT-17,0,',dialPhone";
@@ -424,7 +490,7 @@ BUTTON_EVENT [vdvTP_Biamp, 15] //Dial...
 	IF (LENGTH_STRING (dialPhone) > 0)
 	{
 	    TO[BUTTON.INPUT]
-	    SEND_STRING dvTesira, "'VoIPControlStatus1 dial 1 1 ',dialPhone,CR"
+	    SEND_STRING dvBiamp, "'VoIPControlStatus1 dial 1 1 ',dialPhone,CR"
 	}
     }
 }
@@ -433,7 +499,7 @@ BUTTON_EVENT [vdvTP_Biamp, 16] //Redial...
     PUSH :
     {
 	TO[BUTTON.INPUT]
-	SEND_STRING dvTesira, "'VoIPControlStatus1 redial 1 1',CR"
+	SEND_STRING dvBiamp, "'VoIPControlStatus1 redial 1 1',CR"
     }
 }
 BUTTON_EVENT [vdvTP_Biamp, 17] //HangUp...
@@ -441,7 +507,8 @@ BUTTON_EVENT [vdvTP_Biamp, 17] //HangUp...
     PUSH :
     {
 	TO[BUTTON.INPUT]
-	SEND_STRING dvTesira, "'VoIPControlStatus1 end 1 1 ',CR"
+	SEND_STRING dvBiamp, "'VoIPControlStatus1 end 1 1 ',CR"
+	
 	OFF [nPhoneState]
     }
 }
@@ -450,7 +517,7 @@ BUTTON_EVENT [vdvTP_Biamp, 18] //Answer...
     PUSH :
     {
 	TO[BUTTON.INPUT]
-	SEND_STRING dvTesira, "'VoIPControlStatus1 answer 1 1 ',CR"
+	SEND_STRING dvBiamp, "'VoIPControlStatus1 answer 1 1 ',CR"
 	ON [nPhoneState]
     }
 }
@@ -459,10 +526,10 @@ BUTTON_EVENT [vdvTP_Biamp, 19] //Ignore Call
     PUSH :
     {
 	TO[BUTTON.INPUT]
-	SEND_STRING dvTesira, "'VoIPControlStatus1 answer 1 1 ',CR"
+	SEND_STRING dvBiamp, "'VoIPControlStatus1 answer 1 1 ',CR"
 	WAIT 10
 	{
-	   SEND_STRING dvTesira, "'VoIPControlStatus1 end 1 1 ',CR"
+	   SEND_STRING dvBiamp, "'VoIPControlStatus1 end 1 1 ',CR"
 	}
     }
 }
@@ -476,39 +543,108 @@ BUTTON_EVENT [vdvTP_Biamp, nChnlbtns]
 	SWITCH (nChnlIdx)
 	{
 	    
-
-	    //Program
+	    //Lav 1
 	    CASE 1 :
 	    {
-		IF (![vdvTP_Biamp, BTN_MUTE_PRGM])
+		IF (!nMic1_Mute)
+		{
+		    fnMuteVolume(TAG_MIC_MUTE, ID_LAV_1, YES_ON)
+		    			SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_LAV_1),',0,Muted'"
+			    ON [nMic1_Mute]
+				ON [vdvTP_Biamp, BTN_MUTE_LAV1]
+		}
+		ELSE
+		{
+		    fnMuteVolume(TAG_MIC_MUTE, ID_LAV_1, YES_OFF)
+		    			SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_LAV_1),',0,',ITOA(nMic1_Level + MAX_COMP),'%'"
+			    OFF [nMic1_Mute]
+			    OFF [vdvTP_Biamp, BTN_MUTE_LAV1]
+		}
+	    }
+	    CASE 2 : fnSetVolumeUp(TAG_MIC_MIX, ID_LAV_1, nMic1_Level)
+	    CASE 3 : fnSetVolumeDown(TAG_MIC_MIX, ID_LAV_1, nMic1_Level)
+	    CASE 4 : fnSetVolumePreset(TAG_MIC_MIX, ID_LAV_1, nMic1_Preset)
+	    
+    	    //Mic 2
+	    CASE 5 :
+	    {
+		IF (!nMic2_Mute)
+		{
+		    fnMuteVolume(TAG_MIC_MUTE, ID_LAV_2, YES_ON)
+			SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_LAV_2),',0,Muted'"
+			    ON [nMic2_Mute]
+				ON [vdvTP_Biamp, BTN_MUTE_LAV2]
+		}
+		ELSE
+		{
+		    fnMuteVolume(TAG_MIC_MUTE, ID_LAV_2, YES_OFF)
+			SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_LAV_2),',0,',ITOA(nMic2_Level + MAX_COMP),'%'"
+			    OFF [nMic2_Mute]
+			    OFF [vdvTP_Biamp, BTN_MUTE_LAV2]
+		}
+	    }
+	    CASE 6 : fnSetVolumeUp(TAG_MIC_MIX, ID_LAV_2, nMic2_Level)
+	    CASE 7 : fnSetVolumeDown(TAG_MIC_MIX, ID_LAV_2, nMic2_Level)
+	    CASE 8 : fnSetVolumePreset(TAG_MIC_MIX, ID_LAV_2, nMic2_Preset)
+	    
+    	    //Mic 3
+	    CASE 9 :
+	    {
+		IF (!nMic3_Mute)
+		{
+		    fnMuteVolume(TAG_MIC_MUTE, ID_LAV_3, YES_ON)
+			SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_LAV_3),',0,Muted'"
+			    ON [nMic3_Mute]
+				ON [vdvTP_Biamp, BTN_MUTE_LAV3]
+		}
+		ELSE
+		{
+		    fnMuteVolume(TAG_MIC_MUTE, ID_LAV_3, YES_OFF)
+			SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_LAV_3),',0,',ITOA(nMic3_Level + MAX_COMP),'%'"
+			    OFF [nMic3_Mute]
+			    OFF [vdvTP_Biamp, BTN_MUTE_LAV3]
+		}
+	    }
+	    CASE 10 : fnSetVolumeUp(TAG_MIC_MIX, ID_LAV_3, nMic3_Level)
+	    CASE 11 : fnSetVolumeDown(TAG_MIC_MIX, ID_LAV_3, nMic3_Level)
+	    CASE 12 : fnSetVolumePreset(TAG_MIC_MIX, ID_LAV_3, nMic3_Preset)
+	    	    
+    	    //Program
+	    CASE 13 :
+	    {
+		IF (!nProgram_MuteMix)
 		{
 		    fnMuteVolume(TAG_PRGM, ID_PROGRAM, YES_ON)
 		    			SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_PROGRAM),',0,Muted'"
-			    ON [vdvTP_Biamp, BTN_MUTE_PRGM]
+			    ON [nProgram_MuteMix]
+				ON [vdvTP_Biamp, BTN_MUTE_PRGM]
 		}
 		ELSE
 		{
 		    fnMuteVolume(TAG_PRGM, ID_PROGRAM, YES_OFF)
-		    		SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_PROGRAM),',0,',ITOA(nProgram_Level + MAX_COMP),'%'"
+		    			SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_PROGRAM),',0,',ITOA(nProgram_LevelMix + MAX_COMP),'%'"
+			    OFF [nProgram_MuteMix]
 			    OFF [vdvTP_Biamp, BTN_MUTE_PRGM]
 		}
 	    }
-	    CASE 2 : fnSetVolumeUp(TAG_PRGM, ID_PROGRAM, nProgram_Level)
-	    CASE 3 : fnSetVolumeDown(TAG_PRGM, ID_PROGRAM, nProgram_Level)
-	    CASE 4 : fnSetVolumePreset(TAG_PRGM, ID_PROGRAM, nProgram_Preset)
+	    CASE 14 : fnSetVolumeUp(TAG_PRGM, ID_PROGRAM, nProgram_LevelMix)
+	    CASE 15 : fnSetVolumeDown(TAG_PRGM, ID_PROGRAM, nProgram_LevelMix)
+	    CASE 16 : fnSetVolumePreset(TAG_PRGM, ID_PROGRAM, nProgram_PresetMix)
 	            
 	    //Ceiling
-	    CASE 5 : 
+	    CASE 17 : 
 	    {
-		IF(![vdvTP_Biamp, BTN_MUTE_CEILING])
+		IF(!nCeiling_Mute)
 		{
 		    fnMuteLogic(TAG_CEILING, ID_CEILING, YES_ON)
-		    ON [vdvTP_Biamp, BTN_MUTE_CEILING]
+			ON [vdvTP_Biamp, BTN_MUTE_CEILING]
+			    ON [nCeiling_Mute]
 		}
 		ELSE
 		{
 		    fnMuteLogic(TAG_CEILING, ID_CEILING, YES_OFF)
-		    OFF [vdvTP_Biamp, BTN_MUTE_CEILING]
+		    			OFF [vdvTP_Biamp, BTN_MUTE_CEILING]
+			    OFF [nCeiling_Mute]
 		}
 	    }
 	}
@@ -520,8 +656,17 @@ BUTTON_EVENT [vdvTP_Biamp, nChnlbtns]
 	nChnlIdx = GET_LAST (nChnlbtns)
 	SWITCH (nChnlIdx)
 	{
-	    CASE 2 : fnSetVolumeUp(TAG_PRGM, ID_PROGRAM, nProgram_Level)
-	    CASE 3 : fnSetVolumeDown(TAG_PRGM, ID_PROGRAM, nProgram_Level)
+	    CASE 2 : fnSetVolumeUp(TAG_MIC_MIX, ID_LAV_1, nMic1_Level)
+	    CASE 3 : fnSetVolumeDown(TAG_MIC_MIX, ID_LAV_1, nMic1_Level)
+	    
+    	    CASE 6 : fnSetVolumeUp(TAG_MIC_MIX, ID_LAV_2, nMic2_Level)
+	    CASE 7 : fnSetVolumeDown(TAG_MIC_MIX, ID_LAV_2, nMic2_Level)
+	    
+    	    CASE 10 : fnSetVolumeUp(TAG_MIC_MIX, ID_LAV_3, nMic3_Level)
+	    CASE 11 : fnSetVolumeDown(TAG_MIC_MIX, ID_LAV_3, nMic3_Level)
+	
+	    CASE 14 : fnSetVolumeUp(TAG_PRGM, ID_PROGRAM, nProgram_LevelMix)
+	    CASE 15 : fnSetVolumeDown(TAG_PRGM, ID_PROGRAM, nProgram_LevelMix)
 	    
 	}
     }
@@ -543,11 +688,11 @@ DATA_EVENT [dvTP_Biamp2]
 	}
     }
 }
-DATA_EVENT [dvTesira]
+DATA_EVENT [dvBiamp]
 {
     ONLINE:
     {
-	    SEND_COMMAND DATA.DEVICE, "'SET BAUD 115200,N,8,1'"
+	    SEND_COMMAND DATA.DEVICE, "'SET BAUD 115200,N,8,1 485 DISABLED'"
 	    SEND_COMMAND DATA.DEVICE, "'RXON'"
 	    SEND_COMMAND DATA.DEVICE, "'HSOFF'"
 	    
@@ -566,17 +711,12 @@ DATA_EVENT [dvTesira]
 DEFINE_EVENT
 
 TIMELINE_EVENT[TL_FEEDBACK]
-{
-   
-    WAIT 6600 //Some Minutes...
+{    
+    WAIT FIVE_MINUTES
     {
 	fnSubscribeCalls()
     }
 
 }
-(***********************************************************)
-(*            THE ACTUAL PROGRAM GOES BELOW                *)
-(***********************************************************)
-
 
 
