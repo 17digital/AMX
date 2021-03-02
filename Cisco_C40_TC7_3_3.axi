@@ -63,8 +63,6 @@ SET_OFF					= 'Off'
 MIC_MUTE_ON				= 'Mute'
 MIC_MUTE_OFF				= 'UnMute'
 
-
-
 //Btns...
 BTN_NAV_PAGE_1			= 201
 BTN_NAV_PAGE_2			= 202
@@ -122,45 +120,45 @@ BTN_BJN_SPEED 			= 3001
 BTN_PRESENTATION_ON	= 108
 BTN_PRESENTATION_OFF	= 109
 
+BTN_PAGE_PREV			= 2006
+BTN_PAGE_NEXT			= 2007
+
 (***********************************************************)
 (*               VARIABLE DEFINITIONS GO BELOW             *)
 (***********************************************************)
 DEFINE_VARIABLE
 
-//Place Caller ID
-CHAR cNameReturn[30] =''
-CHAR cSecondaryReturn[35] ='' //GT Book Return
-CHAR cPrimaryReturn[35] = '' //Blue Jeans + Local Return
-
 VOLATILE INTEGER nC40Online
 VOLATILE CHAR cC40Buffer[500]
 
 VOLATILE INTEGER nJustBooted
-
 VOLATILE INTEGER nCameraSelect //Front or Rear Tracking
+VOLATILE INTEGER sPowerStatus
+NON_VOLATILE INTEGER nBlueJeansStarted
+
+VOLATILE CHAR dialNumber[MAX_TEXT_LENGTH]
 VOLATILE INTEGER nDisturb
+VOLATILE INTEGER nSelfView
+VOLATILE INTEGER nPIPCounter =1//Pip Layout
 VOLATILE INTEGER nVolumeOutput = 80
 VOLATILE INTEGER nLayoutCounter //Layout Counter
-VOLATILE INTEGER nPIPCounter //Pip Layout
-VOLATILE INTEGER nSelfView
-
 VOLATILE INTEGER nVTC_Mic_Mute
-VOLATILE CHAR dialNumber[MAX_TEXT_LENGTH]
-
-//PhoneBook Stuff
-VOLATILE INTEGER nPage //Phonebook Page
-VOLATILE INTEGER nListCount = 14 //How many list items are we displaying?? 10 is Temp
-VOLATILE CHAR sEntriesFound[3] = '' //How many directories?
-CHAR cFolderGT[4] =''
-CHAR cFolderTest[4] =''
-CHAR cFolderBlueJeans[4] =''
-VOLATILE INTEGER cDialGTBook //Am I using the GT phonebook or naw??
-
 VOLATILE INTEGER nCallInProgress //??
-VOLATILE INTEGER sPowerStatus
 
-VOLATILE CHAR cSlot_Secondary[14][35] = {'','','','','','','','','','','','','',''} //Hold GT Numbers...
-VOLATILE CHAR cSlot_Primary[14][35] = {'','','','','','','','','','','','','',''} //Hold GT Numbers...
+//Phonebook Stuff...
+VOLATILE INTEGER cTotalRows
+VOLATILE INTEGER nSearchOffset[] = { 0,14,28,42,56} //Offset Search Results
+VOLATILE CHAR cSlot_Primary[14][35] = {'','','','','','','','','','','','','',''} //Hold Main Numbers...
+VOLATILE CHAR cSlot_FolderNames[6][35] = {'','','','','',''} //Holds the Folder Name for Each Phonebook Result
+VOLATILE CHAR cSlot_FolderIDs[7][4] = {'','','','','',''} //Holds the Folder ID for Each Phonebook Result
+VOLATILE CHAR cNameReturn[30] ='' //Name Results within Directory...
+VOLATILE CHAR cPrimaryReturn[35] = '' //Number Results within Directory...
+VOLATILE CHAR cFolderName[35] = '' //Holds the Main Directory Names
+VOLATILE CHAR cFolderID[8] = '' //Hold the ID for Directory Name
+VOLATILE INTEGER nDirectorySwitch
+VOLATILE INTEGER nListCount = 14 //How many list items are we displaying from Phonebook?? 10 is Temp
+VOLATILE INTEGER nPageTrack =1
+VOLATILE INTEGER nCorporateSearch
 
 VOLATILE DEV vdvTP_Codec [] = 
 {
@@ -230,16 +228,6 @@ VOLATILE INTEGER nPhonenavBtns[] =
     BTN_NAV_PAGE_6,
     BTN_NAV_PAGE_7
 }
-VOLATILE CHAR nPhoneNavNames[7][10] =
-{
-    'PAGE 1',
-    'PAGE 2',
-    'PAGE 3',
-    'PAGE 4',
-    'Blue Jeans',
-    'Local',
-    'Local'
-}
 VOLATILE INTEGER nPhoneSelect[] =
 {
     301,
@@ -270,6 +258,7 @@ DEFINE_MUTUALLY_EXCLUSIVE
 ([dvTP_Codec, BTN_DISTURB_ALLOW],[dvTP_Codec, BTN_DISTURB_NO])
 ([dvTP_Codec, BTN_START_SHARING],[dvTP_Codec, BTN_STOP_SHARING])
 ([dvTP_Codec, BTN_PRESENTATION_ON],[dvTP_Codec, BTN_PRESENTATION_OFF])
+([dvTP_Codec, BTN_RECALL_PRESET_1]..[dvTP_Codec, BTN_RECALL_PRESET_5])
 
 (***********************************************************)
 (*        SUBROUTINE/FUNCTION DEFINITIONS GO BELOW         *)
@@ -340,7 +329,7 @@ DEFINE_FUNCTION fnPIPCycle(nPIPCounter)
 	{
 	    IF (nPIPCounter > 6 )
 	    {
-		nPIPCounter = 0
+		nPIPCounter = 1
 	    }
 	}
     }
@@ -415,12 +404,16 @@ DEFINE_FUNCTION fnSetVolumeOutput()
 DEFINE_FUNCTION fnParsec40Codec()
 {
     STACK_VAR CHAR cResponse[500]
-    LOCAL_VAR CHAR sCallerId[20] //Only displays URI
-    LOCAL_VAR CHAR sCallBackNumber[30] //gives actual dialing sip
-    LOCAL_VAR CHAR sCallType[15] //Video type??
+    
     LOCAL_VAR CHAR sURI[25] 
+    LOCAL_VAR CHAR sCallerId[40] //Only displays URI
     STACK_VAR INTEGER cCount //Used for Phonebook
-    LOCAL_VAR CHAR sDisplayName[25]
+    LOCAL_VAR CHAR cRemoteNumber[40] //gives actual dialing sip
+    LOCAL_VAR CHAR cRemoteDisplay[40] //Display Name
+    LOCAL_VAR CHAR sCallType[15] //Video type??
+    LOCAL_VAR CHAR nDbugger[15]
+    
+    LOCAL_VAR CHAR sCallState[25]
     
     WHILE(FIND_STRING(cC40Buffer,"CR,LF",1))
     {
@@ -428,56 +421,59 @@ DEFINE_FUNCTION fnParsec40Codec()
 	
 	SELECT
 	{
-	    ACTIVE(FIND_STRING(cResponse,'*r ResultSet Folder 1 FolderId: "',1)):
-	    {
-		REMOVE_STRING(cResponse,'*r ResultSet Folder 1 FolderId: "',1)
-		cFolderGT = cResponse //Example left...c_1"
-		cFolderGT = LEFT_STRING(cFolderGT,LENGTH_STRING(cFolderGT)-1) //Should have c_1
-		
-	    }
-	    ACTIVE(FIND_STRING(cResponse,'*r ResultSet Folder 2 FolderId: "',1)):
-	    {
-		REMOVE_STRING(cResponse,'*r ResultSet Folder 2 FolderId: "',1)
-		cFolderBlueJeans = cResponse //Example left...c_1"
-		//cFolderBlueJeans = LEFT_STRING(cFolderBlueJeans,LENGTH_STRING(cFolderBlueJeans)-1) //Should have c_19
-	    }
 	    ACTIVE(FIND_STRING(cResponse,'*r ResultSet ResultInfo TotalRows:',1)):
 	    {
 		REMOVE_STRING(cResponse,'*r ResultSet ResultInfo TotalRows:',1)
+		    cTotalRows = ATOI (cResponse)
+			SEND_COMMAND vdvTP_Codec,"'^TXT-',ITOA(TXT_RETURN_ITEMS),',0,',cResponse,' Entrie(s) Found'"  
+	    }
+	    ACTIVE(FIND_STRING(cResponse,'*r ResultSet Folder ',1)):
+	    {
+		REMOVE_STRING(cResponse,'*r ResultSet Folder ',1)
 		
-		SEND_COMMAND vdvTP_Codec,"'^TXT-',ITOA(TXT_RETURN_ITEMS),',0,',cResponse,' Entrie(s) Found'"  
+		FOR (cCount=1; cCount<=(cTotalRows); cCount++)
+		{
+		    IF (FIND_STRING(cResponse,"ITOA(cCount),' FolderId: "'",1))
+		    {
+			REMOVE_STRING(cResponse,"ITOA(cCount),' FolderId: "'",1)
+			{
+			    cFolderID = cResponse
+				cFolderID = LEFT_STRING(cFolderID,LENGTH_STRING(cFolderID)-3) //Should have c_1
+				    cSlot_FolderIDs[cCount] = cFolderID //Populate Array
+			}
+		    }
+		    IF(FIND_STRING(cResponse,"ITOA(cCount),' Name: "'",1)) //Blue Jeans...
+		    {
+			REMOVE_STRING(cResponse,"ITOA(cCount),' Name: "'",1)
+			{
+			    cFolderName = cResponse
+				cFolderName = LEFT_STRING(cFolderName,LENGTH_STRING(cFolderName)-3)
+			    cSlot_FolderNames[cCount] = cFolderName 
+			}
+		    }
+		}
 	    }
 	    ACTIVE(FIND_STRING(cResponse,'*r ResultSet Contact',1)):
 	    {
 		//Get Name...
 		REMOVE_STRING(cResponse,'*r ResultSet Contact',1)
 		
-		FOR(cCount=1; cCount <=nListCount; cCount++) 
+		FOR(cCount=1; cCount <=MAX_LENGTH_ARRAY(nPhoneSelect); cCount++) 
 		{
-		    IF(FIND_STRING(cResponse,"' ',ITOA(cCount),' Name: "'",1))
-		    //IF(FIND_STRING(cResponse,' 1 Name: "',1))
+		    IF (FIND_STRING(cResponse,"' ',ITOA(cCount),' Name: "'",1))
 		    {
 			REMOVE_STRING(cResponse,"' ',ITOA(cCount),' Name: "'",1)
 			cNameReturn = cResponse
 			cNameReturn = LEFT_STRING(cNameReturn,LENGTH_STRING(cNameReturn)-3) //Take off last quote plus CR/LF
 			
 			SEND_COMMAND vdvTP_Codec, "'^TXT-',ITOA(nPhoneSelect[cCount]),',0,',cNameReturn"
-		    }
-		    IF(FIND_STRING(cResponse,"' ',ITOA(cCount),' ContactMethod 2 Number: "'",1)) //GT Book Found Here...
-		    {
-			REMOVE_STRING(cResponse,"' ',ITOA(cCount),' ContactMethod 2 Number: "'",1)
-			
-			    cSecondaryReturn = cResponse //Should Have Number...
-			    cSecondaryReturn = LEFT_STRING(cSecondaryReturn,LENGTH_STRING(cSecondaryReturn)-3)
-			    
-			    cSlot_Secondary[cCount] = cSecondaryReturn //Populate Array 
-		    }
-		    IF(FIND_STRING(cResponse,"' ',ITOA(cCount),' ContactMethod 1 Number: "'",1)) //Blue Jeans + Local Book Found Here...
+		    }	
+		    IF (FIND_STRING(cResponse,"' ',ITOA(cCount),' ContactMethod 1 Number: "'",1)) //Blue Jeans + Local Book Found Here...
 		    {
 			REMOVE_STRING(cResponse,"' ',ITOA(cCount),' ContactMethod 1 Number: "'",1)
 			
 			    cPrimaryReturn = cResponse //Should Have Number...
-			    cPrimaryReturn = LEFT_STRING(cPrimaryReturn,LENGTH_STRING(cPrimaryReturn)-3)
+				cPrimaryReturn = LEFT_STRING(cPrimaryReturn,LENGTH_STRING(cPrimaryReturn)-3)
 			    
 			    cSlot_Primary[cCount] = cPrimaryReturn //Populate Array 
 		    }
@@ -493,12 +489,12 @@ DEFINE_FUNCTION fnParsec40Codec()
 		OFF [nSelfView]
 		    OFF [vdvTP_Codec, BTN_TOGGLE_SELFVIEW]
 	    }
-	    ACTIVE(FIND_STRING(cResponse,"'*s Video Input MainVideoSource: 1'",1)):
+	    ACTIVE(FIND_STRING(cResponse,"'*s Video Input MainVideoSource: ',ITOA(SOURCE_CAMERA_REAR)",1)):
 	    {
 		nCameraSelect = SOURCE_CAMERA_REAR
 		    ON [vdvTP_Codec, BTN_CAM_REAR]
 	    }
-	    ACTIVE(FIND_STRING(cResponse,"'*s Video Input MainVideoSource: 2'",1)):
+	    ACTIVE(FIND_STRING(cResponse,"'*s Video Input MainVideoSource: ',ITOA(SOURCE_CAMERA_FRONT)",1)):
 	    {
 		nCameraSelect = SOURCE_CAMERA_FRONT
 		    ON [vdvTP_Codec, BTN_CAM_FRONT]
@@ -521,66 +517,74 @@ DEFINE_FUNCTION fnParsec40Codec()
 		    {
 			    ON [vdvTP_Codec, BTN_PRESENTATION_OFF]
 		    }
-		    IF (FIND_STRING(cResponse,'On',1) OR FIND_STRING(cResponse,'Sending',1))
+		    IF (FIND_STRING(cResponse,'On',1))
 		    {
 			    ON [vdvTP_Codec, BTN_PRESENTATION_ON]
 		    }
+		    IF (FIND_STRING(cResponse,'Sending',1))
+		    {
+			ON [vdvTP_Codec, BTN_PRESENTATION_ON]
+		    }
 		}
 	    }
-	    //Display Incoming Caller Name...
+	    ACTIVE(FIND_STRING(cResponse,'CallbackNumber: "',1)):
+	    {
+		REMOVE_STRING (cResponse,'CallbackNumber: "',1)
+		sCallerId = cResponse
+		SET_LENGTH_STRING (sCallerId,LENGTH_STRING(sCallerId) -3)
+		
+		SEND_COMMAND vdvTP_Codec, "'^TXT-',ITOA(TXT_CALLID),',0,',sCallerId"
+	    }
 	    ACTIVE(FIND_STRING(cResponse,'DisplayName: "',1)):
 	    {
-
-		REMOVE_STRING(cResponse,'DisplayName: "',1)
-		sDisplayName = cResponse
-		REMOVE_STRING(sDisplayName,'"',1) //Remove Everything up to Quote
-		SET_LENGTH_STRING (sDisplayName,LENGTH_STRING(sDisplayName) -1); //Remove Last Quote
-	    
-		//SEND_COMMAND vdvTP_Codec, "'^TXT-22,0,',sCallerId" 
-		//SEND_COMMAND vdvTP_Codec, "'^TXT-',ITOA(TXT_CALLID),',0,',sDisplayName" 
-	    }
-	    ACTIVE(FIND_STRING(cResponse,'RemoteNumber: "',1)):
-	    {
-		REMOVE_STRING (cResponse,'RemoteNumber: "',1)
-		sCallBackNumber = cResponse
-		SET_LENGTH_STRING (sCallBackNumber,LENGTH_STRING(sCallBackNumber) -3)
+		REMOVE_STRING (cResponse,'DisplayName: "',1)
+		nDbugger = cResponse //rich140b" CallId:
+		cRemoteDisplay = REMOVE_STRING(nDbugger,'"',1)
+	
+		SET_LENGTH_STRING (cRemoteDisplay,LENGTH_STRING(cRemoteDisplay) -1)
 		
-		SEND_COMMAND vdvTP_Codec, "'^TXT-',ITOA(TXT_CALLID),',0,',sCallBackNumber"
+		SEND_COMMAND vdvTP_Codec, "'^TXT-',ITOA(TXT_CALLTYPE),',0,',cRemoteDisplay"
 	    }
-	    ACTIVE(FIND_STRING(cResponse,"'*s Audio Microphones Mute: Off'",1)):
+	    ACTIVE(FIND_STRING(cResponse,'*s Audio Microphones Mute: ',1)):
 	    {
-		OFF [nVTC_Mic_Mute]
-		    OFF [vdvTP_Codec, BTN_MIC_MUTE_VTC]
-	    }
-	    ACTIVE(FIND_STRING(cResponse,"'*s Audio Microphones Mute: On'",1)):
-	    {
-		ON [nVTC_Mic_Mute]
-		    ON [vdvTP_Codec, BTN_MIC_MUTE_VTC]
+		REMOVE_STRING(cResponse,'*s Audio Microphones Mute: ',1)
+		
+		IF (FIND_STRING(cResponse,'Off',1))
+		{
+		     OFF [nVTC_Mic_Mute]
+			OFF [vdvTP_Codec, BTN_MIC_MUTE_VTC]
+		}
+		IF (FIND_STRING(cResponse,'On',1))
+		{
+		    ON [nVTC_Mic_Mute]
+			ON [vdvTP_Codec, BTN_MIC_MUTE_VTC]
+		}
 	    }
 	    //Call feedback
 	    ACTIVE(FIND_STRING(cResponse,'Status: ',1)):
 	    {
 		REMOVE_STRING(cResponse,'Status: ',1)
+		sCallState = cResponse
 		
-		IF (FIND_STRING(cResponse,'Dialing',1))
+		IF (FIND_STRING(sCallState,'Dialing',1))
 		{
 		    ON [nCallInProgress]
 		    SEND_COMMAND vdvTP_Codec, "'^TXT-',ITOA(TXT_STATE),',0,Dialing..'"
 		}
-		IF (FIND_STRING(cResponse,'Connecting',1))
+		IF (FIND_STRING(sCallState,'Connecting',1))
 		{
 		    ON [nCallInProgress]
 		    SEND_COMMAND vdvTP_Codec, "'^TXT-',ITOA(TXT_STATE),',0,Connecting'"
 		}
-		IF (FIND_STRING(cResponse,'Connected',1))
+		IF (FIND_STRING(sCallState,'Connected',1))
 		{
 		    ON [nCallInProgress]
 		    SEND_COMMAND vdvTP_Codec, "'^TXT-',ITOA(TXT_STATE),',0,Connected!'"
 		}
-		IF (FIND_STRING(cResponse,'Ringing',1))
+		IF (FIND_STRING(sCallState,'Ringing',1))
 		{
 		    SEND_COMMAND vdvTP_Codec, "'^TXT-',ITOA(TXT_STATE),',0,Ringing!'"
-		    SEND_COMMAND vdvTP_Codec, "'PPON-_incomingcall'" //Show popup...
+		    SEND_COMMAND vdvTP_Codec, "'^PPN-_incomingcall'" //Show popup...
 		}
 	    }
 	    //Remote Caller Hung Up!
@@ -593,7 +597,7 @@ DEFINE_FUNCTION fnParsec40Codec()
 			SEND_COMMAND vdvTP_Codec, "'^TXT-',ITOA(TXT_CALLID),',0,',sCallerId"
 	    }
 	    //Local Hung up!!
-	    ACTIVE(FIND_STRING(cResponse,"'xCommand Call DisconnectAll'",1)): //Disconnected Locally
+	    ACTIVE(FIND_STRING(cResponse,"'xCommand Call Disconnect CallId:0'",1)): //Disconnected Locally
 	    {
 		OFF [nCallInProgress]
 		OFF [vdvTP_Codec, BTN_BJN_SPEED ]
@@ -664,11 +668,13 @@ DEFINE_FUNCTION fnPollCodec()
     WAIT 70 SEND_STRING dvCodec, "'xStatus Standby Active',CR" //Sleep or Naw...
     WAIT 90 SEND_STRING dvCodec, "'xStatus SystemUnit State System',CR" //InCall? 
     
-	//SEND_STRING dvCodec, "'xStatus Call',$0D" //Query on going call
-    WAIT 110 SEND_STRING dvCodec, "'xStatus SIP Registration URI',CR" //Get My URI
+    WAIT 100 SEND_STRING dvCodec, "'xStatus Call',CR" //Query on going call
+    WAIT 120 SEND_STRING dvCodec, "'xStatus SIP Registration URI',CR" //Get My URI
     WAIT 140 fnSetVolumeOutput()
     WAIT 150 SEND_STRING dvCodec, "'xStatus Video Selfview',CR"
     WAIT 170 SEND_STRING dvCodec, "'xCommand Phonebook Search PhonebookID:0 PhonebookType:Corporate Offset:0',CR" //Get Phonebook Folders...
+    
+    WAIT 250 fnDirectoryNav()
 }
 DEFINE_FUNCTION fnDirectoryNav()
 {
@@ -676,7 +682,7 @@ DEFINE_FUNCTION fnDirectoryNav()
     
     FOR (cLoop=1; cLoop<=MAX_LENGTH_ARRAY(nPhonenavBtns); cLoop++)
     {
-	SEND_COMMAND vdvTP_Codec, "'^TXT-',ITOA(nPhonenavBtns[cLoop]),',0,',nPhoneNavNames[cLoop]"
+	SEND_COMMAND vdvTP_Codec, "'^TXT-',ITOA(nPhonenavBtns[cLoop]),',0,',cSlot_FolderNames[cLoop]"
     }
 }
 DEFINE_FUNCTION fnRegisterFeedback()
@@ -690,7 +696,6 @@ DEFINE_FUNCTION fnRegisterFeedback()
     WAIT 10 SEND_STRING dvCodec, "'xFeedback register /Event/IncomingCallIndication',CR"
     WAIT 20 SEND_STRING dvCodec, "'xFeedback register /Event/OutgoingCallIndication',CR"
     WAIT 30 SEND_STRING dvCodec, "'xFeedback register /Event/Standby',CR"
-    
     WAIT 40 SEND_STRING dvCodec, "'xFeedback register /Status/Audio/Microphones/Mute',CR"
     WAIT 50 SEND_STRING dvCodec, "'xFeedback register /Status/Call',CR"
     WAIT 60 SEND_STRING dvCodec, "'xFeedback register /Status/Standby/Active',CR"
@@ -760,6 +765,7 @@ BUTTON_EVENT [vdvTP_Codec, 16] //DTMF -#
 		IF (nCallInProgress)
 		{	
 		    SEND_STRING dvCodec, "'xCommand DTMFSend CallId:0 DTMFString:',ITOA(BUTTON.INPUT.CHANNEL -1),CR"
+			addToDialNumber(ITOA(BUTTON.INPUT.CHANNEL -1))
 		}
 		ELSE
 		{
@@ -791,10 +797,12 @@ BUTTON_EVENT [vdvTP_Codec, 16] //DTMF -#
 	    CASE 15: //DTMF *
 	    {
 		SEND_STRING dvCodec, "'xCommand DTMFSend CallId:0 DTMFString:*',CR"
+		    addToDialNumber('*')
 	    }
 	    CASE 16: //DTMF #
 	    {
 		SEND_STRING dvCodec, "'xCommand DTMFSend CallId:0 DTMFString:#',CR"
+		    addToDialNumber('#')
 	    }
 	}
     }
@@ -804,9 +812,7 @@ BUTTON_EVENT [vdvTP_Codec, nSelectCameraBtns] //Select Active Camera
     PUSH :
     {
 	nCameraSelect = GET_LAST (nSelectCameraBtns)
-
 	    fnCameraSelect(nCameraIds[GET_LAST(nSelectCameraBtns)])
-		ON [dvTP_Codec, nCameraSelect + 50] //Set Feedback
     }
 }
 BUTTON_EVENT [vdvTP_Codec, nCameraControlsBtns] //Camera Controls
@@ -814,18 +820,18 @@ BUTTON_EVENT [vdvTP_Codec, nCameraControlsBtns] //Camera Controls
     PUSH :
     {
 	STACK_VAR INTEGER nCamIdx
-	TOTAL_OFF [nPresetSelectBtns]
+	TOTAL_OFF [vdvTP_Codec, nPresetSelectBtns]
 	
 	nCamIdx = GET_LAST(nCameraControlsBtns)
 	
 	SWITCH (nCamIdx)
 	{
-	    CASE 1: SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:',ITOA(nCameraSelect),' Pan:Left PanSpeed:1',CR"
-	    CASE 2: SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:',ITOA(nCameraSelect),' Pan:Right PanSpeed:1',CR"
-	    CASE 3: SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:',ITOA(nCameraSelect),' Tilt:Up TiltSpeed:1',CR"
-	    CASE 4: SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:',ITOA(nCameraSelect),' Tilt:Down TiltSpeed:1',CR"
-	    CASE 5: SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:',ITOA(nCameraSelect),' Zoom:In ZoomSpeed:12',CR"
-	    CASE 6: SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:',ITOA(nCameraSelect),' Zoom:Out ZoomSpeed:12',CR"
+	    CASE 1: SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:',ITOA(nCameraSelect),' Tilt:Up TiltSpeed:1',CR"
+	    CASE 2: SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:',ITOA(nCameraSelect),' Tilt:Down TiltSpeed:1',CR"
+	    CASE 3: SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:',ITOA(nCameraSelect),' Pan:Left PanSpeed:1',CR"
+	    CASE 4: SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:',ITOA(nCameraSelect),' Pan:Right PanSpeed:1',CR"
+	    CASE 5: SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:',ITOA(nCameraSelect),' Zoom:In ZoomSpeed:2',CR"
+	    CASE 6: SEND_STRING dvCodec, "'xCommand Camera Ramp CameraId:',ITOA(nCameraSelect),' Zoom:Out ZoomSpeed:2',CR"
 	}
     }
     RELEASE :
@@ -861,8 +867,8 @@ BUTTON_EVENT [vdvTP_Codec, nPresetSelectBtns]
 	
 	nPresetIdx = GET_LAST (nPresetSelectBtns)
 	
-	SEND_STRING dvCodec, "'xCommand Camera PositionActivateFromPreset CameraId:',ITOA(nCameraSelect), 'PresetId:',ITOA(nPresetIdx),CR"
-	    ON [dvTP_Codec, nPresetIdx + 70] //Send Feedback
+	SEND_STRING dvCodec, "'xCommand Camera Preset Activate PresetId:',ITOA(nPresetIdx),CR"
+	    ON [dvTP_Codec, nPresetSelectBtns[nPresetIdx]] //Send Feedback
     }
 }
 BUTTON_EVENT [vdvTP_Codec, nPresetStoreBtns]
@@ -873,7 +879,7 @@ BUTTON_EVENT [vdvTP_Codec, nPresetStoreBtns]
 	
 	nStoreIdx = GET_LAST (nPresetStoreBtns)
 	SEND_COMMAND dvTP_Codec, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Preset Saved!'"
-	    SEND_STRING dvCodec, "'xCommand Camera Preset Store PresetId: ',ITOA(nStoreIdx), ' CameraId: ',ITOA(nCameraSelect),CR"
+	    SEND_STRING dvCodec, "'xCommand Camera Preset Store PresetId: ',ITOA(nStoreIdx), ' CameraId: ',ITOA(nCameraSelect), ' ListPosition:',ITOA(nStoreIdx),CR"
 	    
 	    WAIT 50
 	    {
@@ -902,7 +908,7 @@ BUTTON_EVENT [vdvTP_Codec, BTN_CALL_REJECT] //Receiving Calls...
 	    }
 	    CASE BTN_CALL_HANGUP :
 	    {
-		SEND_STRING dvCodec, "'xCommand Call DisconnectAll',CR"
+		SEND_STRING dvCodec, "'xCommand Call Disconnect CallId:0',CR"
 		    OFF [nCallInProgress]
 	    }
 	    CASE BTN_CALL_IGNORE :
@@ -1011,61 +1017,43 @@ BUTTON_EVENT [vdvTP_Codec, nPhonenavBtns]
 {
     PUSH :
     {
-	STACK_VAR INTEGER nDirectory
-	nDirectory = GET_LAST (nPhonenavBtns)
+	nDirectorySwitch = GET_LAST (nPhonenavBtns)
 	
 	TOTAL_OFF [vdvTP_Codec, nPhoneSelect]
 	    SEND_COMMAND vdvTP_Codec,"'^TXT-',ITOA(TXT_RETURN_ITEMS),',0,Please Wait...'" 
-		ON [vdvTP_Codec, nDirectory +200] //Send Feedback..
+		ON [vdvTP_Codec, nPhonenavBtns[nDirectorySwitch]] //Send Feedback..
+		fnUpdateList()
+	    nPageTrack = 1
+	    ON [vdvTP_Codec, BTN_PAGE_NEXT]
+	    OFF [vdvTP_Codec, BTN_PAGE_PREV]
+	    ON [nCorporateSearch]
 	
-	SWITCH (nDirectory)
+	//Display first Entries.
+	SEND_STRING dvCodec, "'xCommand Phonebook Search PhonebookID:0 PhonebookType:Corporate Offset:0 FolderId:',cSlot_FolderIDs[GET_LAST(nPhonenavBtns)],' Limit:',ITOA(nListCount),CR"
+	
+	SWITCH (nDirectorySwitch)
 	{
-	    CASE 1: //ATL Enpoints
-	    {
-		fnUpdateList()
-		SEND_STRING dvCodec, "'xCommand Phonebook Search PhonebookID:0 PhonebookType:Corporate Offset:0 FolderId:',cFolderGT,' Limit:',ITOA(nListCount),CR"		
-	    }
-	    CASE 2:
-	    {
-		fnUpdateList()		
-		SEND_STRING dvCodec, "'xCommand Phonebook Search PhonebookID:0 PhonebookType:Corporate Offset:14 FolderId:',cFolderGT,' Limit:',ITOA(nListCount),CR"
-	    }
-	    CASE 3:
-	    {
-		fnUpdateList()
-		SEND_STRING dvCodec, "'xCommand Phonebook Search PhonebookID:0 PhonebookType:Corporate Offset:28 FolderId:',cFolderGT,' Limit:',ITOA(nListCount),CR"	                          
-	    }
-	    CASE 4:
-	    {
-		fnUpdateList()		
-		SEND_STRING dvCodec, "'xCommand Phonebook Search PhonebookID:0 PhonebookType:Corporate Offset:42 FolderId:',cFolderGT,' Limit:',ITOA(nListCount),CR"
-	    }
-	    CASE 5:
-	    {
-		fnUpdateList()		
-		SEND_STRING dvCodec, "'xCommand Phonebook Search PhonebookID:0 PhonebookType:Corporate Offset:0 FolderId:',cFolderBlueJeans,' Limit:',ITOA(nListCount),CR" 
-	    }
-	    CASE 6:
-	    {
-		fnUpdateList()
-		SEND_STRING dvCodec, "'xCommand Phonebook Search PhonebookID:0 PhonebookType:Local Offset: 0',CR" //Search Local
-	    }
 	    CASE 7:
 	    {
-		fnUpdateList()
+		OFF [nCorporateSearch]
+		SEND_STRING dvCodec, "'xCommand Phonebook Search PhonebookID:0 PhonebookType:Local Offset: 0',CR" //Search Local
+	    }
+	    CASE 8:
+	    {
+		OFF [nCorporateSearch]
 		SEND_STRING dvCodec, "'xCommand Phonebook Search PhonebookID:0 PhonebookType:Local Offset: 14',CR" //Search Local
 	    }
 	}
     }
 }
-BUTTON_EVENT [vdvTP_Codec, nPhoneSelect]
+BUTTON_EVENT [vdvTP_Codec, nPhoneSelect] //Select the Phone Number
 {
     PUSH :
     {
 	STACK_VAR INTEGER nDirectorySet
 	nDirectorySet = GET_LAST (nPhoneSelect)
 	
-	    ON [vdvTP_Codec, nDirectorySet + 300] //Send Feedback..
+	    ON [vdvTP_Codec, nPhoneSelect[nDirectorySet]] //Send Feedback..
 	
 			dialNumber = cSlot_Primary[nDirectorySet]
 	    send_command vdvTP_Codec,"'^TXT-',ITOA(TXT_DIAL),',0,',dialNumber"
@@ -1098,13 +1086,79 @@ BUTTON_EVENT [dvTP_Codec, BTN_SHOW_KEYB] //keyboard Lectern..
 	SEND_COMMAND dvTP_Codec, "'^AKB'" //Call System Keyboard...
     }
 }
+BUTTON_EVENT [vdvTP_Codec, BTN_PAGE_NEXT]
+{
+    PUSH :
+    {	
+	nPageTrack++
+	
+	SWITCH (nPageTrack)
+	{
+	    CASE 1: 
+	    CASE 2:
+	    CASE 3:
+	    CASE 4:
+	    {
+		ON [dvTP_Codec, BTN_PAGE_PREV]
+		    ON [dvTP_Codec, BTN_PAGE_NEXT]
+		SEND_COMMAND vdvTP_Codec,"'^TXT-',ITOA(TXT_RETURN_ITEMS),',0,Please Wait...'"
+		fnUpdateList()
+		SEND_STRING dvCodec, "'xCommand Phonebook Search PhonebookID:0 PhonebookType:Corporate Offset:',ITOA(nSearchOffset[nPageTrack]),' FolderId:',cSlot_FolderIDs[GET_LAST(nPhonenavBtns)],' Limit:',ITOA(nListCount),CR"		
+	    }
+	    CASE 5 :
+	    {
+		IF (nPageTrack > 4 )
+		{
+		    OFF [dvTP_Codec, BTN_PAGE_NEXT]
+		    nPageTrack = 4 //Stop Here
+		}
+	    }
+	}
+    }
+}
+BUTTON_EVENT [vdvTP_Codec, BTN_PAGE_PREV]
+{
+    PUSH :
+    {
+	nPageTrack--
+	
+	SWITCH (nPageTrack)
+	{
+	    CASE 0 :
+	    {
+		
+		IF (nPageTrack < 1 )
+		{
+		    nPageTrack = 1 //Stop Here
+		    OFF [dvTP_Codec, BTN_PAGE_PREV]
+		}
+	    }
+	    CASE 1 : 
+	    CASE 2 :
+	    CASE 3 :
+	    CASE 4 :
+	    {
+		SEND_COMMAND vdvTP_Codec,"'^TXT-',ITOA(TXT_RETURN_ITEMS),',0,Please Wait...'"  
+		fnUpdateList()
+		SEND_STRING dvCodec, "'xCommand Phonebook Search PhonebookID:0 PhonebookType:Corporate Offset:',ITOA(nSearchOffset[nPageTrack]),' FolderId:',cSlot_FolderIDs[GET_LAST(nPhonenavBtns)],' Limit:',ITOA(nListCount),CR"
+	    }
+	}
+    }
+}
 BUTTON_EVENT [vdvTP_Codec, BTN_BJN_SPEED]
 {
     PUSH :
     {
+	IF (nCallInProgress)
+	{
+	    SEND_COMMAND vdvTP_Codec, "'^PPN-VTC_BlueJeans'"
+	}
+	ELSE
+	{
 	    SEND_STRING dvCodec, "'xCommand Dial Number: meet@bjn.vc',CR"
 		ON [vdvTP_Codec, BTN_BJN_SPEED ]
 		    SEND_COMMAND vdvTP_Codec, "'^TXT-',ITOA(TXT_CALLID),',0,meet@bjn.vc'"
+	}
 		
     }
 }
@@ -1150,35 +1204,36 @@ DATA_EVENT [dvTP_Codec] //Parse from TP
 	    fnUpdateList()
 	    fnPollCodec()
 	}
-	
     }
     STRING :
     {
 	LOCAL_VAR CHAR sTmp[40]
 	
 	sTmp = DATA.TEXT
-	IF (FIND_STRING(sTmp,'KEYB-',1)OR FIND_STRING(sTmp,'AKB-',1)) //G4 or G5 Parsing
+	IF (FIND_STRING(sTmp,'AKB-',1)) //G5 Parsing
 	{
 	    REMOVE_STRING(sTmp,'-',1)
 	
-		IF (FIND_STRING(sTmp,'ABORT',1))
-		{
+	    IF (FIND_STRING(sTmp,'ABORT',1))
+	    {
 		    //
-		}
-		ELSE
-		{
-		    dialNumber = sTmp 
-			SEND_COMMAND vdvTP_Codec, "'^TXT-',ITOA(TXT_DIAL),',0,',dialNumber"
-		}
+	    }
+	    ELSE
+	    {
+		dialNumber = sTmp 
+		    SEND_COMMAND vdvTP_Codec, "'^TXT-',ITOA(TXT_DIAL),',0,',dialNumber"
+	    }
 	}
     }
 }
 
-TIMELINE_EVENT [TL_FEEDBACK] //Used on Main Prgm
+TIMELINE_EVENT [TL_FEEDBACK]
 {
     WAIT 8500
     {
 	    fnRegisterFeedback()
     }
-    
 }
+
+
+DEFINE_EVENT
