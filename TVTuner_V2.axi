@@ -16,7 +16,7 @@ dvTP_TUNER2 =				10002:3:0 //Tuner Controls from Booth...
 #END_IF
 
 #IF_NOT_DEFINED dvTuner 
-dvTuner =					5001:1:0
+dvTuner =					5001:4:0
 #END_IF
 
 
@@ -49,16 +49,17 @@ BTN_CH_FAV9			= 139
 CHANNEL_DEFAULT		= 0
 
 
+
 (***********************************************************)
 (*               VARIABLE DEFINITIONS GO BELOW             *)
 (***********************************************************)
 DEFINE_VARIABLE
 
-DEV vdvTP_Tuner[] = {dvTP_Tuner, dvTP_TUNER2}
-
-//VOLATILE INTEGER nChannel
-VOLATILE INTEGER nChannelCount = 9
-
+VOLATILE DEV vdvTP_Tuner[] = 
+{
+    dvTP_Tuner, 
+    dvTP_TUNER2
+}
 VOLATILE INTEGER nFavoriteChBtns[]= 
 {
     BTN_CH_FAV1,
@@ -114,24 +115,19 @@ DEFINE_FUNCTION fnLoadChannelLabels()
 {
     STACK_VAR INTEGER cLoop
     
-    FOR (cLoop=1; cLoop<=nChannelCount; cLoop++)
+    FOR (cLoop=1; cLoop<=MAX_LENGTH_ARRAY(nFavoriteChBtns); cLoop++)
     {
 	SEND_COMMAND vdvTP_Tuner, "'^TXT-',ITOA(nFavoriteChBtns[cLoop]),',0,',nTunerFavLabels[cLoop]"
     }
 }
+
 
 (***********************************************************)
 (*                STARTUP CODE GOES BELOW                  *)
 (***********************************************************)
 DEFINE_START
 
-WAIT 100
-{
-    ON [vdvTuner, POWER_CYCLE] 
-}
-
 DEFINE_MODULE 'ContemporaryResearch_232STS' COMMTUNE(vdvTuner, dvTuner);
-
 
 
 (***********************************************************)
@@ -143,27 +139,26 @@ BUTTON_EVENT [vdvTP_Tuner, nFavoriteChBtns] //Tuner Presets...
     PUSH:
     {
 	STACK_VAR INTEGER nTVIdx
-	
-	nTVIdx = GET_LAST (nFavoriteChBtns)
+		nTVIdx = GET_LAST (nFavoriteChBtns)
 
 	SEND_COMMAND vdvTuner, "'XCH-',nTunerChannelCall[GET_LAST(nFavoriteChBtns)]" 
-	ON [vdvTP_Tuner, nTVIdx + 130]
+	ON [vdvTP_Tuner, nFavoriteChBtns[nTVIdx]] //FB
     }
 }
-BUTTON_EVENT [vdvTP_Tuner, 0] //Default
+BUTTON_EVENT [vdvTP_Tuner, CHANNEL_DEFAULT] //Default
 {
     PUSH :
     {
 	PULSE[vdvTuner,BUTTON.INPUT.CHANNEL]
-		OFF [vdvTP_Tuner, nFavoriteChBtns ]
+		OFF [vdvTP_Tuner, nFavoriteChBtns]
     }
     RELEASE:
     {
 	SET_PULSE_TIME(5)	//Reset Pulse Time 0.5 Seconds
     }
 }
+
 DATA_EVENT [dvTP_Tuner]
-DATA_EVENT [dvTP_TUNER2]
 {
     ONLINE :
     {
