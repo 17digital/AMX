@@ -2,7 +2,7 @@ PROGRAM_NAME='ShureSCM820'
 
 (***********************************************************)
 (***********************************************************)
-(*  FILE_LAST_MODIFIED_ON: 05/27/2017  AT: 13:06:01        *)
+(*  FILE_LAST_MODIFIED_ON: 04/06/2020  AT: 08:33:28        *)
 (***********************************************************)
 (* System Type : NetLinx                                   *)
 (***********************************************************)
@@ -34,14 +34,15 @@ PROGRAM_NAME='ShureSCM820'
 (***********************************************************)
 DEFINE_DEVICE
 
-#IF_NOT_DEFINED	dvShure
-        dvShure =			0:2:0 //Shure Mixer See AMX TECH NOTE 937!!! For more Documentation
+
+dvShure =			0:2:0 //Shure Mixer See AMX TECH NOTE 937!!! For more Documentation
+
+dvTP_Shure =			10001:5:0
+
+#IF_NOT_DEFINED dvTP_Shure2
+dvTP_Shure2 =		10002:5:0
 #END_IF
 
-
-#IF_NOT_DEFINED 	dvTP_Shure
-    dvTP_Shure =			10001:5:0
-#END_IF
 
 
 (***********************************************************)
@@ -49,26 +50,75 @@ DEFINE_DEVICE
 (***********************************************************)
 DEFINE_CONSTANT
 
-TL_SHURE				= 4
-
-MIC_1				= 1
-MIC_2				= 2
-MIC_3				= 3
-MIC_4				= 4
-MIC_5				= 5
-MIC_6				= 6
-MIC_7				= 7
-MIC_8				= 8
-LINE_AUX				= 9
-OUT_A				= 18
-OUT_B				= 19
+//Mic + Line Input IDS...
+IN_MIC_1				= 1
+IN_MIC_2				= 2
+IN_MIC_3				= 3
+IN_MIC_4				= 4
+IN_MIC_5				= 5
+IN_MIC_6				= 6
+IN_MIC_7				= 7
+IN_MIC_8				= 8
+IN_LINE_AUX			= 9
+OUT_LINE_A				= 18
+OUT_LINE_B				= 19
 
 //Channel Names...Max 31
-NAME_1				= 'Testing'
-NAME_2				= 'Max Input of 31'
-NAME_3				= 'Put it to the limits'
-NAME_9				= 'External'
+NAME_1				= 'Roku-L'
+NAME_2				= 'Roku-R'
+NAME_3				= 'Nothing Here 3'
+NAME_4				= 'Nothing Here 4'
+NAME_5				= 'Nothing Here 5'
+NAME_6				= 'Nothing Here 6'
+NAME_7				= 'Nothing Here 7'
+NAME_8				= 'Nothing Here 8'
+NAME_9				= 'External Aux'
+NAME_18				= 'Front Speakers'
 NAME_19				= 'SUBZ'
+
+//Buttons..
+BTN_MUTE_DAN_1		= 1
+BTN_MUTE_DAN_2		= 1
+BTN_MUTE_DAN_3		= 1
+BTN_MUTE_DAN_4		= 1
+BTN_MUTE_DAN_5		= 1
+BTN_MUTE_DAN_6		= 1
+BTN_MUTE_DAN_7		= 1
+BTN_MUTE_DAN_8		= 1
+BTN_MUTE_DAN_9		= 1
+
+BTN_MUTE_ANALOG_1		= 5
+BTN_MUTE_MAIN			= 9 //Analog Out 1
+BTN_MUTE_Subs			= 13 //Analog Out 2
+
+BTN_NET_BOOT			= 1000
+
+//TXT Addresses...
+TXT_CH_1				= 311
+TXT_CH_2				= 312
+TXT_CH_3				= 313
+TXT_CH_4				= 314
+TXT_CH_5				= 315
+TXT_CH_6				= 316
+TXT_CH_7				= 317
+TXT_CH_8				= 318
+TXT_CH_9				= 319
+TXT_CH_10				= 320
+TXT_CH_11				= 321
+TXT_CH_12				= 322
+TXT_CH_13				= 323
+TXT_CH_14				= 324
+TXT_CH_15				= 325
+TXT_CH_16				= 326
+TXT_CH_17				= 327
+TXT_CH_18				= 328
+TXT_CH_19				= 329
+
+TXT_DEVICE				= 1001
+
+BTN_MUTE_ROKU			= 1
+BTN_MUTE_AUX			= 5
+BTN_MUTE_SUB 			= 13
 
 
 (***********************************************************)
@@ -79,41 +129,26 @@ DEFINE_VARIABLE
 
 CHAR shureDevice[30] = 'I am Chris' //This will show up on the touchpanel
 
-CHAR shureIP[15]= '128.61.216.19' 
+CHAR shureIP[15]= '172.21.24.30' //Living Dsp
 
 LONG SCM820_Port= 2202 //Port Shure uses!
 VOLATILE INTEGER scm820Online
 VOLATILE INTEGER cBooted
 
 VOLATILE CHAR cShureBuffer[500]
-VOLATILE LONG lTLGetStatus[] = {15000} //15 Seconds
 
-
-//Lav 1
-VOLATILE INTEGER nMuteMic_1 
-VOLATILE INTEGER nMic1_VOL
 VOLATILE INTEGER nMic1_Preset = 910
-//Lav 2
-
-VOLATILE SINTEGER nAux_VOL
-VOLATILE INTEGER nMuteAux //Auxillary
 VOLATILE INTEGER nAux_Preset = 800
-
-VOLATILE INTEGER nMasterA_VOL
-VOLATILE INTEGER nMasterA_Mute
 VOLATILE INTEGER nMasterA_Preset = 1100
-
-VOLATILE INTEGER nMasterB_VOL
-VOLATILE INTEGER nMasterB_Mute
 VOLATILE INTEGER nMasterB_Preset = 1000
 
-DEV vdvTP_Shure[] = {dvTP_Shure}
-
-
-VOLATILE INTEGER nShureChannelIdx[] = //Microphone Channels
+VOLATILE DEV vdvTP_Shure[] = 
 {
-    //Mute || UP || DN || Preset
-    
+    dvTP_Shure,
+    dvTP_Shure2
+}
+VOLATILE INTEGER nShureChannelIdx[] = //Microphone Channels
+{    
     //DVX In..
     1, 2, 3, 4, 
     
@@ -126,6 +161,100 @@ VOLATILE INTEGER nShureChannelIdx[] = //Microphone Channels
     //Master B
     13,14, 15,16 
 }
+VOLATILE INTEGER nMixLevels[] = //Basically All Shure Channel ID's...
+{
+    //Mic 1-8
+    1, //Btn
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9, //Aux Btn
+    //Direct Outputs..
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18, //Output A
+    19	//Output B
+}
+VOLATILE INTEGER nMuteButtons[] =
+{
+    //Mic 1-8
+    1, //Btn
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    5, //Aux Btn
+    //Direct Outputs..
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18, //Output A
+    13	//Output B
+}
+VOLATILE CHAR cShureNames[19][31]= //3 Max Text Length
+{
+    'Roku-L',
+    'Roku-R',
+    'Not-Used3',
+    'Not-Used4',
+    'Not-Used5',
+    'Not-Used6',
+    'Not-Used7',
+    'Not-Used8',
+    'Aux-Source',
+    'DirectOut10',
+    'DirectOut11',
+    'DirectOut12',
+    'DirectOut13',
+    'DirectOut14',
+    'DirectOut15',
+    'DirectOut16',
+    'DirectOut17',
+    'Main-Out',
+    'Subs-Out'
+    
+}
+VOLATILE INTEGER nNameSlot[] =
+{
+    TXT_CH_1,
+    TXT_CH_2,
+    TXT_CH_3,
+    TXT_CH_4,
+    TXT_CH_5,
+    TXT_CH_6,
+    TXT_CH_7,
+    TXT_CH_8,
+    TXT_CH_9,
+    TXT_CH_10,
+    TXT_CH_11,
+    TXT_CH_12,
+    TXT_CH_13,
+    TXT_CH_14,
+    TXT_CH_15,
+    TXT_CH_16,
+    TXT_CH_17,
+    TXT_CH_18,
+    TXT_CH_19
+}
+
 
 
 (***********************************************************)
@@ -144,22 +273,27 @@ DEFINE_FUNCTION fnCloseConnection()
 DEFINE_FUNCTION fnChannelNames() //Set Channel Names (31 Characters Max)
 {
     //Names can have a Max of (1) Space - Or it will Not work!!
-    SEND_STRING dvShure, " '< SET ',ITOA(MIC_1), ' CHAN_NAME {',NAME_1,'} >' "
-    SEND_STRING dvShure, " '< SET ',ITOA(MIC_2), ' CHAN_NAME {',NAME_2,'} >' "
-    SEND_STRING dvShure, " '< SET ',ITOA(MIC_3), ' CHAN_NAME {',NAME_3,'} >' "
-    SEND_STRING dvShure, '< SET 4 CHAN_NAME {HandHeld 2} >'
-    SEND_STRING dvShure, '< SET 5 CHAN_NAME {TableTop 1} >'
-    SEND_STRING dvShure, '< SET 6 CHAN_NAME {TableTop 2} >'
-    SEND_STRING dvShure, '< SET 7 CHAN_NAME {TableTop 3} >'
-    SEND_STRING dvShure, '< SET 8 CHAN_NAME {TableTop 4} >'
-    SEND_STRING dvShure, " '< SET ',ITOA(LINE_AUX), ' CHAN_NAME {',NAME_9,'} >' "
-     SEND_STRING dvShure, " '< SET ',ITOA(OUT_B), ' CHAN_NAME {',NAME_19,'} >' "
+    STACK_VAR INTEGER b;
+    
+    FOR (b =1; b <=MAX_LENGTH_ARRAY(nNameSlot); b++)
+    {
+	SEND_STRING dvShure, " '< SET ',ITOA(b), ' CHAN_NAME {',cShureNames[b],'} >'"
+	    SEND_COMMAND dvTP_Shure, "'^TXT-',ITOA(nNameSlot[b]),',0,',cShureNames[b]"
+    }
+//    SEND_STRING dvShure, " '< SET ',ITOA(IN_MIC_1), ' CHAN_NAME {',NAME_1,'} >' "
+//    SEND_STRING dvShure, " '< SET ',ITOA(IN_MIC_2), ' CHAN_NAME {',NAME_2,'} >' "
+//    SEND_STRING dvShure, " '< SET ',ITOA(IN_MIC_3), ' CHAN_NAME {',NAME_3,'} >' "
+//    SEND_STRING dvShure, " '< SET ',ITOA(IN_MIC_4), ' CHAN_NAME {',NAME_4,'} >' "
+//    SEND_STRING dvShure, " '< SET ',ITOA(IN_MIC_5), ' CHAN_NAME {',NAME_5,'} >' "
+//    SEND_STRING dvShure, " '< SET ',ITOA(IN_MIC_6), ' CHAN_NAME {',NAME_6,'} >' "
+//    SEND_STRING dvShure, " '< SET ',ITOA(IN_MIC_7), ' CHAN_NAME {',NAME_7,'} >' "
+//    SEND_STRING dvShure, " '< SET ',ITOA(IN_MIC_8), ' CHAN_NAME {',NAME_8,'} >' "
+//    SEND_STRING dvShure, " '< SET ',ITOA(IN_LINE_AUX), ' CHAN_NAME {',NAME_9,'} >' "
+//    SEND_STRING dvShure, " '< SET ',ITOA(OUT_LINE_A), ' CHAN_NAME {',NAME_18,'} >' "
+//     SEND_STRING dvShure, " '< SET ',ITOA(OUT_LINE_B), ' CHAN_NAME {',NAME_19,'} >' "
 }
 DEFINE_FUNCTION fnShureID() //Set Shure Id
 {
-    //You CAN NOT have spaces!!
-    //Example - CULC144DSP1
-    //Example - CULC144DSP2
     SEND_STRING dvShure, '< SET DEVICE_ID {CHRISMIX} >'
 }
 DEFINE_FUNCTION fnMuteMicrophones(INTEGER cInput, CHAR cState[3])
@@ -211,7 +345,7 @@ DEFINE_START
 
 ON [cBooted]
 CREATE_BUFFER dvShure, cShureBuffer;
-TIMELINE_CREATE(TL_SHURE,lTLGetStatus,1,TIMELINE_ABSOLUTE,TIMELINE_REPEAT);
+
 
 WAIT 50
 {
@@ -255,106 +389,82 @@ DATA_EVENT [dvShure]
 	SEND_STRING 0, 'Audio Is Online'
 	
 	ON [scm820Online]
+	ON [vdvTP_Shure, BTN_NET_BOOT]
 	CANCEL_WAIT 'DEVICE COMM/INIT'
-	WAIT 200 'DEVICE COMM/INIT'
+	
+	WAIT 350 'DEVICE COMM/INIT'
 	{
 	    OFF [scm820Online]
+		OFF [vdvTP_Shure, BTN_NET_BOOT]
 	    fnReconnect()
 	}
     }
     STRING :
     {
+    	LOCAL_VAR CHAR cResponse[100]
+	LOCAL_VAR INTEGER cID //Holds Input ID
+	LOCAL_VAR INTEGER cLev
+	LOCAL_VAR CHAR cChName[20]
+	
 	ON [scm820Online]
-	CANCEL_WAIT 'DEVICE COMM/INIT'
-	WAIT 200 'DEVICE COMM/INIT'
+	ON [vdvTP_Shure, BTN_NET_BOOT]
+    	CANCEL_WAIT 'DEVICE COMM/INIT'
+	
+	WAIT 350 'DEVICE COMM/INIT'
 	{
 	    OFF [scm820Online]
+		OFF [vdvTP_Shure, BTN_NET_BOOT]
 	    fnReconnect()
 	}
 	Send_String 0,"'RECEIVING AUDIO ',cShureBuffer"
 	
 	SELECT
 	{
-	    ACTIVE (FIND_STRING(cShureBuffer,'< REP 1 AUDIO_MUTE ON >',1)):
+	    ACTIVE (FIND_STRING (cShureBuffer,'< REP ',1)):
 	    {
-		ON [nMuteMic_1]
-		SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(MIC_1),',0,Muted'"
-	    }
-	    ACTIVE (FIND_STRING(cShureBuffer, '< REP 1 AUDIO_MUTE OFF >',1)):
-	    {
-		OFF [nMuteMic_1]
-		SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(MIC_1),',0,',ITOA((nMic1_VOL / 10) -28),'%'"	
-	    }
-	    ACTIVE (FIND_STRING(cShureBuffer, '< REP 1 AUDIO_GAIN_HI_RES ',1)):
-	    {
-		REMOVE_STRING(cShureBuffer,'< REP 1 AUDIO_GAIN_HI_RES ',1)
+		REMOVE_STRING (cShureBuffer,'< REP ',1)
 		
-		nMic1_VOL = ATOI(cShureBuffer)
-		SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(MIC_1),',0,',ITOA((nMic1_VOL / 10) -28),'%'"
-	    }
+		cResponse = cShureBuffer
+		cID = ATOI (LEFT_STRING(cResponse, 2)) //01 -- 14 (
 	    
-	    //Aux...
-	    ACTIVE (FIND_STRING(cShureBuffer,'< REP 9 AUDIO_MUTE ON >',1)):
-	    {
-		ON [nMuteAux]
-		SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(LINE_AUX),',0,Muted'"
-		
-	    }
-	    ACTIVE (FIND_STRING(cShureBuffer, '< REP 9 AUDIO_MUTE OFF >',1)):
-	    {
-		OFF [nMuteAux]
-		SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(LINE_AUX),',0,',ITOA((nAux_VOL / 10) -28),'%'"
-	    }
-	    ACTIVE (FIND_STRING(cShureBuffer, '< REP 9 AUDIO_GAIN_HI_RES ',1)):
-	    {
-		REMOVE_STRING(cShureBuffer,'< REP 9 AUDIO_GAIN_HI_RES ',1)
-		
-		nAux_VOL = ATOI(cShureBuffer)
-		SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(LINE_AUX),',0,',ITOA((nAux_VOL / 10) -28),'%'"
-	    }
+		    IF (FIND_STRING (cResponse,"ITOA(cId),' AUDIO_MUTE ON >'",1))
+		    {
+			ON [vdvTP_Shure, nMuteButtons[cID]]
+			SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(nMixLevels[cId]),',0,Muted'"
+		    }
+		    IF (FIND_STRING (cResponse,"ITOA(cId),' AUDIO_MUTE OFF >'",1))
+		    {
+			OFF [vdvTP_Shure, nMuteButtons[cID]]
+			WAIT 5
+			{
+			    SEND_STRING dvShure, " '< GET ',ITOA(nMixLevels[cID]), ' AUDIO_GAIN_HI_RES >' "
+			}
+		    }
+		    IF (FIND_STRING (cResponse,"ITOA(cId), ' AUDIO_GAIN_HI_RES '",1))
+		    {
+			    REMOVE_STRING (cResponse,"ITOA(cId), ' AUDIO_GAIN_HI_RES '",1)
+			    cLev = ATOI(cResponse) //Should show remaining number return...
+					
+			   SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(nMixLevels[cID]),',0,',ITOA((cLev / 10) - 40),'%'"
+		    }
+		    IF (FIND_STRING (cResponse,"ITOA(cID), ' CHAN_NAME {'",1))
+		    {
+			REMOVE_STRING (cResponse,"ITOA(cID), ' CHAN_NAME {'",1)
+			cChName = LEFT_STRING(cResponse,LENGTH_STRING(cResponse)-3)
+			
+			SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(nNameSlot[cId]),',0,',cChName"
+		    }
 	    
-	    //Master A...
-	    ACTIVE (FIND_STRING(cShureBuffer,'< REP 18 AUDIO_MUTE ON >',1)):
-	    {
-		ON [nMasterA_Mute]
-		SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(OUT_A),',0,Muted'"
-		
-	    }
-	    ACTIVE (FIND_STRING(cShureBuffer, '< REP 18 AUDIO_MUTE OFF >',1)):
-	    {
-		OFF [nMasterA_Mute]
-		SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(OUT_A),',0,',ITOA((nMasterA_VOL / 10) -28),'%'"
-	    }
-	    ACTIVE (FIND_STRING(cShureBuffer, '< REP 18 AUDIO_GAIN_HI_RES ',1)):
-	    {
-		REMOVE_STRING(cShureBuffer,'< REP 18 AUDIO_GAIN_HI_RES ',1)
-		
-		nMasterA_VOL = ATOI(cShureBuffer)
-		SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(OUT_A),',0,',ITOA((nMasterA_VOL / 10) -28),'%'"
-	    }
-	    
-	    //Master B...
-	    ACTIVE (FIND_STRING(cShureBuffer,'< REP 19 AUDIO_MUTE ON >',1)):
-	    {
-		ON [nMasterB_Mute]
-		SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(OUT_B),',0,Muted'"
-		
-	    }
-	    ACTIVE (FIND_STRING(cShureBuffer, '< REP 19 AUDIO_MUTE OFF >',1)):
-	    {
-		OFF [nMasterB_Mute]
-		SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(OUT_B),',0,',ITOA((nMasterB_VOL / 10) -28),'%'"
-	    }
-	    ACTIVE (FIND_STRING(cShureBuffer, '< REP 19 AUDIO_GAIN_HI_RES ',1)):
-	    {
-		REMOVE_STRING(cShureBuffer,'< REP 19 AUDIO_GAIN_HI_RES ',1)
-		
-		nMasterB_VOL = ATOI(cShureBuffer)
-		SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(OUT_B),',0,',ITOA((nMasterB_VOL / 10) -28),'%'"
+		    IF (FIND_STRING (cResponse,'DEVICE_ID {',1))
+		    {
+			REMOVE_STRING (cResponse,'DEVICE_ID {',1)
+			    shureDevice = LEFT_STRING(cResponse,LENGTH_STRING(cResponse)-3)
+			
+			    SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(TXT_DEVICE),',0,',shureDevice"
+		    }
 	    }
 	}
-    cShureBuffer = ''
-    
+	cShureBuffer = ''
     }
 }
 
@@ -371,66 +481,66 @@ BUTTON_EVENT [vdvTP_Shure, nShureChannelIdx]
 	    //DVX In...
 	    CASE 1: 
 	    {
-		IF (!nMuteMic_1)
+		IF (![vdvTP_Shure, BTN_MUTE_ROKU])
 		{
-		    fnMuteMicrophones(MIC_1, 'ON')
+		    fnMuteMicrophones(IN_MIC_1, 'ON')
 		}
 		ELSE
 		{
-		    fnMuteMicrophones(MIC_1, 'OFF')
+		    fnMuteMicrophones(IN_MIC_1, 'OFF')
 		}
 	    }
-	    CASE 2: fnSetGainAdjustUP(MIC_1)
-	    CASE 3: fnSetGainAdjustDOWN(MIC_1)
-	    CASE 4: fnPresetMicrophones(MIC_1,nMic1_Preset)
+	    CASE 2: fnSetGainAdjustUP(IN_MIC_1)
+	    CASE 3: fnSetGainAdjustDOWN(IN_MIC_1)
+	    CASE 4: fnPresetMicrophones(IN_MIC_1,nMic1_Preset)
 	    
 	    //Aux...
 	    CASE 5: 
 	    {
-		IF (!nMuteAux)
+		IF (![vdvTP_Shure, BTN_MUTE_AUX])
 		{
-		    fnMuteMicrophones(LINE_AUX, 'ON')
+		    fnMuteMicrophones(IN_LINE_AUX, 'ON')
 		}
 		ELSE
 		{
-		    fnMuteMicrophones(LINE_AUX, 'OFF')
+		    fnMuteMicrophones(IN_LINE_AUX, 'OFF')
 		}
 	    }
-	    CASE 6: fnSetGainAdjustUP(LINE_AUX)
-	    CASE 7: fnSetGainAdjustDOWN(LINE_AUX)
-	    CASE 8: fnPresetMicrophones(LINE_AUX,nAux_Preset)
+	    CASE 6: fnSetGainAdjustUP(IN_LINE_AUX)
+	    CASE 7: fnSetGainAdjustDOWN(IN_LINE_AUX)
+	    CASE 8: fnPresetMicrophones(IN_LINE_AUX,nAux_Preset)
 	    
 	    //Master A
 	    CASE 9:
 	    {
-		IF (!nMasterA_Mute )
+		IF (![vdvTP_Shure, BTN_MUTE_SUB])
 		{
-		    fnMuteMicrophones(OUT_A, 'ON')
+		    fnMuteMicrophones(OUT_LINE_A, 'ON')
 		}
 		ELSE
 		{
-		    fnMuteMicrophones(OUT_A, 'OFF')
+		    fnMuteMicrophones(OUT_LINE_A, 'OFF')
 		}
 	    }
-	    CASE 10: fnSetGainAdjustUP(OUT_A)
-	    CASE 11: fnSetGainAdjustDOWN(OUT_A)
-	    CASE 12: fnPresetMicrophones(OUT_A,nMasterA_Preset)
+	    CASE 10: fnSetGainAdjustUP(OUT_LINE_A)
+	    CASE 11: fnSetGainAdjustDOWN(OUT_LINE_A)
+	    CASE 12: fnPresetMicrophones(OUT_LINE_A,nMasterA_Preset)
 	    
 	    //Master B
 	    CASE 13:
 	    {
-		IF (!nMasterB_Mute)
+		IF (![vdvTP_Shure, BTN_MUTE_SUB])
 		{
-		    fnMuteMicrophones(OUT_B, 'ON')
+		    fnMuteMicrophones(OUT_LINE_B, 'ON')
 		}
 		ELSE
 		{
-		    fnMuteMicrophones(OUT_B, 'OFF')
+		    fnMuteMicrophones(OUT_LINE_B, 'OFF')
 		}
 	    }
-	    CASE 14: fnSetGainAdjustUP(OUT_B)
-	    CASE 15: fnSetGainAdjustDOWN(OUT_B)
-	    CASE 16: fnPresetMicrophones(OUT_B,nMasterB_Preset)
+	    CASE 14: fnSetGainAdjustUP(OUT_LINE_B)
+	    CASE 15: fnSetGainAdjustDOWN(OUT_LINE_B)
+	    CASE 16: fnPresetMicrophones(OUT_LINE_B,nMasterB_Preset)
 	}
     }
     HOLD [2, REPEAT]:
@@ -440,12 +550,12 @@ BUTTON_EVENT [vdvTP_Shure, nShureChannelIdx]
 	nChannelIdx = GET_LAST (nShureChannelIdx)
 	SWITCH (nChannelIdx)
 	{
-	    CASE 2: fnSetGainAdjustUP(MIC_1)
-	    CASE 3: fnSetGainAdjustDOWN(MIC_1)
-	    CASE 6: fnSetGainAdjustUP(LINE_AUX)
-	    CASE 7: fnSetGainAdjustDOWN(LINE_AUX)
-	    CASE 14: fnSetGainAdjustUP(OUT_B)
-	    CASE 15: fnSetGainAdjustDOWN(OUT_B)
+	    CASE 2: fnSetGainAdjustUP(IN_MIC_1)
+	    CASE 3: fnSetGainAdjustDOWN(IN_MIC_1)
+	    CASE 6: fnSetGainAdjustUP(IN_LINE_AUX)
+	    CASE 7: fnSetGainAdjustDOWN(IN_LINE_AUX)
+	    CASE 14: fnSetGainAdjustUP(OUT_LINE_B)
+	    CASE 15: fnSetGainAdjustDOWN(OUT_LINE_B)
 	}
     }
 }
@@ -456,27 +566,13 @@ BUTTON_EVENT [vdvTP_Shure, 1000]
 	fnReconnect()
     }
 }
-
-DEFINE_EVENT
-TIMELINE_EVENT [TL_SHURE]
+TIMELINE_EVENT [TL_FEEDBACK] //This needs to be running...Keeps device alive
 {
-    SEND_STRING dvShure, '< GET DEVICE_ID >'
-}
-TIMELINE_EVENT [TL_FEEDBACK]
-{
-    [vdvTP_Shure, 1] = nMuteMic_1
-    [vdvTP_Shure, 5] = nMuteAux
-    [vdvTP_Shure, 9] = nMasterA_Mute
-    [vdvTP_Shure, 13] = nMasterB_Mute
-    [vdvTP_Shure, 1000] = scm820Online
+    
+    WAIT 100
+    {
+	SEND_STRING dvShure, '< GET DEVICE_ID >'
+    }
     
 }
-    
-DEFINE_EVENT
-(***********************************************************)
-(*            THE ACTUAL PROGRAM GOES BELOW                *)
-(***********************************************************)
-DEFINE_PROGRAM
-
-
-    
+   
