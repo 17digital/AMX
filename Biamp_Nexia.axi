@@ -1,35 +1,55 @@
-PROGRAM_NAME='NexiaCube'
-(***********************************************************)
-(*  FILE_LAST_MODIFIED_ON: 10/02/2018  AT: 08:29:14        *)
-(***********************************************************)
+PROGRAM_NAME='Biamp_Nexia'
 
-
+(***********************************************************)
+(***********************************************************)
+(*  FILE_LAST_MODIFIED_ON: 11/16/2016  AT: 08:10:56        *)
+(***********************************************************)
+(* System Type : NetLinx                                   *)
+(***********************************************************)
+(* REV HISTORY:                                            *)
+(***********************************************************)
 (*
-    No Phone Controls are included within this file...
-    
-    Thank Me later...
-    http://support.biamp.com/Audia-Nexia/Control/Audia-Nexia_command_string_calculator
-    
-    This Particular Device is a NexiaTC - Commands are explicit for some blocks...
-    
-    *)
-
+    $History: $
+    Notes
+	http://support.biamp.com/Audia-Nexia/Control/Audia-Nexia_command_string_calculator
+	
+	Also works with audia
+	
+	"'GET 0 IPADDR',$0A"
+	"'GET 0 SUBNETMASK',$0A"
+	GET 0 DEFAULTGW
+	REBOOT 0 DEVICE<LF>
+*)
+(***********************************************************)
+(*          DEVICE NUMBER DEFINITIONS GO BELOW             *)
+(***********************************************************)
 DEFINE_DEVICE
 
-#IF_NOT_DEFINED Remote
-Remote = 					6023
+#IF_NOT_DEFINED DVX_REMOTE
+DVX_REMOTE =				4011
 #END_IF
 
-#IF_NOT_DEFINED dvTP_Nexia
-dvTP_Nexia =				10001:5:0
+#IF_NOT_DEFINED dvTP_Biamp
+dvTP_Biamp =					10001:5:0
 #END_IF
 
-#IF_NOT_DEFINED dvTP_Nexia2
-dvTP_Nexia2 =				10002:5:0
+#IF_NOT_DEFINED dvTP_Biamp2
+dvTP_Biamp2 =				10001:5:DVX_REMOTE
+
+#IF_NOT_DEFINED dvBiamp
+dvBiamp =					5301:1:0
 #END_IF
 
-#IF_NOT_DEFINED dvNexia
-dvNexia =					5001:6:Remote
+//#IF_NOT_DEFINED dvBiamp115
+//dvBiamp115 =				5350:1:DVX_REMOTE //To Call Presets when Combining & Seperating...
+//#END_IF
+
+#IF_NOT_DEFINED vdvPipeTX
+vdvPipeTX				= 33333:1:DVX_REMOTE
+#END_IF
+
+#IF_NOT_DEFINED vdvPipeRX
+vdvPipeRX				= 33333:2:DVX_REMOTE
 #END_IF
 
 
@@ -38,404 +58,437 @@ dvNexia =					5001:6:Remote
 (***********************************************************)
 DEFINE_CONSTANT
 
-MAC_MINI				= 1
-PC_DESK				= 1
-SUB_OUT				= 1
-CAP_OUT				= 1
+#IF_NOT_DEFINED CR 
+CR 					 = 13
+#END_IF
 
-CR 					= 13
+#IF_NOT_DEFINED LF
 LF 					= 10
+#END_IF
 
-MAX_GAIN 				= 88 
+MAX_COMP			= 88 //88 is the difference from 12 - 100 = 88
 
-BI_FEEDBACK			= 20
+VOL_UP				= 1
+VOL_DN				= -1
 
-SET_MUTE_ON			= 1
-SET_MUTE_OFF			= 0
+ID_HH_4				= 1
+ID_HH_5				= 2
+ID_HH_6				= 3
+ID_PRGM_LEV			= 1
+ID_CEILING			= 1
 
-LEVEL_CAPTURE			= 1
-LEVEL_WINDOWS			= 2
-LEVEL_MAC				= 3
-LEVEL_SUB				= 4
-MAX_GAIN_				= -88 //Biamp Range -88 / +12
+TAG_LEV_MICS			= 'Wireless'
+TAG_LEV_PRGM			= 'Program'
+TAG_MUTE_MICS			= 'Wireless'
+TAG_MUTE_CEILING		= 'Ceiling'
+TAG_MUTE_PRGM			= 'ProgramIn'
 
-TAG_WINDOWS			= 'program'
-TAG_MAC				= 'program2'
-TAG_SUB				= 'subout'
-TAG_CAP				= 'captureout'
+YES_ON				= 1
+YES_OFF				= 0
 
-TXT_SUBNET			= 31
-TXT_IPADD				= 30
-TXT_GATEWAY			= 32
-TXT_DEVICE			= 100
+//Panel Address
+TXT_HH_4			= 4
+TXT_HH_5			= 5
+TXT_HH_6			= 6
+TXT_PRGM			= 10
+
+BTN_MUTE_HH4		= 1
+BTN_MUTE_HH5		= 5
+BTN_MUTE_HH6		= 9
+BTN_MUTE_PRGM		= 37
+BTN_MUTE_CEILING		= 50
+
+BTN_PRESET_SEPERATE		= 1001
+BTN_PRESET_MASTER		= 1002
+BTN_PRESET_SERVE			= 1003
+
+//PIPE Comm...
+PIPE_AUDIO_SEPERATE		= 50
+PIPE_AUDIO_COMBINE		= 51
 
 (***********************************************************)
 (*               VARIABLE DEFINITIONS GO BELOW             *)
 (***********************************************************)
 DEFINE_VARIABLE
 
-CHAR nBiampDevice[30] = 'Nexia TC'
+CHAR nBiampDevice[30] = 'Room 114'
 VOLATILE INTEGER nBiampOnline
-VOLATILE INTEGER cHeartBeat_
+VOLATILE CHAR nBiampBuffer[1000]
 
-DEV vdvTP_Nexia [] = {dvTP_Nexia, dvTP_Nexia2}
+VOLATILE SINTEGER nMaximum = 12
+VOLATILE SINTEGER nMinimum = -88
 
-VOLATILE CHAR nAudioBuffer[1000]
-VOLATILE LONG lBiampFeedback[] = {50}
+//Program
+VOLATILE INTEGER nProgramMute 
+VOLATILE SINTEGER nProgramVOL
+VOLATILE SINTEGER nProgram_Vol_Preset = - 10
 
-VOLATILE SINTEGER nCaptureOut
-VOLATILE SINTEGER nProgram_Preset = 25
+//Microphone 4
+VOLATILE INTEGER nMic4Mute
+VOLATILE SINTEGER nMic4Vol
+VOLATILE SINTEGER nMic4_Preset = 4
 
-//Mac Mini
-VOLATILE INTEGER nMacMute 
-NON_VOLATILE SINTEGER nMacVOL
+//Microphone 5
+VOLATILE INTEGER nMic5Mute
+VOLATILE SINTEGER nMic5Vol
+VOLATILE SINTEGER nMic5_Preset = 4
 
-//Desktop
-VOLATILE INTEGER nDesktopMute 
-NON_VOLATILE SINTEGER nDesktopVOL
+//Microphone 6
+VOLATILE INTEGER nMic6Mute
+VOLATILE SINTEGER nMic6Vol
+VOLATILE SINTEGER nMic6_Preset = 4
 
-//Output to Sub...
-VOLATILE INTEGER nSubwooferMute 
-NON_VOLATILE SINTEGER nSubwooferVOL
-VOLATILE SINTEGER nSubwoofer_Preset = 30
+//Ceiling Mics
+VOLATILE INTEGER nCeilingMute
 
-VOLATILE CHAR stmpIP[15]
-VOLATILE CHAR stmpGATE[15]
-VOLATILE CHAR stmpSubnet[15]
-
-VOLATILE INTEGER nNexiaChnlIdx[] =
+VOLATILE DEV vdvTP_Biamp [] = 
 {
-    //Mac Mini...
-    1, //Mute
-    2, //Up
-    3, //Down
-    4, //Preset
+    dvTP_Biamp, 
+    dvTP_Biamp2
+}
+VOLATILE INTEGER nChnlbtns[] =
+{
+    // Lav 1
+    1,2,3,4,
+
+    // Lav 2
+    5,6,7,8,
+
+    //HH 1
+    9,10,11,12, 
     
-    //Desktop
-    5,
-    6,
-    7,
-    8,
-    
-    //SubWoofer Out
-    13,
-    14,
-    15,
-    16
-} 
+    //Program...
+    37,38,39,40
+}
+
+DEFINE_MUTUALLY_EXCLUSIVE
+
 
 (***********************************************************)
 (*        SUBROUTINE/FUNCTION DEFINITIONS GO BELOW         *)
 (***********************************************************)
 (* EXAMPLE: DEFINE_FUNCTION <RETURN_TYPE> <NAME> (<PARAMETERS>) *)
-(* EXAMPLE: DEFINE_CALL '<NAME>' (<PARAMETERS>) *) 
-DEFINE_FUNCTION fnLevelRestore()
+(* EXAMPLE: DEFINE_CALL '<NAME>' (<PARAMETERS>) *)
+DEFINE_FUNCTION fnMuteChannel (CHAR cTag[], INTEGER cId, INTEGER cToggle)
 {
-//    nSubwooferVOL_Hold = nSubwooferVOL
-//    nDesktopVOL_Hold = nDesktopVOL
-//    nMacVOL_Hold = nMacVOL
-//    fnVolumeChange(TAG_SUB, SUB_OUT, nSubwooferVOL_Hold)   
-//    fnVolumeChange(TAG_WINDOWS, PC_DESK, nDesktopVOL_Hold)    
-//    fnVolumeChange(TAG_MAC, MAC_MINI, nMacVOL_Hold)
+    SEND_STRING dvBiamp, "'SETD 1 FDRMUTE ',cTag,' ',ITOA(cId),' ',ITOA(cToggle),CR"
+    //SEND_STRING dvBiamp, "'SETD 1 FDRMUTE Ceiling 1 1',$0A" 
 }
-DEFINE_FUNCTION fnVolumeChange(CHAR cTag[], INTEGER cIn, SINTEGER cLevel)
+DEFINE_FUNCTION fnSetVolumeUp (CHAR cTag[], INTEGER cId, SINTEGER cVol )
 {
-    SEND_STRING dvNexia,"'SETD 1 FDRLVL ',cTag,' ',ITOA(cIn),' ',ITOA(cLevel + MAX_GAIN_),CR"
-}
-DEFINE_FUNCTION fnVolumeMute(CHAR cTag[], INTEGER cIn, INTEGER cState)
-{
-    SEND_STRING dvNexia, "'SETD 1 FDRMUTE ',cTag,' ',ITOA(cIn),' ',ITOA(cState),CR"
-}
-DEFINE_FUNCTION fnGetMuteStates(CHAR cTag[], INTEGER cIn)
-{
-    SEND_STRING dvNexia, "'GETD 1 FDRMUTE ',cTag,' ',ITOA(cIn),CR"
-}
-DEFINE_FUNCTION fnVolumePreset(INTEGER cIn, SINTEGER cLevel)
-{
-    SEND_LEVEL vdvTP_Nexia,cIn,cLevel
-}
-DEFINE_FUNCTION fnSetValues()
-{
-    WAIT 10 fnVolumePreset(LEVEL_MAC,nProgram_Preset)
-    WAIT 20 fnVolumePreset(LEVEL_WINDOWS,nProgram_Preset)  
-    WAIT 30 fnVolumePreset(LEVEL_SUB, nSubwoofer_Preset)
-    
-    WAIT 40 fnGetMuteStates(TAG_MAC, MAC_MINI)
-    WAIT 50 fnGetMuteStates(TAG_WINDOWS, PC_DESK)
-    WAIT 60 fnGetMuteStates(TAG_SUB, SUB_OUT)
-
-    WAIT 70 SEND_STRING dvNexia, "'GETD 0 IPADDR',CR"
-    WAIT 90 SEND_STRING dvNexia, "'GETD 0 SUBNETMASK',CR"
-    WAIT 110 SEND_STRING dvNexia, "'GETD 0 DEFAULTGW',CR"
-    WAIT 120 SEND_COMMAND vdvTP_Nexia, "'^TXT-50,0,Values Received!'"
-}
-DEFINE_FUNCTION fnGetValues()
-{
-    //Get Mutes...
-    WAIT 10 fnVolumePreset(LEVEL_MAC,nProgram_Preset)
-    WAIT 20 fnVolumePreset(LEVEL_WINDOWS,nProgram_Preset)  
-    WAIT 30 fnVolumePreset(LEVEL_SUB, nSubwoofer_Preset)
-    
-    WAIT 40 fnGetMuteStates(TAG_MAC, MAC_MINI)
-    WAIT 50 fnGetMuteStates(TAG_WINDOWS, PC_DESK)
-    WAIT 60 fnGetMuteStates(TAG_SUB, SUB_OUT)
-    
-    WAIT 70 SEND_STRING dvNexia, "'GETD 0 IPADDR',CR"
-    WAIT 90 SEND_STRING dvNexia, "'GETD 0 SUBNETMASK',CR"
-    WAIT 120 SEND_STRING dvNexia, "'GETD 0 DEFAULTGW',CR"
-    WAIT 120 SEND_COMMAND vdvTP_Nexia, "'^TXT-50,0,Values Received!'"
-}
-DEFINE_FUNCTION fnParseNexia()
-{
-    LOCAL_VAR CHAR cResponse[100]
-    
-    cResponse = REMOVE_STRING(nAudioBuffer,"CR,LF",1)
-    
-    SELECT
+    IF (cVol < nMaximum)
     {
-	//MacMini
-	ACTIVE(FIND_STRING(cResponse,'#SETD 1 FDRMUTE program2 1 1 +OK',1)): 
+	SEND_STRING dvBiamp, "'SETD 1 FDRLVL ',cTag,' ',ITOA(cId),' ',ITOA(cVol + VOL_UP),CR"
+	     //SEND_STRING dvBiamp,"'SETD 1 FDRLVL Program 1 ',ITOA(nProgramVOL + Volume_Up),$0A"
+    }
+}
+DEFINE_FUNCTION fnSetVolumeDown (CHAR cTag[], INTEGER cId, SINTEGER cVol )
+{
+    IF (cVol > nMinimum)
+    {
+	SEND_STRING dvBiamp, "'SETD 1 FDRLVL ',cTag,' ',ITOA(cId),' ',ITOA(cVol + VOL_DN),CR"
+    }
+}
+DEFINE_FUNCTION fnSetVolumePreset (CHAR cTag[], INTEGER cId, SINTEGER cPreset )
+{
+    SEND_STRING dvBiamp, "'SETD 1 FDRLVL ',cTag,' ',ITOA(cId),' ',ITOA(cPreset),CR"
+}
+DEFINE_FUNCTION fnAudioMode (INTEGER b)
+{
+    SEND_STRING dvBiamp, "'RECALL 0 PRESET ',ITOA(b),CR"
+    
+    SWITCH (b)
+    {
+	CASE BTN_PRESET_SEPERATE :
 	{
-	    ON [nMacMute]
-	    //SEND_COMMAND vdvTP_Nexia, "'^TXT-9,0,Muted'"
+	    PULSE [vdvPipeTX, PIPE_AUDIO_SEPERATE]
+		//SEND_STRING dvBiamp115, "'RECALL 0 PRESET 1001',$0A" //Seperate...
 	}
-	ACTIVE(FIND_STRING(cResponse,'#SETD 1 FDRMUTE program2 1 0 +OK',1)):
+	CASE BTN_PRESET_MASTER :
 	{
-	    OFF [nMacMute]
-	    //SEND_COMMAND vdvTP_Nexia, "'^TXT-9,0,',ITOA(nMacVOL + MAX_GAIN),'%'"
-	}
-	ACTIVE(FIND_STRING(cResponse,'#GETD 1 FDRMUTE program2 1 1',1)): 
-	{
-	    ON [nMacMute]
-	    //SEND_COMMAND vdvTP_Nexia, "'^TXT-9,0,Muted'"
-	}
-	ACTIVE(FIND_STRING(cResponse,'#GETD 1 FDRMUTE program2 1 0',1)):
-	{
-	    OFF [nMacMute]
-		    //SEND_COMMAND vdvTP_Nexia, "'^TXT-9,0,',ITOA(nMacVOL + MAX_GAIN),'%'"
-	}
-	//Desktop...
-	ACTIVE(FIND_STRING(cResponse,'#SETD 1 FDRMUTE program 1 1 +OK',1)): 
-	{
-		ON [nDesktopMute]
-		    //SEND_COMMAND vdvTP_Nexia, "'^TXT-10,0,Muted'"
-	}
-	ACTIVE(FIND_STRING(cResponse,'#SETD 1 FDRMUTE program 1 0 +OK',1)):
-	{
-		OFF [nDesktopMute]
-		    //SEND_COMMAND vdvTP_Nexia, "'^TXT-10,0,',ITOA(nDesktopVOL + MAX_GAIN),'%'"
-	}
-	ACTIVE(FIND_STRING(cResponse,'#GETD 1 FDRMUTE program 1 1',1)): //Get Mute..
-	{
-		ON [nDesktopMute]
-		    //SEND_COMMAND vdvTP_Nexia, "'^TXT-10,0,Muted'"
-	}
-	ACTIVE(FIND_STRING(cResponse,'#GETD 1 FDRMUTE program 1 0',1)):
-	{
-		OFF [nDesktopMute]
-		    //SEND_COMMAND vdvTP_Nexia, "'^TXT-10,0,',ITOA(nDesktopVOL + MAX_GAIN),'%'"
-	}
-
-	//Subwoofer...
-	ACTIVE(FIND_STRING(cResponse,'#SETD 1 FDRMUTE subout 1 1 +OK',1)):
-	{
-		  ON [  nSubwooferMute]
-		    //SEND_COMMAND vdvTP_Nexia, "'^TXT-11,0,Muted'"
-	}
-	ACTIVE(FIND_STRING(cResponse,'#SETD 1 FDRMUTE subout 1 0 +OK',1)):
-	{
-		    OFF [nSubwooferMute]
-		    //SEND_COMMAND vdvTP_Nexia, "'^TXT-11,0,',ITOA(nSubwooferVOL + MAX_GAIN),'%'"
-	}
-	ACTIVE(FIND_STRING(cResponse,'#GETD 1 FDRMUTE subout 1 1',1)):
-	{
-		    ON [nSubwooferMute]
-		    //SEND_COMMAND vdvTP_Nexia, "'^TXT-11,0,Muted'"
-	}
-	ACTIVE(FIND_STRING(cResponse,'#GETD 1 FDRMUTE subout 1 0',1)):
-	{
-		    OFF [nSubwooferMute]
-		    //SEND_COMMAND vdvTP_Nexia, "'^TXT-11,0,',ITOA(nSubwooferVOL + MAX_GAIN),'%'"
-	}
-	//system Info....
-	ACTIVE(FIND_STRING(cResponse,'#GETD 0 SUBNETMASK',1)):
-	{    
-	    REMOVE_STRING(cResponse,'#GETD 0 SUBNETMASK',1)
-		    stmpSubnet = cResponse
-		    
-		    SEND_COMMAND vdvTP_Nexia, "'^TXT-',ITOA(TXT_SUBNET),',0,SubNet ',stmpSubnet"
-	}
-	ACTIVE(FIND_STRING(cResponse,'#GETD 0 IPADDR',1)):
-	{    
-	    REMOVE_STRING(cResponse,'#GETD 0 IPADDR',1)
-		    
-		    stmpIP = cResponse
-		    SEND_COMMAND vdvTP_Nexia, "'^TXT-',ITOA(TXT_IPADD),',0,IP Address ',stmpIP"
-	}
-	ACTIVE(FIND_STRING(cResponse,'#GETD 0 DEFAULTGW',1)):
-	{    
-	    REMOVE_STRING(cResponse,'#GETD 0 DEFAULTGW',1)
-		    
-		    stmpGATE = cResponse
-		    SEND_COMMAND vdvTP_Nexia, "'^TXT-',ITOA(TXT_GATEWAY),',0,Gateway ',stmpGATE"
+	    PULSE [vdvPipeTX, PIPE_AUDIO_COMBINE]
+		//SEND_STRING dvBiamp115, "'RECALL 0 PRESET 1003',$0A" //Opposite Biamp
 	}
     }
 }
+DEFINE_FUNCTION fnResetAudio()
+{
+    WAIT 10 fnMuteChannel (TAG_MUTE_MICS, ID_HH_4, YES_OFF)
+    WAIT 20 fnSetVolumePreset (TAG_LEV_MICS, ID_HH_4, nMic4_Preset)
+
+    WAIT 10 fnMuteChannel (TAG_MUTE_MICS, ID_HH_5, YES_OFF)
+    WAIT 20 fnSetVolumePreset (TAG_LEV_MICS, ID_HH_5, nMic5_Preset)
+    
+    WAIT 10 fnMuteChannel (TAG_MUTE_MICS, ID_HH_6, YES_OFF)
+    WAIT 20 fnSetVolumePreset (TAG_LEV_MICS, ID_HH_6, nMic6_Preset)
+    
+    WAIT 10 fnMuteChannel (TAG_MUTE_PRGM, ID_PRGM_LEV, YES_OFF)
+    WAIT 20 fnSetVolumePreset (TAG_LEV_PRGM, ID_PRGM_LEV, nProgram_Vol_Preset)
+    
+    WAIT 10 fnMuteChannel (TAG_MUTE_CEILING, ID_CEILING, YES_OFF)
+}
+DEFINE_FUNCTION fnRoomSourceFeed(CHAR cMatx[3])
+{
+    SWITCH (cMatx)
+    {
+	CASE 'Off' : //Kills rooms source audio during presentation mode...
+	{
+	    SEND_STRING dvBiamp, "'SET 1 MMMUTEXP Matx 3 4 0',$0A"
+	}
+	CASE 'On' :
+	{
+	 SEND_STRING dvBiamp, "'SET 1 MMMUTEXP Matx 3 4 1',$0A"
+	}
+    }
+}
+DEFINE_FUNCTION fnParseBiamp()
+{
+    STACK_VAR CHAR cResponse[500]
+    STACK_VAR INTEGER cID
+    LOCAL_VAR CHAR cMsg[4]
+
+    WHILE (FIND_STRING (nBiampBuffer, "CR,LF",1))
+    {
+	cResponse = REMOVE_STRING (nBiampBuffer,"CR,LF",1)
+	
+	SELECT
+	{
+	    ACTIVE (FIND_STRING (cResponse,"'#SETD 1 FDRLVL ',TAG_LEV_MICS,' '",1)):
+	    {
+		REMOVE_STRING (cResponse, "'#SETD 1 FDRLVL ',TAG_LEV_MICS,' '",1)
+		
+		cID = ATOI(LEFT_STRING(cResponse,1))
+		cMsg = MID_STRING (cResponse,2,4)
+		
+		SWITCH (cID)
+		{
+		    CASE ID_HH_4 :
+		    {
+			nMic4Vol = ATOI(cMsg)
+			    SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_HH_4),',0,',ITOA(nMic4Vol + MAX_COMP),'%'"
+		    }
+		    CASE ID_HH_5 :
+		    {
+			nMic5Vol = ATOI(cMsg)
+			    SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_HH_5),',0,',ITOA(nMic5Vol + MAX_COMP),'%'"
+		    }
+		    CASE ID_HH_6 :
+		    {
+			nMic6Vol = ATOI(cMsg)
+			    SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_HH_6),',0,',ITOA(nMic6Vol + MAX_COMP),'%'"
+		    }
+		}
+	    }
+	    ACTIVE (FIND_STRING (cResponse,"'#SETD 1 FDRLVL ',TAG_LEV_PRGM,' ',ITOA(ID_PRGM_LEV)",1)):
+	    {
+		REMOVE_STRING (cResponse, "'#SETD 1 FDRLVL ',TAG_LEV_PRGM,' ',ITOA(ID_PRGM_LEV)",1)
+		
+		nProgramVOL = ATOI(cResponse)
+		    SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_PRGM),',0,',ITOA(nProgramVOL + MAX_COMP),'%'"
+	    }
+	}
+    }
+}
+
 
 (***********************************************************)
 (*                STARTUP CODE GOES BELOW                  *)
 (***********************************************************)
 DEFINE_START
 
-
-CREATE_BUFFER dvNexia,nAudioBuffer
-
-TIMELINE_CREATE(BI_FEEDBACK,lBiampFeedback,1,TIMELINE_ABSOLUTE,TIMELINE_REPEAT);
 ON [nBiampOnline]
+CREATE_BUFFER dvBiamp,nBiampBuffer;
 
-WAIT 500
+
+WAIT 600
 {
     OFF [nBiampOnline]
 }
-
 
 (***********************************************************)
 (*                THE EVENTS GO BELOW                      *)
 (***********************************************************)
 DEFINE_EVENT
-LEVEL_EVENT [vdvTP_Nexia, LEVEL_CAPTURE]
+BUTTON_EVENT [vdvTP_Biamp, nChnlbtns]
 {
-    IF (cHeartBeat_)
+    PUSH :
     {
-	nCaptureOut = LEVEL.VALUE
-	fnVolumeChange(TAG_CAP, CAP_OUT, nCaptureOut)
+	STACK_VAR INTEGER nChnlIdx
+	
+	nChnlIdx = GET_LAST (nChnlbtns)
+	SWITCH (nChnlIdx)
+	{
+	    CASE 1 : //Mic 1
+	    {
+		IF (!nMic4Mute)
+		{
+		    ON [nMic4Mute]
+			ON [vdvTP_Biamp, BTN_MUTE_HH4]
+			    fnMuteChannel (TAG_MUTE_MICS, ID_HH_4, YES_ON)
+				SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_HH_4),',0,Muted'"
+		}
+		ELSE
+		{
+		    OFF [nMic4Mute]
+			OFF [vdvTP_Biamp, BTN_MUTE_HH4]
+			    fnMuteChannel (TAG_MUTE_MICS, ID_HH_4, YES_OFF)
+				SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_HH_4),',0,',ITOA(nMic4Vol + MAX_COMP),'%'"
+		}
+	    }
+	    CASE 2 : fnSetVolumeUp (TAG_LEV_MICS, ID_HH_4, nMic4Vol)
+	    CASE 3 : fnSetVolumeDown (TAG_LEV_MICS, ID_HH_4, nMic4Vol)
+	    CASE 4 : fnSetVolumePreset (TAG_LEV_MICS, ID_HH_4, nMic4_Preset)
+	    
+	    CASE 5 : //Mic 2
+	    {
+		IF (!nMic5Mute)
+		{
+		    ON [nMic5Mute]
+			ON [vdvTP_Biamp, BTN_MUTE_HH5]
+			    fnMuteChannel (TAG_MUTE_MICS, ID_HH_5, YES_ON)
+				SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_HH_5),',0,Muted'"
+		}
+		ELSE
+		{
+		    OFF [nMic5Mute]
+			OFF [vdvTP_Biamp, BTN_MUTE_HH5]
+			    fnMuteChannel (TAG_MUTE_MICS, ID_HH_5, YES_OFF)
+				SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_HH_5),',0,',ITOA(nMic5Vol + MAX_COMP),'%'"
+		}
+	    }
+	    CASE 6 : fnSetVolumeUp (TAG_LEV_MICS, ID_HH_5, nMic5Vol)
+	    CASE 7 : fnSetVolumeDown (TAG_LEV_MICS, ID_HH_5, nMic5Vol)
+	    CASE 8 : fnSetVolumePreset (TAG_LEV_MICS, ID_HH_5, nMic5_Preset)
+	    
+	    CASE 9 : //Mic 3
+	    {
+		IF (!nMic6Mute)
+		{
+		    ON [nMic6Mute]
+			ON [vdvTP_Biamp, BTN_MUTE_HH6]
+			    fnMuteChannel (TAG_MUTE_MICS, ID_HH_6, YES_ON)
+				SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_HH_6),',0,Muted'"
+		}
+		ELSE
+		{
+		    OFF [nMic6Mute]
+			OFF [vdvTP_Biamp, BTN_MUTE_HH6]
+			    fnMuteChannel (TAG_MUTE_MICS, ID_HH_6, YES_OFF)
+				SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_HH_6),',0,',ITOA(nMic6Vol + MAX_COMP),'%'"
+		}
+	    }
+	    CASE 10 : fnSetVolumeUp (TAG_LEV_MICS, ID_HH_6, nMic6Vol)
+	    CASE 11 : fnSetVolumeDown (TAG_LEV_MICS, ID_HH_6, nMic6Vol)
+	    CASE 12 : fnSetVolumePreset (TAG_LEV_MICS, ID_HH_6, nMic6_Preset)
+	    
+	    CASE 13 : //Program
+	    {
+		IF (!nProgramMute)
+		{
+		    ON [nProgramMute]
+			ON [vdvTP_Biamp, BTN_MUTE_PRGM]
+			    fnMuteChannel (TAG_MUTE_PRGM, ID_PRGM_LEV, YES_ON)
+				SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_PRGM),',0,Muted'"
+		}
+		ELSE
+		{
+		    OFF [nProgramMute]
+			OFF [vdvTP_Biamp, BTN_MUTE_PRGM]
+			    fnMuteChannel (TAG_MUTE_MICS, ID_PRGM_LEV, YES_OFF)
+				SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_PRGM),',0,',ITOA(nProgramVOL + MAX_COMP),'%'"
+		}
+	    }
+	    CASE 14 : fnSetVolumeUp (TAG_LEV_PRGM, ID_PRGM_LEV, nProgramVOL)
+	    CASE 15 : fnSetVolumeDown (TAG_LEV_PRGM, ID_PRGM_LEV, nProgramVOL)
+	    CASE 16 : fnSetVolumePreset (TAG_LEV_PRGM, ID_PRGM_LEV, nProgram_Vol_Preset)
+	}
+    }
+    HOLD [2, REPEAT] :
+    {
+   	STACK_VAR INTEGER nChnlIdx
+	
+	nChnlIdx = GET_LAST (nChnlbtns)
+	SWITCH (nChnlIdx)
+	{
+	    CASE 2 : fnSetVolumeUp (TAG_LEV_MICS, ID_HH_4, nMic4Vol)
+	    CASE 3 : fnSetVolumeDown (TAG_LEV_MICS, ID_HH_4, nMic4Vol)
+	    
+	    CASE 6 : fnSetVolumeUp (TAG_LEV_MICS, ID_HH_5, nMic5Vol)
+	    CASE 7 : fnSetVolumeDown (TAG_LEV_MICS, ID_HH_5, nMic5Vol)
+	    
+	    CASE 10 : fnSetVolumeUp (TAG_LEV_MICS, ID_HH_6, nMic6Vol)
+	    CASE 11 : fnSetVolumeDown (TAG_LEV_MICS, ID_HH_6, nMic6Vol)
+	    
+    	    CASE 14 : fnSetVolumeUp (TAG_LEV_PRGM, ID_PRGM_LEV, nProgramVOL)
+	    CASE 15 : fnSetVolumeDown (TAG_LEV_PRGM, ID_PRGM_LEV, nProgramVOL)
+	}
     }
 }
-LEVEL_EVENT [vdvTP_Nexia,LEVEL_MAC]
+BUTTON_EVENT [dvTP_Biamp, BTN_MUTE_CEILING]
 {
-    IF (cHeartBeat_)
+    PUSH :
     {
-	nMacVOL = LEVEL.VALUE
-    	fnVolumeChange(TAG_MAC, MAC_MINI, nMacVOL)
-    }
-}
-LEVEL_EVENT [vdvTP_Nexia, LEVEL_WINDOWS]
-{
-    IF (cHeartBeat_)
-    {
-	nDesktopVOL = LEVEL.VALUE
-	fnVolumeChange(TAG_WINDOWS, PC_DESK, nDesktopVOL)
-    }
-}
-LEVEL_EVENT [vdvTP_Nexia, LEVEL_SUB]
-{
-    IF (cHeartBeat_)
-    {
-	nSubwooferVOL = LEVEL.VALUE
-	fnVolumeChange(TAG_SUB, SUB_OUT, nSubwooferVOL)
+	IF (!nCeilingMute)
+	{
+	    ON [nCeilingMute]
+		ON [vdvTP_Biamp, BTN_MUTE_CEILING]
+		    fnMuteChannel (TAG_MUTE_CEILING, ID_CEILING, YES_ON)
+	}
+	ELSE
+	{
+	    OFF [nCeilingMute]
+		OFF [vdvTP_Biamp, BTN_MUTE_CEILING]
+		    fnMuteChannel (TAG_MUTE_CEILING, ID_CEILING, YES_OFF)
+	}
     }
 }
 
 DEFINE_EVENT
-DATA_EVENT [dvTP_Nexia]
-DATA_EVENT [dvTP_Nexia2]
+DATA_EVENT [dvTP_Biamp]
 {
-    ONLINE :
+    ONLINE:
     {
-	ON [cHeartBeat_]
-	SEND_COMMAND DATA.DEVICE, "'^TXT-',ITOA(TXT_DEVICE),',0,',nBiampDevice"
-	
 	IF (!nBiampOnline)
 	{
-	    SEND_COMMAND vdvTP_Nexia, "'^TXT-50,0,Receiving Values...'"
-	    fnGetValues()
+	    fnResetAudio()
 	}
     }
-    OFFLINE :
-    {
-	OFF [cHeartBeat_]
-    }
 }
-DATA_EVENT [dvNexia]
+DATA_EVENT [dvBiamp]
 {
     ONLINE:
     {
 	SEND_COMMAND DATA.DEVICE, "'SET BAUD 38400,N,8,1 485 DISABLED'"
 	SEND_COMMAND DATA.DEVICE, "'RXON'"
 	SEND_COMMAND DATA.DEVICE, "'HSOFF'"
-	SEND_COMMAND vdvTP_Nexia, "'^TXT-50,0,Please Wait...'"
 	
-	WAIT 80 
+	WAIT 100
 	{
-	    SEND_COMMAND vdvTP_Nexia, "'^TXT-50,0,Receiving Values...'"
-		fnSetValues()
+	    fnResetAudio()
 	}
     }
     STRING :
     {
-	fnParseNexia()
+	fnParseBiamp()
     }
 }
-BUTTON_EVENT [vdvTP_Nexia, nNexiaChnlIdx]
+
+DEFINE_EVENT
+CHANNEL_EVENT [vdvPipeRX, PIPE_AUDIO_COMBINE]
+CHANNEL_EVENT [vdvPipeRX, PIPE_AUDIO_SEPERATE]
 {
-    PUSH :
+    ON :
     {
-	STACK_VAR INTEGER nLevelIdx
-	
-	nLevelIdx = GET_LAST (nNexiaChnlIdx)
-	SWITCH (nLevelIdx)
+	SWITCH (CHANNEL.CHANNEL)
 	{
-	    CASE 1:
+	    CASE PIPE_AUDIO_COMBINE :
 	    {
-		IF (!nMacMute)
-		{
-		    fnVolumeMute(TAG_MAC,MAC_MINI, SET_MUTE_ON)
-		}
-		ELSE
-		{
-		    fnVolumeMute(TAG_MAC,MAC_MINI, SET_MUTE_OFF)
-		}
+		fnAudioMode (BTN_PRESET_SERVE)
 	    }
-
-	    CASE 4: fnVolumePreset(LEVEL_MAC,nProgram_Preset)
-	    
-	    //Desktop...
-	    CASE 5: 
+	    CASE PIPE_AUDIO_SEPERATE :
 	    {
-		IF (!nDesktopMute)
-		{
-		    fnVolumeMute(TAG_WINDOWS, PC_DESK, SET_MUTE_ON)
-		}
-		ELSE
-		{
-		    fnVolumeMute(TAG_WINDOWS, PC_DESK, SET_MUTE_OFF)
-		}
+		fnAudioMode (BTN_PRESET_SEPERATE)
 	    }
-
-	    CASE 8: fnVolumePreset(LEVEL_WINDOWS,nProgram_Preset) 
-	    
-	    //
-	    CASE 9: 
-	    {
-		IF (!nSubwooferMute)
-		{
-		    fnVolumeMute(TAG_SUB, SUB_OUT, SET_MUTE_ON)
-		}
-		ELSE
-		{
-		    fnVolumeMute(TAG_SUB, SUB_OUT, SET_MUTE_OFF)
-		}
-	    }
-	    CASE 12: fnVolumePreset(LEVEL_SUB, nSubwoofer_Preset)
 	}
-    }  
+    }
 }
-
-TIMELINE_EVENT [BI_FEEDBACK]
-{
-    [vdvTP_Nexia, 1] = nMacMute
-    [vdvTP_Nexia, 5] = nDesktopMute
-    [vdvTP_Nexia, 13] = nSubwooferMute
-       
-}
-
