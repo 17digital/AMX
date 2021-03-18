@@ -8,8 +8,8 @@ PROGRAM_NAME='RecordTimer'
 
 DEFINE_DEVICE
 
-#IF_NOT_DEFINED dvTP_Shure
-dvTP_Shure =			10002:5:0
+#IF_NOT_DEFINED dvTP_Timer
+dvTP_Timer =			10002:5:0
 #END_IF
 
 (***********************************************************)
@@ -47,53 +47,36 @@ VOLATILE LONG lFeedback[] = {1000}
 (* EXAMPLE: DEFINE_CALL '<NAME>' (<PARAMETERS>) *)
 DEFINE_FUNCTION fnStartTimer()
 {
-    //lSecondTimer = (GET_TIMER / 10) //Pulls from NX-Master
-    lSecondTimer = lSecondTimer + 1 //Use Plain math for same results
+    STACK_VAR CHAR iTimeFormated[20];
+    LOCAL_VAR CHAR iTimeResult[20];
+    
+    lSecondTimer = lSecondTimer + 1
     
     IF (lSecondTimer = 60)
     {
-	nMinuteStamp = (nMinuteStamp + 1)
-	SEND_COMMAND dvTP_Shure, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(nHourStamp),' Hr(s) : ',ITOA(nMinuteStamp),' Min(s) : 00'"
+	nMinuteStamp = nMinuteStamp + 1
 	
 	IF (nMinuteStamp = 60)
 	{
-	    nHourStamp = (nHourStamp + 1)
+	    nHourStamp = nHourStamp + 1
 	    nMinuteStamp = 0
 	}
-	//SET_TIMER (0)
 	lSecondTimer = 0
     }
-    ELSE IF (lSecondTimer <10)
-    {
-	SEND_COMMAND dvTP_Shure, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(nHourStamp),' Hr(s) : ',ITOA(nMinuteStamp),' Min(s) : 0',ITOA(lSecondTimer)"
-    }
-    ELSE
-    {
-	SEND_COMMAND dvTP_Shure, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(nHourStamp),' Hr(s) : ',ITOA(nMinuteStamp),' Min(s) : ',ITOA(lSecondTimer)"
-    }
+    
+    	iTimeFormated = FORMAT(': %02d ',lSecondTimer)
+	iTimeFormated = "FORMAT(': %02d ',nMinuteStamp),iTimeFormated" //Append the minutes..
+	iTimeFormated = "FORMAT(' %02d ', nHourStamp), iTimeFormated" 
+	    iTimeResult = iTimeFormated
+    
+    SEND_COMMAND dvTP_Timer, "'^TXT-',ITOA(TXT_TIMER),',0,',iTimeResult"
 }
 DEFINE_FUNCTION fnResetTimerToZero()
 {
     nMinuteStamp = 0
     nHourStamp = 0
-    //SET_TIMER (0)
     lSecondTimer = 0
-   SEND_COMMAND dvTP_Shure, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(nHourStamp),' Hr(s) : ',ITOA(nMinuteStamp),' Min(s) : 00'"
-}
-DEFINE_FUNCTION fnPausedTimer()
-{
-    //SET_TIMER (lSecondTimer * 10)
-    lSecondTimer = lSecondTimer + 1
-    
-    IF (lSecondTimer < 10)
-    {
-	SEND_COMMAND dvTP_Shure, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(nHourStamp),' Hr(s) : ',ITOA(nMinuteStamp),' Min(s) : 0',ITOA(lSecondTimer)"
-    }
-    ELSE
-    {
-	SEND_COMMAND dvTP_Shure, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(nHourStamp),' Hr(s) : ',ITOA(nMinuteStamp),' Min(s) : ',ITOA(lSecondTimer)"
-    }
-    
+    SEND_COMMAND dvTP_Timer, "'^TXT-',ITOA(TXT_TIMER),',0,00 : 00 : 00'"
 }
 
 
@@ -127,6 +110,8 @@ BUTTON_EVENT [dvTP_Shure, BTN_STOP_TIMER]
 {
     PUSH :
     {
+	ON [dvTP_Timer, BTN_STOP_TIMER]
+	
 	IF (TIMELINE_ACTIVE(TL_FEEDBACK))
 	{
 	    TIMELINE_KILL(TL_FEEDBACK)
@@ -137,17 +122,17 @@ BUTTON_EVENT [dvTP_Shure, BTN_UNPAUSE_TIMER]
 {
     PUSH :
     {
-	fnPausedTimer()
+	OFF [dvTP_Timer, BTN_STOP_TIMER]
 	
-	IF(TIMELINE_ACTIVE(TL_FEEDBACK))
+	IF (TIMELINE_ACTIVE(TL_FEEDBACK))
 	{
 	    TIMELINE_RESTART(TL_FEEDBACK)
 	}
 	ELSE
 	{
-	    TIMELINE_CREATE(TL_FEEDBACK,lFeedback,1,TIMELINE_ABSOLUTE,TIMELINE_REPEAT);
+	    TIMELINE_CREATE (TL_FEEDBACK,lFeedback,1,TIMELINE_ABSOLUTE,TIMELINE_REPEAT);
 	}
-    } 
+    }
 }
 
 TIMELINE_EVENT [TL_FEEDBACK]
