@@ -315,7 +315,7 @@ DEFINE_FUNCTION fnParseExtron()
 			//SEND_STRING dvExtronRec, "'35I',CR" //Record Timer...
 			IF (TIMELINE_ACTIVE(TL_TIMER))
 			{
-			    fnPausedTimer()
+			    fnStartTimer()
 			    TIMELINE_RESTART(TL_TIMER)
 			}
 			ELSE
@@ -427,49 +427,38 @@ DEFINE_FUNCTION fnSwitchInput(INTEGER cIn, INTEGER cOut)
 }
 DEFINE_FUNCTION fnStartTimer()
 {
+    STACK_VAR CHAR iTimeFormated[20];
+    LOCAL_VAR CHAR iTimeResult[20];
+    
     lSecondTimer = lSecondTimer + 1
     
     IF (lSecondTimer = 60)
     {
 	nMinuteStamp = nMinuteStamp + 1
-	SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(nHourStamp),' Hr(s) : ',ITOA(nMinuteStamp),' Min(s) : 00'"
 	
 	IF (nMinuteStamp = 60)
 	{
-	    nHourStamp = (nHourStamp + 1)
+	    nHourStamp = nHourStamp + 1
 	    nMinuteStamp = 0
 	}
 	lSecondTimer = 0
     }
-    ELSE IF (lSecondTimer <10)
-    {
-	SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(nHourStamp),' Hr(s) : ',ITOA(nMinuteStamp),' Min(s) : 0',ITOA(lSecondTimer)"
-    }
-    ELSE
-    {
-	SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(nHourStamp),' Hr(s) : ',ITOA(nMinuteStamp),' Min(s) : ',ITOA(lSecondTimer)"
-    }
+    
+    iTimeFormated = FORMAT(': %02d ',lSecondTimer)
+	iTimeFormated = "FORMAT(': %02d ',nMinuteStamp),iTimeFormated" //Append the minutes..
+	iTimeFormated = "FORMAT(' %02d ', nHourStamp), iTimeFormated" 
+	    iTimeResult = iTimeFormated
+    
+    SEND_COMMAND dvTP_Timer, "'^TXT-',ITOA(TXT_TIMER),',0,',iTimeResult"
 }
 DEFINE_FUNCTION fnResetTimerToZero()
 {
     nMinuteStamp = 0
     nHourStamp = 0
     lSecondTimer = 0
-   SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(nHourStamp),' Hr(s) : ',ITOA(nMinuteStamp),' Min(s) : 00'"
+   SEND_COMMAND dvTP_Timer, "'^TXT-',ITOA(TXT_TIMER),',0,00 : 00 : 00'"
 }
-DEFINE_FUNCTION fnPausedTimer()
-{
-    lSecondTimer = lSecondTimer + 1
-    
-    IF (lSecondTimer < 10)
-    {
-	SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(nHourStamp),' Hr(s) : ',ITOA(nMinuteStamp),' Min(s) : 0',ITOA(lSecondTimer)"
-    }
-    ELSE
-    {
-	SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_TIMER),',0,Timer',$0A,$0D,ITOA(nHourStamp),' Hr(s) : ',ITOA(nMinuteStamp),' Min(s) : ',ITOA(lSecondTimer)"
-    }
-}
+
 
 DEFINE_START
 
