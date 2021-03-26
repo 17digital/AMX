@@ -269,6 +269,7 @@ DEFINE_FUNCTION fnParseExtron()
     LOCAL_VAR CHAR cUsbname[50]
     LOCAL_VAR CHAR cTrash[50]
     LOCAL_VAR CHAR cVidIn[8]
+    STACK_VAR CHAR cCountdown[1]
     
    WHILE (FIND_STRING(nExBuffer,"CR,LF",1))
    {
@@ -276,6 +277,12 @@ DEFINE_FUNCTION fnParseExtron()
     
 	SELECT
 	{
+	    ACTIVE (FIND_STRING (cMsgs,'RecStart0',1)): //Rec Countdown....
+	    {
+		REMOVE_STRING (cMsgs,'0',1)
+		cCountdown = cMsgs
+		SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_REC_STATUS),',0,Recording Begins In ',cCountdown" 
+	    }
 	    ACTIVE(FIND_STRING(cMsgs,'8Rpr',1)):
 	    {
 		REMOVE_STRING (cMsgs,'8Rpr',1)
