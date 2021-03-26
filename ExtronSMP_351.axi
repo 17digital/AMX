@@ -71,15 +71,15 @@ dvExtronRec =			5001:2:0
 
 
 DEFINE_CONSTANT
-#IF_NOT_DEFINED CR 
+
+#IF_NOT_DEFINED __GLOBAL_CONST__
+#DEFINE __GLOBAL_CONST__
+
 CR 					= 13
-#END_IF
-
-#IF_NOT_DEFINED LF 
 LF 					= 10
-#END_IF
-
 ESC					= 27 //Escape
+
+#END_IF
 
 SET_ADDRESS_IP			= '172.21.5.23' //
 SET_ADDRESS_SUB			= '255.255.252.0'
@@ -109,7 +109,7 @@ FULL_CAMERA				= 10 //FullScreen B
 //Video Input Switching....
 VID_IN_CONTENT				= 1 //DGX
 VID_IN_ATEM					= 2 //From Atem
-VID_IN_CAMERA				= 5 //
+VID_IN_CAMERA				= 4 //
 
 VID_CH_A					= 1
 VID_CH_B					= 2
@@ -157,8 +157,7 @@ VOLATILE LONG lRecordTimer[] = {1000} //1 Second Pull...
 VOLATILE DEV vdvTP_Capture[] = 
 {
     dvTP_Recorder, 
-    dvTP_Recorder2, 
-    dvTP_Recorder3
+    dvTP_Recorder2
 }
 VOLATILE INTEGER nRecSends[] =
 {
@@ -201,8 +200,8 @@ VOLATILE CHAR nExtronInputs[5][16] =
     'DGX Content',
     'Atem View',
     'Nothing 3',
-    'Nothing 4',
-    'Camera'
+    'Camera',
+    'Nothing 5'
 }
 VOLATILE INTEGER nVideoInSources[] =
 {
@@ -225,11 +224,6 @@ DEFINE_MUTUALLY_EXCLUSIVE
 ([dvTP_Recorder2, BTN_REC_START]..[dvTP_Recorder2, BTN_REC_STOP])
 ([dvTP_Recorder2, BTN_INPUT_CONTENT],[dvTP_Recorder2, BTN_INPUT_ATEM])
 
-([dvTP_Recorder3, BTN_PBP_UL]..[dvTP_Recorder3, BTN_FULL_CAMERA])
-([dvTP_Recorder3, BTN_REC_START]..[dvTP_Recorder3, BTN_REC_STOP])
-([dvTP_Recorder3, BTN_INPUT_CONTENT],[dvTP_Recorder3, BTN_INPUT_ATEM])
-
-
 (***********************************************************)
 (*        SUBROUTINE/FUNCTION DEFINITIONS GO BELOW         *)
 (***********************************************************)
@@ -246,7 +240,7 @@ DEFINE_FUNCTION fnQueryStatus()
     WAIT 70 SEND_STRING dvExtronRec, "ESC,SET_DEVICE_NAME,'CN',CR"
     WAIT 80 SEND_STRING dvExtronRec, "ESC,'L',SET_LOCATION,'SNMP',CR"
     WAIT 100 SEND_STRING dvExtronRec, "ESC,'YRCDR',CR" //Record StatusP',CR"
-    WAIT 130 SEND_STRING dvExtronRec, "ITOA(VID_CH_A),'!',CR" //Get Active Input
+    WAIT 130 SEND_STRING dvExtronRec, "ITOA(VID_IN_CONTENT),'*',ITOA(VID_CH_A),CR" //Set Active Channel A
     WAIT 150 SEND_STRING dvExtronRec, "ITOA(VID_IN_CAMERA),'*',ITOA(VID_CH_B),'!',CR" //Force Input on Channel B/2
     
     WAIT 200 fnSetExtronInputNames()
@@ -456,14 +450,14 @@ DEFINE_FUNCTION fnStartTimer()
 	iTimeFormated = "FORMAT(' %02d ', nHourStamp), iTimeFormated" 
 	    iTimeResult = iTimeFormated
     
-    SEND_COMMAND dvTP_Timer, "'^TXT-',ITOA(TXT_TIMER),',0,',iTimeResult"
+    SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_TIMER),',0,',iTimeResult"
 }
 DEFINE_FUNCTION fnResetTimerToZero()
 {
     nMinuteStamp = 0
     nHourStamp = 0
     lSecondTimer = 0
-   SEND_COMMAND dvTP_Timer, "'^TXT-',ITOA(TXT_TIMER),',0,00 : 00 : 00'"
+   SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_TIMER),',0,00 : 00 : 00'"
 }
 
 
