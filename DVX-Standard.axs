@@ -869,10 +869,7 @@ LEVEL_EVENT [dvMicrophone1, MICROPHONE_MIX_1]
 }
 
 DEFINE_EVENT
-CHANNEL_EVENT [vdvProjector_left, ON_LINE]
-CHANNEL_EVENT [vdvProjector_left, WARMING] 
-CHANNEL_EVENT [vdvProjector_left, COOLING] 
-CHANNEL_EVENT [vdvProjector_left, POWER] 
+CHANNEL_EVENT [vdvProjector_left, 0] 
 {
     ON:
     {
@@ -915,10 +912,7 @@ CHANNEL_EVENT [vdvProjector_left, POWER]
 	}
     }
 }
-CHANNEL_EVENT [vdvProjector_right,ON_LINE]
-CHANNEL_EVENT [vdvProjector_right, WARMING] 
-CHANNEL_EVENT [vdvProjector_right,COOLING] 
-CHANNEL_EVENT [vdvProjector_Right, POWER]
+CHANNEL_EVENT [vdvProjector_right, 0]
 {
     ON:
     {
