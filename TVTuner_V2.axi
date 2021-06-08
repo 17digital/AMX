@@ -141,7 +141,7 @@ BUTTON_EVENT [vdvTP_Tuner, nFavoriteChBtns] //Tuner Presets...
 	STACK_VAR INTEGER nTVIdx
 		nTVIdx = GET_LAST (nFavoriteChBtns)
 
-	SEND_COMMAND vdvTuner, "'XCH-',nTunerChannelCall[GET_LAST(nFavoriteChBtns)]" 
+	SEND_COMMAND vdvTuner, "'XCH-',nTunerChannelCall[nTVIdx]" 
 	ON [vdvTP_Tuner, nFavoriteChBtns[nTVIdx]] //FB
     }
 }
