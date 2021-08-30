@@ -240,7 +240,7 @@ DEFINE_FUNCTION fnQueryStatus()
     WAIT 70 SEND_STRING dvExtronRec, "ESC,SET_DEVICE_NAME,'CN',CR"
     WAIT 80 SEND_STRING dvExtronRec, "ESC,'L',SET_LOCATION,'SNMP',CR"
     WAIT 100 SEND_STRING dvExtronRec, "ESC,'YRCDR',CR" //Record StatusP',CR"
-    WAIT 130 SEND_STRING dvExtronRec, "ITOA(VID_IN_CONTENT),'*',ITOA(VID_CH_A),CR" //Set Active Channel A
+    WAIT 130 SEND_STRING dvExtronRec, "ITOA(VID_IN_CONTENT),'*',ITOA(VID_CH_A),'!',CR" //Set Active Channel A
     WAIT 150 SEND_STRING dvExtronRec, "ITOA(VID_IN_CAMERA),'*',ITOA(VID_CH_B),'!',CR" //Force Input on Channel B/2
     
     WAIT 200 fnSetExtronInputNames()
@@ -249,7 +249,7 @@ DEFINE_FUNCTION fnSetExtronInputNames()
 {
     STACK_VAR INTEGER cLoop
     
-    FOR (cLoop =1; cLoop<=MAX_LENGTH_ARRAY(nExtronInputs); cLoop++)
+    FOR (cLoop =1; cLoop<=LENGTH_ARRAY(nExtronInputs); cLoop++)
     {
 	SEND_STRING dvExtronRec, "ESC,ITOA(cLoop),',',nExtronInputs[cLoop],'NI',CR"
     }
