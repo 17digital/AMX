@@ -93,6 +93,29 @@ DEFINE_FUNCTION fnReconnect()
 	    WAIT 30 fnGetShureRep()
 	}
 }
+DEFINE_FUNCTION char[100] GetIpError (LONG iErrorCode)
+{
+    CHAR iReturn[100];
+    
+    SWITCH (iErrorCode)
+    {
+	CASE 2 : iReturn = "'General failure (Out of Memory) '";
+	CASE 4 : iReturn = "'Unknown host'";
+	CASE 6 : iReturn = "'Connection Refused'";
+	CASE 7 : iReturn = "'Connection timed Out'";
+	CASE 8 : iReturn = "'Unknown Connection Error'";
+	CASE 9 : iReturn = "'Already Closed'";
+	CASE 10 : iReturn = "'Binding Error'";
+	CASE 11 : iReturn = "'Listening Error'";
+	CASE 14 : iReturn = "'Local Port Already Used'";
+	CASE 15 : iReturn = "'UDP Socket Already Listening'";
+	CASE 16 : iReturn = "'Too Many Open Sockets'";
+	CASE 17 : iReturn = "'Local Port Not Open'";
+	
+	DEFAULT : iReturn = "'(',ITOA(iErrorCode),') Undefined'";
+    }
+    RETURN iReturn;
+}
 
 (***********************************************************)
 (*                STARTUP CODE GOES BELOW                  *)
@@ -103,34 +126,46 @@ ON [lBooted]
 CREATE_BUFFER dvShure, cShureBuffer;
 
 
-WAIT 80
-{
-    fnStartConnection()
-    WAIT 30
-    {
-	    fnGetShureRep()
-    }
-}
-
 WAIT 600
 {
     OFF [lBooted]
 }
 
 DEFINE_EVENT 
+BUTTON_EVENT [vdvTP_Shure, BTN_NET_BOOT]
+{
+    RELEASE :
+    {
+	fnReconnect()
+    }
+}
 DATA_EVENT [dvShure]
 {
     ONLINE :
     {
-	ON [scm820Online]
+	scm820Online = TRUE;
 	ON [vdvTP_Shure, BTN_NET_BOOT]
-    	CANCEL_WAIT 'DEVICE COMM/INIT'
+    }
+    OFFLINE :
+    {
+	scm820Online = FALSE;
+	    OFF [vdvTP_Shure, BTN_NET_BOOT]
+    }
+    ONERROR :
+    {
+	AMX_LOG (AMX_ERROR, "'dvShure330:onerror: ',GetIpError(DATA.NUMBER)");
 	
-	WAIT 3500 'DEVICE COMM/INIT'
+	SWITCH (DATA.NUMBER)
 	{
-	    OFF [scm820Online]
-		OFF [vdvTP_Shure, BTN_NET_BOOT]
-	    fnReconnect()
+	    CASE 7 : //Connection Time Out...
+	    {
+		fnReconnect()
+	    }
+	    DEFAULT :
+	    {
+		//fnReconnect()
+		scm820Online = FALSE;
+	    }
 	}
     }
     STRING :
@@ -141,21 +176,12 @@ DATA_EVENT [dvShure]
 	LOCAL_VAR CHAR cBatteryLev[3]
 	LOCAL_VAR CHAR cFirstFreq[3]
 	LOCAL_VAR CHAR cLastFreq[3]
+	STACK_VAR CHAR cType[30] //TX Type
+	LOCAL_VAR CHAR cDbug[30]
 	
-	ON [scm820Online]
-	ON [vdvTP_Shure, BTN_NET_BOOT]
-    	CANCEL_WAIT 'DEVICE COMM/INIT'
-	
-	WAIT 3500 'DEVICE COMM/INIT'
-	{
-	    OFF [scm820Online]
-		OFF [vdvTP_Shure, BTN_NET_BOOT]
-	    fnReconnect()
-	}
-	SEND_STRING 0,"'RECEIVING AUDIO ',cShureBuffer"
+	AMX_LOG (AMX_INFO, "'dvShure:STRING: ',DATA.TEXT");
 	
 	//Parsing Begins....
-	
 	IF (FIND_STRING (cShureBuffer,'< REP ',1))
 	{
 	    REMOVE_STRING (cShureBuffer,'< REP ',1)
@@ -186,24 +212,62 @@ DATA_EVENT [dvShure]
 			SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(nNameSlot[cId]),',0,Not Connected'"
 			    OFF [vdvTP_Shure, nNameSlot[cID]]
 		    }
-		    DEFAULT :
+		    CASE '005' :
+		    CASE '004' :
+		    CASE '003' :
+		    CASE '002' :
+		    CASE '001' : //Actual Battery Levels...
 		    {
-			//Received Battery Level...
 			SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(nNameSlot[cId]),',0,Connectd !'"
 			    ON [vdvTP_Shure, nNameSlot[cID]]
 		    }
 		}
+	    }
+	    IF (FIND_STRING (cResponse, "ITOA(cId), ' TX_'",1))
+	    {
+		REMOVE_STRING (cResponse, "ITOA(cId), ' TX_'",1)
+		    cType = cResponse
+			SET_LENGTH_STRING(cType,LENGTH_STRING(cType) -2);
+		    cDbug = cType
+		    
+		    SWITCH (cType)
+		    {
+			CASE 'MUTE_STATUS OFF' :
+			CASE 'MENU_LOCK OFF' :
+			CASE 'TYPE ULXD1' : 
+			CASE 'RF_PWR LOW' :
+			CASE 'MUTE_BUTTON_STATUS RELEASED' :
+			{
+			    SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(nNameSlot[cId]),',0,Connectd !'"
+				ON [vdvTP_Shure, nNameSlot[cID]]
+			}
+			CASE 'MENU_LOCK UNKN':
+			CASE 'PWR_LOCK UNKN':
+			CASE 'TYPE UNKN' :
+			CASE 'POWER_SOURCE UNKN' :
+			CASE 'RF_PWR UNKN' :
+			{
+			    SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(nNameSlot[cId]),',0,Not Connected'"
+				OFF [vdvTP_Shure, nNameSlot[cID]]
+			}
+		    }
 	    }
 	}
     }
 }
 TIMELINE_EVENT [TL_FEEDBACK]
 {
-    WAIT 3000
+    WAIT 450
     {
-	fnGetShureRep()
+	IF (scm820Online == FALSE)
+	{
+	    fnStartConnection()
+	    WAIT 30
+	    {
+		fnGetShureRep()
+	    }
+	}
     }
-
 }
 
 
