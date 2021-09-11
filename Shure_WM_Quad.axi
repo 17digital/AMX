@@ -1,5 +1,25 @@
 PROGRAM_NAME='Shure_WM_Quad'
-
+(***********************************************************)
+(* REV HISTORY:                                            *)
+(***********************************************************)
+(*
+    $History: $
+    This include file is designed to Communicate with the Shure ULX-D Wireless to grab Transmitter connection status to receiver. Usefull for displaying connection
+    status on AMX Touch panel for Users. Mic Receivers may not be installed in direct line of user's sight. 
+    
+    Device Shure ULX-D Wireless (Receiver)
+    
+    https://www.shure.com/en-IN/products/wireless-systems/ulx-d_digital_wireless
+    
+	Full API download :
+	https://service.shure.com/s/article/ulx-d-crestron-amx-control-strings?language=en_US
+    
+    !!! AMX Terminal Commands to see Msg logs from this program
+	msg on //error | warning | info | debug | off
+	msg stats //
+	start log on|off //enable or disable
+	show start log all //Display the start up log. <start> specifies message to begin to display. 'all' will display all
+*)
 
 
 DEFINE_DEVICE
@@ -16,15 +36,13 @@ dvTP_Shure2 =			10002:6:0
 
 DEFINE_CONSTANT
 
-
-//Mic + Line Input IDS...
+//Mic Transmitter IDS...
 IN_MIC_1				= 1
 IN_MIC_2				= 2
 IN_MIC_3				= 3
 IN_MIC_4				= 4
 
 BTN_NET_BOOT		= 1000
-
 
 //TXT Addresses...
 TXT_CH_1				= 311
@@ -87,10 +105,10 @@ DEFINE_FUNCTION fnGetShureRep()
 DEFINE_FUNCTION fnReconnect()
 {
     fnCloseConnection()
-	WAIT 20
+	WAIT 10
 	{
 	    fnStartConnection()
-	    WAIT 30 fnGetShureRep()
+	    WAIT 20 fnGetShureRep()
 	}
 }
 DEFINE_FUNCTION char[100] GetIpError (LONG iErrorCode)
@@ -153,7 +171,7 @@ DATA_EVENT [dvShure]
     }
     ONERROR :
     {
-	AMX_LOG (AMX_ERROR, "'dvShure330:onerror: ',GetIpError(DATA.NUMBER)");
+	AMX_LOG (AMX_ERROR, "'dvShure:onerror: ',GetIpError(DATA.NUMBER)");
 	
 	SWITCH (DATA.NUMBER)
 	{
@@ -264,7 +282,7 @@ TIMELINE_EVENT [TL_FEEDBACK] //This is running every half second...
 	IF (scm820Online == FALSE)
 	{
 	    fnStartConnection()
-	    WAIT 30
+	    WAIT 20
 	    {
 		fnGetShureRep()
 	    }
