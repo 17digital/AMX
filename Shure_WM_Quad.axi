@@ -13,6 +13,7 @@ PROGRAM_NAME='Shure_WM_Quad'
     
 	Full API download :
 	https://service.shure.com/s/article/ulx-d-crestron-amx-control-strings?language=en_US
+	https://d24z4d3zypmncx.cloudfront.net/KnowledgeBaseFiles/ulx-d-network-string-commands.pdf
     
     !!! AMX Terminal Commands to see Msg logs from this program
 	msg on //error | warning | info | debug | off
@@ -44,7 +45,7 @@ IN_MIC_4				= 4
 
 BTN_NET_BOOT		= 1000
 
-//TXT Addresses...
+//TouchPanel Bnts/TXT Addresses...
 TXT_CH_1				= 311
 TXT_CH_2				= 312
 TXT_CH_3				= 313
@@ -92,15 +93,15 @@ DEFINE_FUNCTION fnCloseConnection()
 }
 DEFINE_FUNCTION fnGetShureRep()
 {
-    WAIT 10 SEND_STRING dvShure, '< GET 1 FREQUENCY >'
-    WAIT 20 SEND_STRING dvShure, '< GET 2 FREQUENCY >'
-    WAIT 30 SEND_STRING dvShure, '< GET 3 FREQUENCY >'
-    WAIT 40 SEND_STRING dvShure, '< GET 4 FREQUENCY >'
+    WAIT 10 SEND_STRING dvShure, " '< GET ',ITOA(IN_MIC_1),' FREQUENCY >' "
+    WAIT 20 SEND_STRING dvShure, " '< GET ',ITOA(IN_MIC_2),' FREQUENCY >' "
+    WAIT 30 SEND_STRING dvShure, " '< GET ',ITOA(IN_MIC_3),' FREQUENCY >' "
+    WAIT 40 SEND_STRING dvShure, " '< GET ',ITOA(IN_MIC_4),' FREQUENCY >' "
     
-    WAIT 50 SEND_STRING dvShure, '< GET 1 BATT_BARS >'
-    WAIT 60 SEND_STRING dvShure, '< GET 2 BATT_BARS >'
-    WAIT 70 SEND_STRING dvShure, '< GET 3 BATT_BARS >'
-    WAIT 80 SEND_STRING dvShure, '< GET 4 BATT_BARS >'
+    WAIT 50 SEND_STRING dvShure, " '< GET ',ITOA(IN_MIC_1),' BATT_BARS >' "
+    WAIT 60 SEND_STRING dvShure, " '< GET ',ITOA(IN_MIC_2),' BATT_BARS >' "
+    WAIT 70 SEND_STRING dvShure, " '< GET ',ITOA(IN_MIC_3),' BATT_BARS >' "
+    WAIT 80 SEND_STRING dvShure, " '< GET ',ITOA(IN_MIC_4),' BATT_BARS >' "
 }
 DEFINE_FUNCTION fnReconnect()
 {
