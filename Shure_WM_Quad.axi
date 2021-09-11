@@ -159,11 +159,11 @@ DATA_EVENT [dvShure]
 	{
 	    CASE 7 : //Connection Time Out...
 	    {
-		fnReconnect()
+		scm820Online = FALSE;
+		    fnReconnect()
 	    }
 	    DEFAULT :
 	    {
-		//fnReconnect()
 		scm820Online = FALSE;
 	    }
 	}
@@ -179,7 +179,9 @@ DATA_EVENT [dvShure]
 	STACK_VAR CHAR cType[30] //TX Type
 	LOCAL_VAR CHAR cDbug[30]
 	
-	AMX_LOG (AMX_INFO, "'dvShure:STRING: ',DATA.TEXT");
+	AMX_LOG (AMX_INFO, "'dvShure:STRING: ',DATA.TEXT"); //Store Log withing AMX Master- See Notes Above!
+	scm820Online = TRUE;
+	    ON [vdvTP_Shure, BTN_NET_BOOT]
 	
 	//Parsing Begins....
 	IF (FIND_STRING (cShureBuffer,'< REP ',1))
@@ -255,9 +257,9 @@ DATA_EVENT [dvShure]
 	}
     }
 }
-TIMELINE_EVENT [TL_FEEDBACK]
+TIMELINE_EVENT [TL_FEEDBACK] //This is running every half second...
 {
-    WAIT 450
+    WAIT 300
     {
 	IF (scm820Online == FALSE)
 	{
