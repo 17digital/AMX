@@ -399,6 +399,7 @@ DATA_EVENT [dvShure]
     ONERROR :
     {
 	AMX_LOG (AMX_ERROR, "'dvShure:onerror: ',GetIpError(DATA.NUMBER)");
+		Send_String 0,"'Shure onerror : ',GetIpError(DATA.NUMBER)"; 
 	
 	SWITCH (DATA.NUMBER)
 	{
