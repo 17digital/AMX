@@ -427,43 +427,46 @@ DATA_EVENT [dvShure]
 	
 	scm820Online = TRUE;
 	    ON [vdvTP_Shure, BTN_NET_BOOT]
-
-	IF (FIND_STRING (cShureBuffer,'< REP ',1))
+	
+	WHILE (FIND_STRING(cShureBuffer,'>',1))
 	{
-	    REMOVE_STRING (cShureBuffer,'< REP ',1)
-		
-	    cResponse = cShureBuffer
-	    cID = ATOI (LEFT_STRING(cResponse, 2)) //01 -- 14 (
+	    cResponse = REMOVE_STRING(cShureBuffer,'>',1)
+
+	    IF (FIND_STRING (cResponse,'< REP ',1))
+	    {
+	       REMOVE_STRING (cResponse,'< REP ',1)
+
+	       cID = ATOI (LEFT_STRING(cResponse, 2)) //01 -- 14 (
 	    
-	    IF (FIND_STRING (cResponse,"ITOA(cId),' AUDIO_MUTE ON >'",1))
-	    {
-		ON [vdvTP_Shure, nMuteButtons[cID]]
+	        IF (FIND_STRING (cResponse,"ITOA(cId),' AUDIO_MUTE ON >'",1))
+	        {
+		  ON [vdvTP_Shure, nMuteButtons[cID]]
 		    SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(nMixLevels[cId]),',0,Muted'"
-	    }
-	    IF (FIND_STRING (cResponse,"ITOA(cId),' AUDIO_MUTE OFF >'",1))
-	    {
-		OFF [vdvTP_Shure, nMuteButtons[cID]]
+	         }
+	        IF (FIND_STRING (cResponse,"ITOA(cId),' AUDIO_MUTE OFF >'",1))
+	        {
+		   OFF [vdvTP_Shure, nMuteButtons[cID]]
 		    SEND_STRING dvShure, " '< GET ',ITOA(nMixLevels[cID]), ' AUDIO_GAIN_HI_RES >' "
-	    }
-	    IF (FIND_STRING (cResponse,"ITOA(cId), ' AUDIO_GAIN_HI_RES '",1))
-	    {
-		REMOVE_STRING (cResponse,"ITOA(cId), ' AUDIO_GAIN_HI_RES '",1)
+	        }
+	        IF (FIND_STRING (cResponse,"ITOA(cId), ' AUDIO_GAIN_HI_RES '",1))
+	        {
+		  REMOVE_STRING (cResponse,"ITOA(cId), ' AUDIO_GAIN_HI_RES '",1)
 		    cLev = ATOI(cResponse) //Should show remaining number return...
 			SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(nMixLevels[cID]),',0,',ITOA((cLev / 10) - 40),'%'"
-	    }
-	    IF (FIND_STRING (cResponse,"ITOA(cID), ' CHAN_NAME {'",1))
-	    {
-			REMOVE_STRING (cResponse,"ITOA(cID), ' CHAN_NAME {'",1)
+	         }
+	        IF (FIND_STRING (cResponse,"ITOA(cID), ' CHAN_NAME {'",1))
+	        {
+		    REMOVE_STRING (cResponse,"ITOA(cID), ' CHAN_NAME {'",1)
 			cChName = LEFT_STRING(cResponse,LENGTH_STRING(cResponse)-3)
-			
 			SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(nNameSlot[cId]),',0,',cChName"
-	    }
-	    IF (FIND_STRING (cResponse,'DEVICE_ID {',1))
-	    {
+	          }
+	      }
+	      IF (FIND_STRING (cResponse,'DEVICE_ID {',1))
+	      {
 		REMOVE_STRING (cResponse,'DEVICE_ID {',1)
 		    shureDevice = LEFT_STRING(cResponse,LENGTH_STRING(cResponse)-3)
 			    SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(TXT_DEVICE),',0,',shureDevice"
-	    }
+	      }
 	}
     }
 }
