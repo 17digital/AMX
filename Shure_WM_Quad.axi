@@ -173,6 +173,7 @@ DATA_EVENT [dvShure]
     ONERROR :
     {
 	AMX_LOG (AMX_ERROR, "'dvShure:onerror: ',GetIpError(DATA.NUMBER)");
+	Send_String 0,"'Shure onerror : ',GetIpError(DATA.NUMBER)"; 
 	
 	SWITCH (DATA.NUMBER)
 	{
@@ -189,7 +190,7 @@ DATA_EVENT [dvShure]
     }
     STRING :
     {
-    	LOCAL_VAR CHAR cResponse[100]
+    	LOCAL_VAR CHAR cResponse[50]
 	LOCAL_VAR INTEGER cID //Holds Input ID
 	LOCAL_VAR CHAR cFreq[6]
 	LOCAL_VAR CHAR cBatteryLev[3]
@@ -198,80 +199,85 @@ DATA_EVENT [dvShure]
 	STACK_VAR CHAR cType[30] //TX Type
 	LOCAL_VAR CHAR cDbug[30]
 	
-	AMX_LOG (AMX_INFO, "'dvShure:STRING: ',DATA.TEXT"); //Store Log withing AMX Master- See Notes Above!
 	scm820Online = TRUE;
 	    ON [vdvTP_Shure, BTN_NET_BOOT]
 	
-	//Parsing Begins....
-	IF (FIND_STRING (cShureBuffer,'< REP ',1))
+	AMX_LOG (AMX_INFO, "'dvShure:STRING: ',DATA.TEXT"); //Store Log withing AMX Master- See Notes Above!
+	SEND_STRING 0,"'RECEIVING AUDIO ',cShureBuffer"
+	
+	WHILE (FIND_STRING(cShureBuffer,'>',1))
 	{
-	    REMOVE_STRING (cShureBuffer,'< REP ',1)
+	    cResponse = REMOVE_STRING(cShureBuffer,'>',1)
 	    
-	    cResponse = cShureBuffer
-	    cID = ATOI (LEFT_STRING(cResponse, 1)) //1 -- 4
-	    
-	    IF (FIND_STRING(cResponse, "ITOA(cID), ' FREQUENCY '",1))
+	    IF (FIND_STRING (cResponse,'< REP ',1))
 	    {
-		REMOVE_STRING (cResponse,"ITOA(cId), ' FREQUENCY '",1)
-		    cFreq = cResponse
-		    
-		    cFirstFreq = LEFT_STRING (cFreq,3)
-		    cLastFreq = MID_STRING (cFreq, 4, 3)
-		    
-			SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(cID),',0,',cFirstFreq,'-',cLastFreq"
-	    }
-	    IF (FIND_STRING (cResponse, "ITOA(cID), ' BATT_BARS '",1))
-	    {
-		REMOVE_STRING (cResponse,"ITOA(cId), ' BATT_BARS '",1)
-		cBatteryLev = cResponse
+		REMOVE_STRING (cResponse,'< REP ',1)
 		
-		SWITCH (cBatteryLev)
+		cID = ATOI (LEFT_STRING(cResponse, 1)) //1 -- 4
+		
+		IF (FIND_STRING(cResponse, "ITOA(cID), ' FREQUENCY '",1))
 		{
-		    CASE '255' : //Error Code - Not communicating w/ Mic...
-		    {
-			//Not Connectd / Battery Level not Received...
-			SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(nNameSlot[cId]),',0,Not Connected'"
-			    OFF [vdvTP_Shure, nNameSlot[cID]]
-		    }
-		    CASE '005' :
-		    CASE '004' :
-		    CASE '003' :
-		    CASE '002' :
-		    CASE '001' : //Actual Battery Levels...
-		    {
-			SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(nNameSlot[cId]),',0,Connectd !'"
-			    ON [vdvTP_Shure, nNameSlot[cID]]
-		    }
+		    REMOVE_STRING (cResponse,"ITOA(cId), ' FREQUENCY '",1)
+			cFreq = cResponse
+			
+			cFirstFreq = LEFT_STRING (cFreq,3)
+			cLastFreq = MID_STRING (cFreq, 4, 3)
+			
+			    SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(cID),',0,',cFirstFreq,'-',cLastFreq"
 		}
-	    }
-	    IF (FIND_STRING (cResponse, "ITOA(cId), ' TX_'",1))
-	    {
-		REMOVE_STRING (cResponse, "ITOA(cId), ' TX_'",1)
-		    cType = cResponse
-			SET_LENGTH_STRING(cType,LENGTH_STRING(cType) -2);
-		    cDbug = cType
+		IF (FIND_STRING (cResponse, "ITOA(cID), ' BATT_BARS '",1))
+		{
+		    REMOVE_STRING (cResponse,"ITOA(cId), ' BATT_BARS '",1)
+		    cBatteryLev = cResponse
 		    
-		    SWITCH (cType)
+		    SWITCH (cBatteryLev)
 		    {
-			CASE 'MUTE_STATUS OFF' :
-			CASE 'MENU_LOCK OFF' :
-			CASE 'TYPE ULXD1' : 
-			CASE 'RF_PWR LOW' :
-			CASE 'MUTE_BUTTON_STATUS RELEASED' :
+			CASE '255' : //Error Code - Not communicating w/ Mic...
+			{
+			    //Not Connectd / Battery Level not Received...
+			    SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(nNameSlot[cId]),',0,Not Connected'"
+				OFF [vdvTP_Shure, nNameSlot[cID]]
+			}
+			CASE '005' :
+			CASE '004' :
+			CASE '003' :
+			CASE '002' :
+			CASE '001' : //Actual Battery Levels...
 			{
 			    SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(nNameSlot[cId]),',0,Connectd !'"
 				ON [vdvTP_Shure, nNameSlot[cID]]
 			}
-			CASE 'MENU_LOCK UNKN':
-			CASE 'PWR_LOCK UNKN':
-			CASE 'TYPE UNKN' :
-			CASE 'POWER_SOURCE UNKN' :
-			CASE 'RF_PWR UNKN' :
-			{
-			    SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(nNameSlot[cId]),',0,Not Connected'"
-				OFF [vdvTP_Shure, nNameSlot[cID]]
-			}
 		    }
+		}
+		IF (FIND_STRING (cResponse, "ITOA(cId), ' TX_'",1))
+		{
+		    REMOVE_STRING (cResponse, "ITOA(cId), ' TX_'",1)
+			cType = cResponse
+			    SET_LENGTH_STRING(cType,LENGTH_STRING(cType) -2);
+			cDbug = cType
+			
+			SWITCH (cType)
+			{
+			    CASE 'MUTE_STATUS OFF' :
+			    CASE 'MENU_LOCK OFF' :
+			    CASE 'TYPE ULXD1' : 
+			    CASE 'RF_PWR LOW' :
+			    CASE 'MUTE_BUTTON_STATUS RELEASED' :
+			    {
+				SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(nNameSlot[cId]),',0,Connectd !'"
+				    ON [vdvTP_Shure, nNameSlot[cID]]
+			    }
+			    CASE 'MENU_LOCK UNKN':
+			    CASE 'PWR_LOCK UNKN':
+			    CASE 'TYPE UNKN' :
+			    CASE 'POWER_SOURCE UNKN' :
+			    CASE 'RF_PWR UNKN' :
+			    {
+				SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(nNameSlot[cId]),',0,Not Connected'"
+				    OFF [vdvTP_Shure, nNameSlot[cID]]
+			    }
+			}
+		}
 	    }
 	}
     }
