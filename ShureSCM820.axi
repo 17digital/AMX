@@ -50,6 +50,8 @@ dvTP_Shure2 =		10002:5:0
 (***********************************************************)
 DEFINE_CONSTANT
 
+TL_FEEDBACK				= 1
+
 //Mic + Line Input IDS...
 IN_MIC_1				= 1
 IN_MIC_2				= 2
@@ -280,17 +282,6 @@ DEFINE_FUNCTION fnChannelNames() //Set Channel Names (31 Characters Max)
 	SEND_STRING dvShure, " '< SET ',ITOA(b), ' CHAN_NAME {',cShureNames[b],'} >'"
 	    SEND_COMMAND dvTP_Shure, "'^TXT-',ITOA(nNameSlot[b]),',0,',cShureNames[b]"
     }
-//    SEND_STRING dvShure, " '< SET ',ITOA(IN_MIC_1), ' CHAN_NAME {',NAME_1,'} >' "
-//    SEND_STRING dvShure, " '< SET ',ITOA(IN_MIC_2), ' CHAN_NAME {',NAME_2,'} >' "
-//    SEND_STRING dvShure, " '< SET ',ITOA(IN_MIC_3), ' CHAN_NAME {',NAME_3,'} >' "
-//    SEND_STRING dvShure, " '< SET ',ITOA(IN_MIC_4), ' CHAN_NAME {',NAME_4,'} >' "
-//    SEND_STRING dvShure, " '< SET ',ITOA(IN_MIC_5), ' CHAN_NAME {',NAME_5,'} >' "
-//    SEND_STRING dvShure, " '< SET ',ITOA(IN_MIC_6), ' CHAN_NAME {',NAME_6,'} >' "
-//    SEND_STRING dvShure, " '< SET ',ITOA(IN_MIC_7), ' CHAN_NAME {',NAME_7,'} >' "
-//    SEND_STRING dvShure, " '< SET ',ITOA(IN_MIC_8), ' CHAN_NAME {',NAME_8,'} >' "
-//    SEND_STRING dvShure, " '< SET ',ITOA(IN_LINE_AUX), ' CHAN_NAME {',NAME_9,'} >' "
-//    SEND_STRING dvShure, " '< SET ',ITOA(OUT_LINE_A), ' CHAN_NAME {',NAME_18,'} >' "
-//     SEND_STRING dvShure, " '< SET ',ITOA(OUT_LINE_B), ' CHAN_NAME {',NAME_19,'} >' "
 }
 DEFINE_FUNCTION fnShureID() //Set Shure Id
 {
@@ -337,6 +328,29 @@ DEFINE_FUNCTION fnReconnect()
 	    WAIT 30 fnGetShureRep()
 	}
 }
+DEFINE_FUNCTION char[100] GetIpError (LONG iErrorCode)
+{
+    CHAR iReturn[100];
+    
+    SWITCH (iErrorCode)
+    {
+	CASE 2 : iReturn = "'General failure (Out of Memory) '";
+	CASE 4 : iReturn = "'Unknown host'";
+	CASE 6 : iReturn = "'Connection Refused'";
+	CASE 7 : iReturn = "'Connection timed Out'";
+	CASE 8 : iReturn = "'Unknown Connection Error'";
+	CASE 9 : iReturn = "'Already Closed'";
+	CASE 10 : iReturn = "'Binding Error'";
+	CASE 11 : iReturn = "'Listening Error'";
+	CASE 14 : iReturn = "'Local Port Already Used'";
+	CASE 15 : iReturn = "'UDP Socket Already Listening'";
+	CASE 16 : iReturn = "'Too Many Open Sockets'";
+	CASE 17 : iReturn = "'Local Port Not Open'";
+	
+	DEFAULT : iReturn = "'(',ITOA(iErrorCode),') Undefined'";
+    }
+    RETURN iReturn;
+}
 
 (***********************************************************)
 (*                STARTUP CODE GOES BELOW                  *)
@@ -346,19 +360,7 @@ DEFINE_START
 ON [cBooted]
 CREATE_BUFFER dvShure, cShureBuffer;
 
-
-WAIT 50
-{
-    fnStartConnection()
-    WAIT 30
-    {
-	fnChannelNames()
-	WAIT 50
-	{
-	    fnGetShureRep()
-	}
-    }
-}
+TIMELINE_CREATE (TL_FEEDBACK, lTlFeedback,LENGTH_ARRAY(lTlFeedback),TIMELINE_ABSOLUTE, TIMELINE_REPEAT);
 
 WAIT 600
 {
@@ -385,86 +387,83 @@ DATA_EVENT [vdvTP_Shure]
 DATA_EVENT [dvShure]
 {
     ONLINE: //SET UP SHURE
-    {
-	SEND_STRING 0, 'Audio Is Online'
-	
-	ON [scm820Online]
+    {	
+	scm820Online = TRUE;
 	ON [vdvTP_Shure, BTN_NET_BOOT]
-	CANCEL_WAIT 'DEVICE COMM/INIT'
+    }
+     OFFLINE :
+    {
+	scm820Online = FALSE;
+	    OFF [vdvTP_Shure, BTN_NET_BOOT]
+    }
+    ONERROR :
+    {
+	AMX_LOG (AMX_ERROR, "'dvShure:onerror: ',GetIpError(DATA.NUMBER)");
 	
-	WAIT 350 'DEVICE COMM/INIT'
+	SWITCH (DATA.NUMBER)
 	{
-	    OFF [scm820Online]
-		OFF [vdvTP_Shure, BTN_NET_BOOT]
-	    fnReconnect()
+	    CASE 7 : //Connection Time Out...
+	    {
+		scm820Online = FALSE;
+		    fnReconnect()
+	    }
+	    DEFAULT :
+	    {
+		//fnReconnect()
+		scm820Online = FALSE;
+	    }
 	}
     }
     STRING :
     {
-    	LOCAL_VAR CHAR cResponse[100]
-	LOCAL_VAR INTEGER cID //Holds Input ID
-	LOCAL_VAR INTEGER cLev
+    	STACK_VAR CHAR cResponse[100]
+	STACK_VAR INTEGER cID //Holds Input ID
+	STACK_VAR INTEGER cLev
 	LOCAL_VAR CHAR cChName[20]
 	
-	ON [scm820Online]
-	ON [vdvTP_Shure, BTN_NET_BOOT]
-    	CANCEL_WAIT 'DEVICE COMM/INIT'
+	Send_String 0,"'RECEIVING AUDIO ',cShureBuffer" 
+	AMX_LOG (AMX_INFO, "'dvShure:STRING: ',cShureBuffer");
 	
-	WAIT 350 'DEVICE COMM/INIT'
+	scm820Online = TRUE;
+	    ON [vdvTP_Shure, BTN_NET_BOOT]
+
+	IF (FIND_STRING (cShureBuffer,'< REP ',1))
 	{
-	    OFF [scm820Online]
-		OFF [vdvTP_Shure, BTN_NET_BOOT]
-	    fnReconnect()
-	}
-	Send_String 0,"'RECEIVING AUDIO ',cShureBuffer"
-	
-	SELECT
-	{
-	    ACTIVE (FIND_STRING (cShureBuffer,'< REP ',1)):
-	    {
-		REMOVE_STRING (cShureBuffer,'< REP ',1)
+	    REMOVE_STRING (cShureBuffer,'< REP ',1)
 		
-		cResponse = cShureBuffer
-		cID = ATOI (LEFT_STRING(cResponse, 2)) //01 -- 14 (
+	    cResponse = cShureBuffer
+	    cID = ATOI (LEFT_STRING(cResponse, 2)) //01 -- 14 (
 	    
-		    IF (FIND_STRING (cResponse,"ITOA(cId),' AUDIO_MUTE ON >'",1))
-		    {
-			ON [vdvTP_Shure, nMuteButtons[cID]]
-			SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(nMixLevels[cId]),',0,Muted'"
-		    }
-		    IF (FIND_STRING (cResponse,"ITOA(cId),' AUDIO_MUTE OFF >'",1))
-		    {
-			OFF [vdvTP_Shure, nMuteButtons[cID]]
-			WAIT 5
-			{
-			    SEND_STRING dvShure, " '< GET ',ITOA(nMixLevels[cID]), ' AUDIO_GAIN_HI_RES >' "
-			}
-		    }
-		    IF (FIND_STRING (cResponse,"ITOA(cId), ' AUDIO_GAIN_HI_RES '",1))
-		    {
-			    REMOVE_STRING (cResponse,"ITOA(cId), ' AUDIO_GAIN_HI_RES '",1)
-			    cLev = ATOI(cResponse) //Should show remaining number return...
-					
-			   SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(nMixLevels[cID]),',0,',ITOA((cLev / 10) - 40),'%'"
-		    }
-		    IF (FIND_STRING (cResponse,"ITOA(cID), ' CHAN_NAME {'",1))
-		    {
+	    IF (FIND_STRING (cResponse,"ITOA(cId),' AUDIO_MUTE ON >'",1))
+	    {
+		ON [vdvTP_Shure, nMuteButtons[cID]]
+		    SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(nMixLevels[cId]),',0,Muted'"
+	    }
+	    IF (FIND_STRING (cResponse,"ITOA(cId),' AUDIO_MUTE OFF >'",1))
+	    {
+		OFF [vdvTP_Shure, nMuteButtons[cID]]
+		    SEND_STRING dvShure, " '< GET ',ITOA(nMixLevels[cID]), ' AUDIO_GAIN_HI_RES >' "
+	    }
+	    IF (FIND_STRING (cResponse,"ITOA(cId), ' AUDIO_GAIN_HI_RES '",1))
+	    {
+		REMOVE_STRING (cResponse,"ITOA(cId), ' AUDIO_GAIN_HI_RES '",1)
+		    cLev = ATOI(cResponse) //Should show remaining number return...
+			SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(nMixLevels[cID]),',0,',ITOA((cLev / 10) - 40),'%'"
+	    }
+	    IF (FIND_STRING (cResponse,"ITOA(cID), ' CHAN_NAME {'",1))
+	    {
 			REMOVE_STRING (cResponse,"ITOA(cID), ' CHAN_NAME {'",1)
 			cChName = LEFT_STRING(cResponse,LENGTH_STRING(cResponse)-3)
 			
 			SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(nNameSlot[cId]),',0,',cChName"
-		    }
-	    
-		    IF (FIND_STRING (cResponse,'DEVICE_ID {',1))
-		    {
-			REMOVE_STRING (cResponse,'DEVICE_ID {',1)
-			    shureDevice = LEFT_STRING(cResponse,LENGTH_STRING(cResponse)-3)
-			
+	    }
+	    IF (FIND_STRING (cResponse,'DEVICE_ID {',1))
+	    {
+		REMOVE_STRING (cResponse,'DEVICE_ID {',1)
+		    shureDevice = LEFT_STRING(cResponse,LENGTH_STRING(cResponse)-3)
 			    SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(TXT_DEVICE),',0,',shureDevice"
-		    }
 	    }
 	}
-	cShureBuffer = ''
     }
 }
 
@@ -566,13 +565,26 @@ BUTTON_EVENT [vdvTP_Shure, 1000]
 	fnReconnect()
     }
 }
-TIMELINE_EVENT [TL_FEEDBACK] //This needs to be running...Keeps device alive
+TIMELINE_EVENT [TL_FEEDBACK] //Feedback /Hearbeat Check...
 {
-    
-    WAIT 100
+    WAIT 300
     {
-	SEND_STRING dvShure, '< GET DEVICE_ID >'
+	IF (scm820Online == FALSE)
+	{
+	    fnStartConnection()
+	    WAIT 20
+	    {
+		fnChannelNames()
+		WAIT 50
+		{
+		    fnGetShureRep()
+		}
+	    }
+	}
+	ELSE
+	{
+	    SEND_STRING dvShure, '< GET DEVICE_ID >'
+	}
     }
-    
 }
    
