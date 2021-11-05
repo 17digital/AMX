@@ -48,12 +48,14 @@ BTN_CH_FAV8			= 138
 BTN_CH_FAV9			= 139
 CHANNEL_DEFAULT		= 0
 
-
+TXT_CH_DISPLAY				=1
 
 (***********************************************************)
 (*               VARIABLE DEFINITIONS GO BELOW             *)
 (***********************************************************)
 DEFINE_VARIABLE
+
+VOLATILE CHAR cSetChannel[5]
 
 VOLATILE DEV vdvTP_Tuner[] = 
 {
@@ -74,37 +76,33 @@ VOLATILE INTEGER nFavoriteChBtns[]=
 }
 VOLATILE CHAR nTunerChannelCall[10][5] =
 {
-    '81-1', //NFL Network
-    '61-2', //CBS Sports
-    '80-2', //NBC Network
-    '69-2', //Fox Sports
-    '55-1' , //Fox Live
-    '66-2', //Espn
-    '67-1', //Espn 2
-    '68-1', //espn u
+    '67-1', //NFL Network
+    '55-1', //See Below
+    '61-2', //See Below
+    '66-2', //4
+    '68-1' , //5
+    '69-2', //6
+    '80-2', //7
+    '86-2', //8
     '4-1'  //GTCN
-    
-//Big Ten 59-1
-//PAC 12 83-1
-//SEC 86-2
-//Golf 72-1
 }
 VOLATILE CHAR nTunerFavLabels[10][15] =
 {
-    'NFL Network',
-    'CBS Sports',
-    'NBC Sports',
-    'Fox Sports',
-    'ACC Netw',
-    'ESPN',
     'ESPN 2',
-    'ESPN U',
+    'ACC Network',
+    'CBS Sports',
+    'ESPN', //4
+    'ESPN U', //5
+    'Fox Sports 1 HD', //6
+    'NBC Sports', //7
+    'SEC', //8
     'GTech Feed'
 }
 
 DEFINE_MUTUALLY_EXCLUSIVE
 
-([dvTP_Tuner, nFavoriteChBtns[1]]..[dvTP_Tuner, nFavoriteChBtns[9]])
+([dvTP_Tuner, BTN_CH_FAV1]..[dvTP_Tuner, BTN_CH_FAV9])
+([dvTP_Tuner2, BTN_CH_FAV1]..[dvTP_Tuner2, BTN_CH_FAV9])
 
 (***********************************************************)
 (*        SUBROUTINE/FUNCTION DEFINITIONS GO BELOW         *)
@@ -115,12 +113,11 @@ DEFINE_FUNCTION fnLoadChannelLabels()
 {
     STACK_VAR INTEGER cLoop
     
-    FOR (cLoop=1; cLoop<=MAX_LENGTH_ARRAY(nFavoriteChBtns); cLoop++)
+    FOR (cLoop=1; cLoop<=LENGTH_ARRAY(nFavoriteChBtns); cLoop++)
     {
 	SEND_COMMAND vdvTP_Tuner, "'^TXT-',ITOA(nFavoriteChBtns[cLoop]),',0,',nTunerFavLabels[cLoop]"
     }
 }
-
 
 (***********************************************************)
 (*                STARTUP CODE GOES BELOW                  *)
@@ -139,22 +136,63 @@ BUTTON_EVENT [vdvTP_Tuner, nFavoriteChBtns] //Tuner Presets...
     PUSH:
     {
 	STACK_VAR INTEGER nTVIdx
-		nTVIdx = GET_LAST (nFavoriteChBtns)
-
-	SEND_COMMAND vdvTuner, "'XCH-',nTunerChannelCall[nTVIdx]" 
-	ON [vdvTP_Tuner, nFavoriteChBtns[nTVIdx]] //FB
+	nTVIdx = GET_LAST (nFavoriteChBtns)
+	
+	    SEND_COMMAND vdvTuner, "'XCH-',nTunerChannelCall[nTVIdx]" 
+	ON [vdvTP_Tuner, nFavoriteChBtns[nTVIdx]] //Send Feedback to Panel...
+	
+	    SEND_COMMAND vdvTP_Tuner, "'^TXT-',ITOA(TXT_CH_DISPLAY),',0,',nTunerFavLabels[nTVIdx]"
     }
 }
 BUTTON_EVENT [vdvTP_Tuner, CHANNEL_DEFAULT] //Default
 {
-    PUSH :
+PUSH :
     {
-	PULSE[vdvTuner,BUTTON.INPUT.CHANNEL]
-		OFF [vdvTP_Tuner, nFavoriteChBtns]
+	STACK_VAR INTEGER nIDX
+	STACK_VAR CHAR nChn[1];
+	nIDX = BUTTON.INPUT.CHANNEL;
+	
+	    PULSE[vdvTuner,nIDX]
+		
+	SWITCH (nIDX)
+	{
+	    CASE 10 :
+	    CASE 11 :
+	    CASE 12 :
+	    CASE 13 :
+	    CASE 14 :
+	    CASE 15 :
+	    CASE 16 :
+	    CASE 17 :
+	    CASE 18 :
+	    CASE 19 :
+	    {
+		nChn = ITOA(nIDX -10);
+		BREAK;
+	    }
+	    CASE 22: //Ch Up
+	    CASE 23: //Ch Dn
+	    CASE 101: //Previous
+	    {
+		TOTAL_OFF [vdvTP_Tuner, nFavoriteChBtns ]
+	    }
+	    CASE 90 :
+	    {
+		nChn = '-';
+		BREAK;
+	    }
+	    CASE 110 : //Enter Buttons
+	    {
+		cSetChannel = ' ';
+		TOTAL_OFF [vdvTP_Tuner, nFavoriteChBtns ]
+	    }
+	}
+	cSetChannel = "cSetChannel, nChn"
+	SEND_COMMAND vdvTP_Tuner, "'^TXT-',ITOA(TXT_CH_DISPLAY),',0,',cSetChannel"
     }
     RELEASE:
     {
-	SET_PULSE_TIME(5)	//Reset Pulse Time 0.5 Seconds
+	SET_PULSE_TIME (5)	//Reset Pulse Time 0.5 Seconds
     }
 }
 
