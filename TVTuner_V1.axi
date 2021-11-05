@@ -16,10 +16,16 @@ dvTP_Tuner =				10001:3:0
 dvTuner =					5001:4:0
 #END_IF
 
-dvTuner002 =					5001:5:0 //EXB2
+dvTuner002 =				5304:1:0 //EXB2
+dvTuner003 =				5304:2:0 //EXB2
+dvTuner004 =				5305:1:0 //EXB2
+dvTuner005 =				5305:2:0 //EXB2
 
-vdvTuner =					35015:1:0 ////TV Tuner 232-ATSC+ (Contemporary Research)
-vdvTuner002 =				35016:1:0 ////TV Tuner 232-ATSC+ (Contemporary Research)
+vdvTuner =				35015:1:0 ////TV Tuner 232-ATSC+ (Contemporary Research)
+vdvTuner002 =			35016:1:0 ////TV Tuner 232-ATSC+ (Contemporary Research)
+vdvTuner003 =			35017:1:0 ////TV Tuner 232-ATSC+ (Contemporary Research)
+vdvTuner004 =			35018:1:0 ////TV Tuner 232-ATSC+ (Contemporary Research)
+vdvTuner005 =			35019:1:0 ////TV Tuner 232-ATSC+ (Contemporary Research)
 
 
 (***********************************************************)
@@ -47,16 +53,27 @@ BTN_CH_FAV8			= 138
 BTN_CH_FAV9			= 139
 CHANNEL_DEFAULT		= 0
 
-BTN_TUNER_1			= 51
-BTN_TUNER_2			= 52
+TXT_CH_DISPLAY				=1
+
+BTN_TUNER_REAR_LEFT			= 51
+BTN_TUNER_DONAR			= 52
+BTN_TUNER_FRONT			= 53
+BTN_TUNER_CONF				= 54
+BTN_TUNER_REAR_RIGHT		= 55
 
 (***********************************************************)
 (*               VARIABLE DEFINITIONS GO BELOW             *)
 (***********************************************************)
 DEFINE_VARIABLE
 
-
 VOLATILE INTEGER nSelectTuner 
+VOLATILE CHAR cSetChannel[5]
+
+VOLATILE INTEGER nPwrTuner1
+VOLATILE INTEGER nPwrTuner2
+VOLATILE INTEGER nPwrTuner3
+VOLATILE INTEGER nPwrTuner4
+VOLATILE INTEGER nPwrTuner5
 
 VOLATILE DEV vdvTP_Tuner[] =
 {
@@ -76,43 +93,52 @@ VOLATILE INTEGER nFavoriteChBtns[]=
 }
 VOLATILE CHAR nTunerChannelCall[10][5] =
 {
-    '2-1', //NFL Network
-    '5-1', //CBS Sports
-    '61-1', //NBC Network
-    '63-1', //cnn
-    '69-1' , //Fox Live
-    '66-2', //Espn
-    '88-2', //Weather Channel
-    '77-2', //espn u
+    '67-1', //NFL Network
+    '55-1', //See Below
+    '61-2', //See Below
+    '66-2', //4
+    '68-1' , //5
+    '69-2', //6
+    '80-2', //7
+    '86-2', //8
     '4-1'  //GTCN
 }
 VOLATILE CHAR nTunerFavLabels[10][15] =
 {
-    'ABC HD',
-    'Fox 5',
-    'CBS 46',
-    'CNN',
-    'Fox News',
-    'ESPN',
-    'Weather',
-    'MSNBC',
+    'ESPN 2',
+    'ACC Network',
+    'CBS Sports',
+    'ESPN', //4
+    'ESPN U', //5
+    'Fox Sports 1 HD', //6
+    'NBC Sports', //7
+    'SEC', //8
     'GTech Feed'
 }
 VOLATILE INTEGER nTunerPwrBtns[] =
 {
-    BTN_TUNER_1,
-    BTN_TUNER_2
+    BTN_TUNER_REAR_LEFT,
+    BTN_TUNER_DONAR,
+    BTN_TUNER_FRONT,
+    BTN_TUNER_CONF,
+    BTN_TUNER_REAR_RIGHT
 }
 VOLATILE DEV dcTuner[] =
 {
     vdvTuner,
-    vdvTuner002
+    vdvTuner002,
+    vdvTuner003,
+    vdvTuner004,
+    vdvTuner005
 }
 
 DEFINE_MUTUALLY_EXCLUSIVE
 
-([dvTP_Tuner, nFavoriteChBtns[1]]..[dvTP_Tuner, nFavoriteChBtns[9]])
-([dvTP_Tuner, BTN_TUNER_1],[dvTP_Tuner, BTN_TUNER_2])
+([dvTP_Tuner, BTN_CH_FAV1]..[dvTP_Tuner, BTN_CH_FAV9])
+([dvTP_Tuner, BTN_TUNER_REAR_LEFT]..[dvTP_Tuner, BTN_TUNER_REAR_RIGHT])
+
+([dvTP_Tuner2, BTN_CH_FAV1]..[dvTP_Tuner2, BTN_CH_FAV9])
+([dvTP_Tuner2, BTN_TUNER_REAR_LEFT]..[dvTP_Tuner2, BTN_TUNER_REAR_RIGHT])
 
 (***********************************************************)
 (*        SUBROUTINE/FUNCTION DEFINITIONS GO BELOW         *)
@@ -123,7 +149,7 @@ DEFINE_FUNCTION fnLoadChannelLabels()
 {
     STACK_VAR INTEGER cLoop
     
-    FOR (cLoop=1; cLoop<=MAX_LENGTH_ARRAY(nFavoriteChBtns); cLoop++)
+    FOR (cLoop=1; cLoop<=LENGTH_ARRAY(nFavoriteChBtns); cLoop++)
     {
 	SEND_COMMAND vdvTP_Tuner, "'^TXT-',ITOA(nFavoriteChBtns[cLoop]),',0,',nTunerFavLabels[cLoop]"
     }
@@ -134,7 +160,7 @@ DEFINE_FUNCTION fnLoadChannelLabels()
 (***********************************************************)
 DEFINE_START
 
-nSelectTuner = 1
+nSelectTuner = 1; //Default Select
 ON [vdvTP_Tuner, BTN_TUNER_1]
 
 DEFINE_MODULE 'ContemporaryResearch_232STS' COMMTUNE(vdvTuner, dvTuner);
@@ -150,6 +176,15 @@ BUTTON_EVENT [vdvTP_Tuner, nTunerPwrBtns] //Set Active Camera
     {
 	nSelectTuner = GET_LAST (nTunerPwrBtns)
 	    ON [vdvTP_Tuner, nTunerPwrBtns[nSelectTuner]]
+	    
+	   SWITCH (nSelectTuner)
+	    {
+		CASE 1 :  [vdvTP_Tuner, POWER_CYCLE] = nPwrTuner1
+		CASE 2 :  [vdvTP_Tuner, POWER_CYCLE] = nPwrTuner2
+		CASE 3 :  [vdvTP_Tuner, POWER_CYCLE] = nPwrTuner3
+		CASE 4 :  [vdvTP_Tuner, POWER_CYCLE] = nPwrTuner4
+		CASE 5 :  [vdvTP_Tuner, POWER_CYCLE] = nPwrTuner5
+	    }
     }
 }
 BUTTON_EVENT [vdvTP_Tuner, nFavoriteChBtns] //Tuner Presets...
@@ -159,20 +194,118 @@ BUTTON_EVENT [vdvTP_Tuner, nFavoriteChBtns] //Tuner Presets...
 	STACK_VAR INTEGER nTVIdx
 	nTVIdx = GET_LAST (nFavoriteChBtns)
 	
-	    SEND_COMMAND dcTuner[nSelectTuner], "'XCH-',nTunerChannelCall[GET_LAST(nFavoriteChBtns)]" 
+	    SEND_COMMAND dcTuner[nSelectTuner], "'XCH-',nTunerChannelCall[nTVIdx]" 
 	ON [vdvTP_Tuner, nFavoriteChBtns[nTVIdx]] //Send Feedback to Panel...
+	
+	    SEND_COMMAND vdvTP_Tuner, "'^TXT-',ITOA(TXT_CH_DISPLAY),',0,',nTunerFavLabels[nTVIdx]"
     }
 }
 BUTTON_EVENT [vdvTP_Tuner, CHANNEL_DEFAULT] //Default
 {
     PUSH :
     {
-	    PULSE[dcTuner[nSelectTuner],BUTTON.INPUT.CHANNEL]
+	STACK_VAR INTEGER nIDX
+	STACK_VAR CHAR nChn[1];
+	nIDX = BUTTON.INPUT.CHANNEL;
+	
+	    PULSE[dcTuner[nSelectTuner],nIDX]
+		
+	SWITCH (nIDX)
+	{
+	    CASE 10 :
+	    CASE 11 :
+	    CASE 12 :
+	    CASE 13 :
+	    CASE 14 :
+	    CASE 15 :
+	    CASE 16 :
+	    CASE 17 :
+	    CASE 18 :
+	    CASE 19 :
+	    {
+		nChn = ITOA(nIDX -10);
+		BREAK;
+	    }
+	    CASE 22: //Ch Up
+	    CASE 23: //Ch Dn
+	    CASE 101: //Previous
+	    {
 		TOTAL_OFF [vdvTP_Tuner, nFavoriteChBtns ]
+	    }
+	    CASE 90 :
+	    {
+		nChn = '-';
+		BREAK;
+	    }
+	    CASE 110 : //Enter Buttons
+	    {
+		cSetChannel = ' ';
+		TOTAL_OFF [vdvTP_Tuner, nFavoriteChBtns ]
+	    }
+	}
+	cSetChannel = "cSetChannel, nChn"
+	SEND_COMMAND vdvTP_Tuner, "'^TXT-',ITOA(TXT_CH_DISPLAY),',0,',cSetChannel"
     }
     RELEASE:
     {
 	SET_PULSE_TIME(5)	//Reset Pulse Time 0.5 Seconds
+    }
+}
+
+DEFINE_EVENT
+CHANNEL_EVENT [vdvTuner, POWER]
+{
+    ON :
+    {
+	nPwrTuner1 = TRUE;
+    }
+    OFF :
+    {
+	nPwrTuner1 = FALSE;
+    }
+}
+CHANNEL_EVENT [vdvTuner002, POWER]
+{
+    ON :
+    {
+	nPwrTuner2 = TRUE;
+    }
+    OFF :
+    {
+	nPwrTuner2 = FALSE;
+    }
+}
+CHANNEL_EVENT [vdvTuner003, POWER]
+{
+    ON :
+    {
+	nPwrTuner3 = TRUE;
+    }
+    OFF :
+    {
+	nPwrTuner3 = FALSE;
+    }
+}
+CHANNEL_EVENT [vdvTuner004, POWER]
+{
+    ON :
+    {
+	nPwrTuner4 = TRUE;
+    }
+    OFF :
+    {
+	nPwrTuner4 = FALSE;
+    }
+}
+CHANNEL_EVENT [vdvTuner005, POWER]
+{
+    ON :
+    {
+	nPwrTuner5 = TRUE;
+    }
+    OFF :
+    {
+	nPwrTuner5 = FALSE;
     }
 }
 
@@ -184,14 +317,4 @@ DATA_EVENT [dvTP_Tuner]
 	fnLoadChannelLabels()
     }
 }
-CHANNEL_EVENT [vdvTuner, POWER]
-{
-    ON :
-    {
-	ON [vdvTP_TUNER, POWER_CYCLE]
-    }
-    OFF :
-    {
-	OFF [vdvTP_TUNER, POWER_CYCLE]
-    }
-}
+
