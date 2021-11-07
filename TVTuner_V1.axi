@@ -41,6 +41,10 @@ POWER 				= 255
 POWER_CYCLE			= 9
 #END_IF
 
+#IF_NOT_DEFINED POWER_ON
+POWER_ON			= 27
+#END_IF
+
 //Tuner
 BTN_CH_FAV1			= 131
 BTN_CH_FAV2			= 132
@@ -132,6 +136,14 @@ VOLATILE DEV dcTuner[] =
     vdvTuner004,
     vdvTuner005
 }
+DEVCHAN dcTunerChannelFB[] =
+{
+    { vdvTuner, POWER },
+    { vdvTuner002, POWER },
+    { vdvTuner003, POWER },
+    { vdvTuner004, POWER },
+    { vdvTuner005, POWER }
+}
 
 DEFINE_MUTUALLY_EXCLUSIVE
 
@@ -209,7 +221,7 @@ BUTTON_EVENT [vdvTP_Tuner, CHANNEL_DEFAULT] //Default
 	STACK_VAR CHAR nChn[1];
 	nIDX = BUTTON.INPUT.CHANNEL;
 	
-	    PULSE[dcTuner[nSelectTuner],nIDX]
+	PULSE[dcTuner[nSelectTuner],nIDX]
 		
 	SWITCH (nIDX)
 	{
@@ -242,6 +254,7 @@ BUTTON_EVENT [vdvTP_Tuner, CHANNEL_DEFAULT] //Default
 	    {
 		cSetChannel = ' ';
 		TOTAL_OFF [vdvTP_Tuner, nFavoriteChBtns ]
+		BREAK;
 	    }
 	}
 	cSetChannel = "cSetChannel, nChn"
