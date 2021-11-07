@@ -156,6 +156,14 @@ PUSH :
 		
 	SWITCH (nIDX)
 	{
+	    CASE 9 : //Pwr Cycle
+	    {
+		IF ( [vdvTuner, POWER] == FALSE)
+		{
+		    PULSE [vdvTuner, POWER_ON]
+		}
+		BREAK;
+	    }
 	    CASE 10 :
 	    CASE 11 :
 	    CASE 12 :
@@ -185,6 +193,7 @@ PUSH :
 	    {
 		cSetChannel = ' ';
 		TOTAL_OFF [vdvTP_Tuner, nFavoriteChBtns ]
+		BREAK;
 	    }
 	}
 	cSetChannel = "cSetChannel, nChn"
