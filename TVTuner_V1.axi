@@ -69,6 +69,7 @@ DEFINE_VARIABLE
 VOLATILE INTEGER nSelectTuner 
 VOLATILE CHAR cSetChannel[5]
 
+VOLATILE INTEGER nPwrCount
 VOLATILE INTEGER nPwrTuner1
 VOLATILE INTEGER nPwrTuner2
 VOLATILE INTEGER nPwrTuner3
@@ -161,7 +162,7 @@ DEFINE_FUNCTION fnLoadChannelLabels()
 DEFINE_START
 
 nSelectTuner = 1; //Default Select
-ON [vdvTP_Tuner, BTN_TUNER_1]
+[vdvTP_Tuner, POWER_CYCLE] = nPwrTuner1
 
 DEFINE_MODULE 'ContemporaryResearch_232STS' COMMTUNE(vdvTuner, dvTuner);
 DEFINE_MODULE 'ContemporaryResearch_232STS' COMMTUNE02(vdvTuner002, dvTuner002);
@@ -253,59 +254,33 @@ BUTTON_EVENT [vdvTP_Tuner, CHANNEL_DEFAULT] //Default
 }
 
 DEFINE_EVENT
-CHANNEL_EVENT [vdvTuner, POWER]
+CHANNEL_EVENT [dcTunerChannelFB] //channel array test...
 {
     ON :
     {
-	nPwrTuner1 = TRUE;
+	nPwrCount = GET_LAST (dcTunerChannelFB)
+	
+        SWITCH (nPwrCount)
+	{
+	    CASE 1 : nPwrTuner1 = TRUE;
+	    CASE 2 : nPwrTuner2 = TRUE;
+	    CASE 3 : nPwrTuner3 = TRUE;
+	    CASE 4 : nPwrTuner4 = TRUE;
+	    CASE 5 : nPwrTuner5 = TRUE;
+	}
     }
     OFF :
     {
-	nPwrTuner1 = FALSE;
-    }
-}
-CHANNEL_EVENT [vdvTuner002, POWER]
-{
-    ON :
-    {
-	nPwrTuner2 = TRUE;
-    }
-    OFF :
-    {
-	nPwrTuner2 = FALSE;
-    }
-}
-CHANNEL_EVENT [vdvTuner003, POWER]
-{
-    ON :
-    {
-	nPwrTuner3 = TRUE;
-    }
-    OFF :
-    {
-	nPwrTuner3 = FALSE;
-    }
-}
-CHANNEL_EVENT [vdvTuner004, POWER]
-{
-    ON :
-    {
-	nPwrTuner4 = TRUE;
-    }
-    OFF :
-    {
-	nPwrTuner4 = FALSE;
-    }
-}
-CHANNEL_EVENT [vdvTuner005, POWER]
-{
-    ON :
-    {
-	nPwrTuner5 = TRUE;
-    }
-    OFF :
-    {
-	nPwrTuner5 = FALSE;
+	nPwrCount = GET_LAST (dcTunerChannelFB)
+	
+        SWITCH (nPwrCount)
+	{
+	    CASE 1 : nPwrTuner1 = FALSE;
+	    CASE 2 : nPwrTuner2 = FALSE;
+	    CASE 3 : nPwrTuner3 = FALSE;
+	    CASE 4 : nPwrTuner4 = FALSE;
+	    CASE 5 : nPwrTuner5 = FALSE;
+	}
     }
 }
 
