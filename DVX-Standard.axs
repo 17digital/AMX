@@ -23,6 +23,7 @@ PROGRAM_NAME='DVX3150'
 DEFINE_DEVICE
 
 dvMaster 		=		0:1:0	//DVX Master
+dvDebug =					0:0:0 //Diag Port
 dvTP_MAIN   	= 		10001:1:0
 
 dvDvxSwitcher =			5002:1:0 //DVX Switcher
@@ -479,7 +480,7 @@ DEFINE_CALL 'DVX INPUT SETUP' //Setup Input Names...
 }   
 DEFINE_FUNCTION fnKill()
 {
-    IF (TIME = TIME_KILL)
+    IF (TIME == TIME_KILL)
     {
     	IF ([vdvProjector_Left, POWER] || [vdvProjector_Right, POWER] || [vdvProjector_rear, POWER])
 	{
@@ -491,7 +492,7 @@ DEFINE_FUNCTION fnKill()
 }
 DEFINE_FUNCTION fnReboot()
 {
-    IF (TIME = TIME_REBOOT)
+    IF (TIME == TIME_REBOOT)
     {
 	REBOOT (dvMaster)
     }
@@ -521,12 +522,12 @@ DEFINE_CALL 'PROGRAM MUTE'
     }
     ELSE IF (nProgram_Hold = 0)
     {
-	SEND_LEVEL dvProgram,PROGRAM_MIX,nProgram_Level_Preset
+	SEND_LEVEL dvProgram,PROGRAM_MIX,nProgram_Level_Preset;
     }
     ELSE
     {
 	nProgram_Level = nProgram_Hold
-	SEND_LEVEL dvProgram,PROGRAM_MIX,nProgram_Level
+	SEND_LEVEL dvProgram,PROGRAM_MIX,nProgram_Level;
     }
 }
 DEFINE_CALL 'MICROPHONE MUTE'
@@ -538,12 +539,12 @@ DEFINE_CALL 'MICROPHONE MUTE'
 	}
 	ELSE IF (nMicrophone_Hold = 0)
 	{
-	    SEND_LEVEL dvMicrophone1,MICROPHONE_MIX_1,nMicrophone_Level_Preset
+	    SEND_LEVEL dvMicrophone1,MICROPHONE_MIX_1,nMicrophone_Level_Preset;
 	}
 	ELSE
 	{
 	    nMicrophone_Level = nMicrophone_Hold
-	    SEND_LEVEL dvMicrophone1,MICROPHONE_MIX_1,nMicrophone_Level
+	    SEND_LEVEL dvMicrophone1,MICROPHONE_MIX_1,nMicrophone_Level;
 	}
 }
 DEFINE_FUNCTION fnRouteVideoLeft(INTEGER cIn)
@@ -673,7 +674,8 @@ DEFINE_FUNCTION fnToggleChannels()
 (***********************************************************)
 DEFINE_START
 
-ON [nBootup_]
+nBootup_ = TRUE;
+
 WAIT 50
 {
     TIMELINE_CREATE (TL_FEEDBACK,lTLFeedback,LENGTH_ARRAY(lTLFeedback),TIMELINE_ABSOLUTE,TIMELINE_REPEAT);
@@ -683,7 +685,7 @@ WAIT 50
 }
 WAIT ONE_MINUTE
 {
-    OFF [nBootup_]
+   nBootup_ = FALSE;
 }
 (***********************************************************)
 (*                MODULE DEFINITIONS GO BELOW              *)
@@ -710,7 +712,7 @@ BUTTON_EVENT [vdvTP_Main, BTN_MUTE_PROJ_L] //Left Pwr Controls...
 	    
 	    CASE BTN_MUTE_PROJ_L :
 	    {
-		IF (!nMute_left)
+		IF (nMute_left ==FALSE)
 		{
 		    fnMuteProjector(dvProjector_dxLeft, SET_MUTE_ON)
 		}
@@ -735,7 +737,7 @@ BUTTON_EVENT [vdvTP_Main, BTN_MUTE_PROJ_R] //Right Pwr Controls...
 	    
 	    CASE BTN_MUTE_PROJ_R :
 	    {
-		IF (!nMute_right)
+		IF (nMute_right==FALSE)
 		{
 		    fnMuteProjector(dvProjector_dxRight, SET_MUTE_ON)
 		}
@@ -961,11 +963,17 @@ DATA_EVENT [dvDvxSwitcher] //DVX SWitcher Online / Offline Events
 {
     ONLINE:
     {
+    	SEND_STRING dvDebug, "'DVX Switcher : Now Online!'"
+	
 	WAIT 80
 	{
 	    CALL 'DVX INPUT SETUP'
 	}
 
+    }
+    OFFLINE :
+    {
+	SEND_STRING dvDebug, "'DVX Switcher : Went Offline!'"
     }
     COMMAND:
     {
@@ -976,11 +984,11 @@ DATA_EVENT [dvDvxSwitcher] //DVX SWitcher Online / Offline Events
 	CHAR cMsg[20]
 	cMsg = DATA.TEXT
 	
-	SELECT
-	{
-	    //Video Source Parsing...
-	    ACTIVE(FIND_STRING(cMsg,"'SWITCH-LVIDEOI'",1)): 
-	    {
+	 //Video Source Parsing...
+	 IF (FIND_STRING(cMsg,"'SWITCH-LVIDEOI'",1)) 
+	  {
+	  	SEND_STRING dvDebug, "'DVX Switcher : Video : ',cMsg"
+		
 		REMOVE_STRING(cMsg,"'SWITCH-LVIDEOI'",1)
 		
 		IF (FIND_STRING(cMsg,"'O',ITOA(OUT_PROJECTOR_LEFT)",1))
@@ -1001,8 +1009,10 @@ DATA_EVENT [dvDvxSwitcher] //DVX SWitcher Online / Offline Events
 		}
 	    }
 	    //Audio Feedback...
-	    ACTIVE(FIND_STRING(cMsg,"'SWITCH-LAUDIOI'",1)): 
+	    IF (FIND_STRING(cMsg,"'SWITCH-LAUDIOI'",1))
 	    {
+	    	SEND_STRING dvDebug, "'DVX Switcher : Audio : ',cMsg"
+		
 		REMOVE_STRING(cMsg,"'SWITCH-LAUDIOI'",1)
 		
 		IF (FIND_STRING(cMsg,"'O',ITOA(OUT_AUDIO_MIX)",1))
@@ -1020,13 +1030,15 @@ DATA_EVENT [dvDvxSwitcher] //DVX SWitcher Online / Offline Events
 		    }
 		}
 	    }
-	}
     }
 }
 DATA_EVENT [dvTp_Main] //TouchPanel Online
 {
     ONLINE:
     {
+    	nTPOnline = TRUE;
+	SEND_STRING dvDebug, "'Main TouchPanel : Now Online'"
+	
 	#IF_DEFINED G4PANEL
 	SEND_COMMAND DATA.DEVICE, "'ADBEEP'" //Make Your Presence Known...
 	#END_IF
@@ -1038,11 +1050,16 @@ DATA_EVENT [dvTp_Main] //TouchPanel Online
 	SEND_COMMAND DATA.DEVICE, "'^TXT-',ITOA(TXT_ROOM),',0,',nRoom_Location"
 	SEND_COMMAND DATA.DEVICE, "'^TXT-',ITOA(TXT_HELP),',0,',nHelp_Phone_"
 	
-	IF (!nBootup_)
+	IF (nBootup_==FALSE)
 	{
 	    fnToggleChannels()
 	    fnDVXPull()
 	}
+    }
+    OFFLINE :
+    {
+	nTPOnline = FALSE;
+
     }
     STRING :
     {
@@ -1086,6 +1103,8 @@ DATA_EVENT [dvProjector_dxLeft]
 {
     ONLINE:
     {
+    	SEND_STRING dvDebug, "'dvProjector_dxLeft : Now Online'"
+	
 	WAIT 80 fnSetScale(dvProjector_dxLeft)
 	WAIT 120 SEND_COMMAND dvProjector_dxLeft, "'?VIDOUT_MUTE'"
     }
@@ -1095,33 +1114,33 @@ DATA_EVENT [dvProjector_dxLeft]
 	CHAR cMsg[30]
 	cMsg = DATA.TEXT
 	
-	SELECT
-	{
-	    ACTIVE(FIND_STRING(cMsg,'VIDOUT_MUTE-',1)):
-	    {
-	    	REMOVE_STRING (cMsg,'VIDOUT_MUTE-',1)
+
+	 IF(FIND_STRING(cMsg,'VIDOUT_MUTE-',1))
+	 {
+	    REMOVE_STRING (cMsg,'VIDOUT_MUTE-',1)
 		cTmp = cMsg
 		SWITCH (cTmp)
 		{
 		   CASE 'ENABLE' :
 		   {
 			ON [vdvTP_Main, BTN_MUTE_PROJ_L]
-				ON [nMute_left]
+				nMute_left=TRUE;
 		   }
 		   CASE 'DISABLE' :
 	    	   {
 		        OFF [vdvTP_Main, BTN_MUTE_PROJ_L]
-				OFF [nMute_left]
+				nMute_left=FALSE;
 		    }
 		}
 	    }
-	}
     }
 }
 DATA_EVENT [dvProjector_dxRight]
 {
     ONLINE:
     {
+    	SEND_STRING dvDebug, "'dvProjector_dxRight : Now Online'"
+	
 	WAIT 80 fnSetScale(dvProjector_dxRight)
 	WAIT 120 SEND_COMMAND dvProjector_dxRight, "'?VIDOUT_MUTE'"
     }
@@ -1131,9 +1150,8 @@ DATA_EVENT [dvProjector_dxRight]
 	CHAR cMsg[30]
 	cMsg = DATA.TEXT
 	
-	SELECT
-	{
-	    ACTIVE(FIND_STRING(cMsg,'VIDOUT_MUTE-',1)):
+
+	    IF(FIND_STRING(cMsg,'VIDOUT_MUTE-',1))
 	    {
 	    	REMOVE_STRING (cMsg,'VIDOUT_MUTE-',1)
 		cTmp = cMsg
@@ -1143,13 +1161,92 @@ DATA_EVENT [dvProjector_dxRight]
 		   CASE 'ENABLE' :
 		   {
 			ON [vdvTP_Main, BTN_MUTE_PROJ_R]
-				ON [nMute_right]
+				nMute_Right = TRUE;
 		   }
 		   CASE 'DISABLE' :
 	    	   {
 		        OFF [vdvTP_Main, BTN_MUTE_PROJ_R]
-				OFF [nMute_right]
+				nMute_Right = FALSE;
 		    }
+		}
+	    }
+    }
+}
+DATA_EVENT [vdvProjector_Left]
+{
+    COMMAND :
+    {
+	STACK_VAR CHAR cGrabStatus[8]
+	
+	CHAR cMsg[30]
+	cMsg = DATA.TEXT
+	
+	IF (FIND_STRING (cMsg,'FBPROJECTOR-',1))
+	{
+	    REMOVE_STRING (cMsg,'-',1)
+		SEND_STRING dvDebug, "'vdvProjector_Left : Response: ',cMsg"
+	    
+	    cGrabStatus = cMsg
+	    
+	    SWITCH (cGrabStatus)
+	    {
+		CASE 'PWRON':
+		{
+		    ON [vdvTP_Main, BTN_PWR_ON_L]
+		}
+		CASE 'PWROFF' :
+		{
+		    ON [vdvTP_Main, BTN_PWR_OFF_L]
+		}
+		CASE 'ONLINE':
+		{
+		    ON [vdvTP_Main, BTN_ONLINE_L]
+			SEND_COMMAND vdvTP_Main, "'^BMF-1.2,0,%OP255'"
+		}
+		CASE 'OFFLINE' :
+		{
+		    OFF [vdvTP_Main, BTN_ONLINE_L]
+			SEND_COMMAND vdvTP_Main, "'^BMF-1.2,0,%OP30'"
+		}
+	    }
+	}
+    }
+}
+DATA_EVENT [vdvProjector_Right]
+{
+    COMMAND :
+    {
+	STACK_VAR CHAR cGrabStatus[8]
+	
+	CHAR cMsg[30]
+	cMsg = DATA.TEXT
+	
+	IF (FIND_STRING (cMsg,'FBPROJECTOR-',1))
+	{
+	    REMOVE_STRING (cMsg,'-',1)
+	    SEND_STRING dvDebug, "'vdvProjector_Right : Response: ',cMsg"
+	    
+		cGrabStatus = cMsg
+	    
+	    SWITCH (cGrabStatus)
+	    {
+		CASE 'PWRON':
+		{
+		    ON [vdvTP_Main, BTN_PWR_ON_R]
+		}
+		CASE 'PWROFF' :
+		{
+		    ON [vdvTP_Main, BTN_PWR_OFF_R]
+		}
+		CASE 'ONLINE':
+		{
+		    ON [vdvTP_Main, BTN_ONLINE_R]
+			SEND_COMMAND vdvTP_Main, "'^BMF-101.102,0,%OP255'"
+		}
+		CASE 'OFFLINE' :
+		{
+		    OFF [vdvTP_Main, BTN_ONLINE_R]
+			SEND_COMMAND vdvTP_Main, "'^BMF-101.102,0,%OP30'"
 		}
 	    }
 	}
@@ -1202,6 +1299,10 @@ TIMELINE_EVENT [TL_FEEDBACK]
 	{
 	    fnMuteCheck(dvProjector_dxRight)
 	}
+    }
+     WAIT 1200
+    {
+	fnDVXPull()
     }
 
 }
