@@ -103,17 +103,6 @@ CHAR TV_SHARP_POWER_ON[]			= '50 4F 57 52 30 30 30 31 0D' //POWR0001,CR
 CHAR TV_SHARP_POWER_OFF[] 			= '50 4F 57 52 30 30 30 30 0D'
 CHAR TV_SHARP_RS232_ON[]			= '52 53 50 57 31 20 20 20 0D ' //"'RSPW1',$20,$20,$20,$0D"
 
-//Av Bridge Stuff....
-CHAR AVB_PIP_ON[]					= 'video program pip on'
-CHAR AVB_PIP_OFF[]					= 'video program pip off'
-CHAR AVB_PIP_GET[]					= 'video program pip get'
-CHAR AVB_LOGIN[]					= 'admin'
-CHAR AVB_PASS[]						= 'password'
-CHAR AVB_INPUT_CAMERA[]				= 'video program source set input 1'
-CHAR AVB_INPUT_DOC_CAM[]			= 'video program source set input 2'
-CHAR AVB_MAC_ADD[17]				= '04-91-62-DB-60-BA'
-CHAR AVB_MODEL[20]					= 'vaddio-av-bridge-2x1'
-//End AV Bridge Stuff...
 
 TL_FEEDBACK					= 1
 TL_FLASH					= 2
@@ -130,7 +119,6 @@ TIME_SHUT					= '22:00:00'
 //TP Addresses
 TXT_HELP					= 99
 TXT_ROOM					= 100
-TXT_CAMERA_PAGE			= 23
 
 //Btns....
 BTN_PWR_ON_L				= 1
@@ -291,14 +279,6 @@ CHAR cControllerIP[15] = '172.21.6.200'
 LONG nSVSI_Port = 50020
 VOLATILE INTEGER nSVSIOnline
 VOLATILE CHAR nAbleBuffer[500]
-
-CHAR cAvBridge[15] = '172.21.6.204'
-LONG nVaddio_Port = 23
-VOLATILE INTEGER nVaddioBridgeOnline
-VOLATILE INTEGER nVaddioSuccess_
-VOLATILE INTEGER nPIPOn
-VOLATILE INTEGER nBGSwap
-VOLATILE CHAR nVaddioBridgeBuffer[100]
 
 VOLATILE INTEGER nSource_Left 
 VOLATILE INTEGER nSource_Right
@@ -545,12 +525,6 @@ DEVCHAN dcNavBtns[] =
 }
     
 
-#INCLUDE 'Biamp_Tesira'
-#INCLUDE 'SetMasterClock_'
-#INCLUDE 'Shure_WM_Quad'
-#INCLUDE 'PanasonicCameras'
-#INCLUDE 'DL_Link'
-
 (***********************************************************)
 (*       MUTUALLY EXCLUSIVE DEFINITIONS GO BELOW           *)
 (***********************************************************)
@@ -558,12 +532,7 @@ DEFINE_MUTUALLY_EXCLUSIVE
 
 ([dvTP_Main, BTN_PWR_ON_L],[dvTP_Main,BTN_PWR_OFF_L]) 
 ([dvTP_Main, BTN_PWR_ON_R],[dvTP_Main,BTN_PWR_OFF_R]) 
-([dvTP_Main, BTN_PWR_ON_REAR_L],[dvTP_Main,BTN_PWR_OFF_REAR_L])
-([dvTP_Main, BTN_PWR_ON_REAR_R],[dvTP_Main,BTN_PWR_OFF_REAR_R])
-([dvTP_Main, BTN_PWR_ON_SIDE_L],[dvTP_Main,BTN_PWR_OFF_SIDE_L])
-([dvTP_Main, BTN_PWR_ON_SIDE_R],[dvTP_Main,BTN_PWR_OFF_SIDE_R])  
 
-([dvTP_Main, BTN_START_PRESENTATION]..[dvTP_Main, BTN_TV_ALL_SHUT])
 ([dvTP_Main, BTN_PC_MAIN_L]..[dvTP_Main, BTN_LIGHT_BOARD_L])
 ([dvTP_Main, BTN_PC_MAIN_R]..[dvTP_Main, BTN_LIGHT_BOARD_R])
 ([dvTP_Main, BTN_PC_MAIN_REAR_L]..[dvTP_Main, BTN_LIGHT_BOARD_REAR_L])
@@ -577,23 +546,6 @@ DEFINE_MUTUALLY_EXCLUSIVE
 ([dvTP_Main, BTN_CAM_DOC]..[dvTP_Main, BTN_CAM_LIGHT])
 ([dvTP_Main, BTN_PRVW_ACTIVE_CAMERA]..[dvTP_Main, BTN_PRVW_REC])
 
-//rack...
-([dvTP_Booth, BTN_PWR_ON_L],[dvTP_Booth,BTN_PWR_OFF_L]) 
-([dvTP_Booth, BTN_PWR_ON_R],[dvTP_Booth,BTN_PWR_OFF_R]) 
-([dvTP_Booth, BTN_PWR_ON_REAR_L],[dvTP_Booth,BTN_PWR_OFF_REAR_L])
-([dvTP_Booth, BTN_PWR_ON_REAR_R],[dvTP_Booth,BTN_PWR_OFF_REAR_R])
-([dvTP_Booth, BTN_PWR_ON_SIDE_L],[dvTP_Booth,BTN_PWR_OFF_SIDE_L])
-([dvTP_Booth, BTN_PWR_ON_SIDE_R],[dvTP_Booth,BTN_PWR_OFF_SIDE_R])  
-
-([dvTP_Booth, BTN_PC_MAIN_R]..[dvTP_Booth, BTN_LIGHT_BOARD_R])
-([dvTP_Booth, BTN_PC_MAIN_REAR_L]..[dvTP_Booth, BTN_LIGHT_BOARD_REAR_L])
-([dvTP_Booth, BTN_PC_MAIN_REAR_R]..[dvTP_Booth, BTN_LIGHT_BOARD_REAR_R])
-([dvTP_Booth, BTN_PC_MAIN_SIDE_L]..[dvTP_Booth, BTN_LIGHT_BOARD_SIDE_L])
-([dvTP_Booth, BTN_PC_MAIN_SIDE_R]..[dvTP_Booth, BTN_LIGHT_BOARD_SIDE_R])
-([dvTP_Booth, BTN_PC_MAIN_ALL]..[dvTP_Booth, BTN_LIGHT_BOARD_ALL])
-
-([dvTP_Booth, BTN_AUDIO_PC]..[dvTP_Booth, BTN_AUDIO_MERSIVE])
-
 ([dvTP_Booth, BTN_SVSI_IN_1]..[dvTP_Booth, BTN_SVSI_IN_16])
 ([dvTP_Booth, BTN_SVSI_OUT_1]..[dvTP_Booth, BTN_SVSI_OUT_16])
 
@@ -602,134 +554,7 @@ DEFINE_MUTUALLY_EXCLUSIVE
 (***********************************************************)
 (* EXAMPLE: DEFINE_FUNCTION <RETURN_TYPE> <NAME> (<PARAMETERS>) *)
 (* EXAMPLE: DEFINE_CALL '<NAME>' (<PARAMETERS>) *)
-DEFINE_FUNCTION fnStartVaddioConnection()
-{
-    IP_CLIENT_OPEN (dvVaddioBridge.PORT,cAvBridge,nVaddio_Port,1) //TCP Connection
-    
-    WAIT 20
-    {
-	fnGetVaddioRep()
-    }
-}
-DEFINE_FUNCTION fnCloseVaddioConnection()
-{
-    IP_CLIENT_CLOSE (dvVaddioBridge.PORT)
-}
-DEFINE_FUNCTION fnReconnectVaddio()
-{
-    fnCloseVaddioConnection()
-    WAIT 10
-    {
-	fnStartVaddioConnection()
-    }
-}
-DEFINE_FUNCTION char[100] GetVaddioIpError (LONG iErrorCode)
-{
-    CHAR iReturn[100];
-    
-    SWITCH (iErrorCode)
-    {
-	CASE 2 : iReturn = "'General failure (Out of Memory) '" ;
-	CASE 4 : iReturn = "'Unknown host'";
-	CASE 6 : iReturn = "'Connection Refused'";
-	CASE 7 : iReturn = "'Connection timed Out'";
-	CASE 8 : iReturn = "'Unknown Connection Error'";
-	CASE 9 : iReturn = "'Already Closed'";
-	CASE 10 : iReturn = "'Binding Error'";
-	CASE 11 : iReturn = "'Listening Error'";
-	CASE 14 : iReturn = "'Local Port Already Used'";
-	CASE 15 : iReturn = "'UDP Socket Already Listening'";
-	CASE 16 : iReturn = "'Too Many Open Sockets'";
-	CASE 17 : iReturn = "'Local Port Not Open'"
-	
-	DEFAULT : iReturn = "'(', ITOA(iErrorCode),') Undefined'";
-    }
-    RETURN iReturn;
-}
-DEFINE_FUNCTION fnParseVaddioIP() //Parse Vaddio IP
-{
-    LOCAL_VAR CHAR cVaddioData[80]
-    LOCAL_VAR CHAR cVaddioPassFind[25]
-    LOCAL_VAR CHAR cVaddioOK[100]
-    LOCAL_VAR CHAR cStatusPIP[15]
-    
-    WHILE (FIND_STRING(nVaddioBridgeBuffer, 'login',1) OR FIND_STRING(nVaddioBridgeBuffer,'Password:',1) OR FIND_STRING(nVaddioBridgeBuffer,"$0D,$0A",1))
-    {
-	cVaddioOK = REMOVE_STRING (nVaddioBridgeBuffer,"$0D,$0A",1)
-	cVaddioData = REMOVE_STRING (nVaddioBridgeBuffer,'login',1)
-	cVaddioPassFind = REMOVE_STRING (nVaddioBridgeBuffer,'Password:',1)
-	
-	
-	IF (FIND_STRING(cVaddioData, 'login',1)) //Initial Login...
-	{
-	    SEND_STRING dvVaddioBridge, "AVB_LOGIN,CR"
-		nVaddioSuccess_ = FALSE;
-	}
-	IF (FIND_STRING(cVaddioPassFind, 'Password:',1))
-	{
-	    SEND_STRING dvVaddioBridge, "AVB_PASS,CR"
-		nVaddioSuccess_ = FALSE;
-	}
-	IF (FIND_STRING(cVaddioOK, 'Welcome admin',1))
-	{
-	    nVaddioSuccess_ = TRUE;
-	    SEND_STRING dvDebug, "'Vaddio AVBridge 2x1 -Login Success!'"
-	    
-	    WAIT 10
-	    {
-		nBGSwap = FALSE;
-		    SEND_STRING dvVaddioBridge, "AVB_INPUT_CAMERA,CR" //Set Default
-	    }
-	}
-	IF (FIND_STRING (cVaddioOK,'Login incorrect',1))
-	{
-	    SEND_STRING dvDebug, "'Vaddio AVBridge 2x1 - Login Incorrect!! Try Again ModaSucka!!'"
-	    SEND_STRING dvVaddioBridge, "CR"
-	} 
-	IF (FIND_STRING (cVaddioOK,'video program pip ',1)) //Direct On FB...
-	{
-	    nVaddioSuccess_ = TRUE;
-	    REMOVE_STRING (cVaddioOK,'video program pip ',1)
-	    cStatusPIP = cVaddioOK;
-	    
-	    IF (FIND_STRING(cStatusPIP,'on',1))
-	    {
-		nPIPOn = TRUE;
-			ON [vdvTP_Main, BTN_AVB_PIP_TOGGLE]
-	    }
-	    IF (FIND_STRING(cStatusPIP,'off',1))
-	    {
-		    nPIPOn = FALSE;
-			    OFF [vdvTP_Main, BTN_AVB_PIP_TOGGLE]
-	    }
-	}
-	IF (FIND_STRING (cVaddioOK, 'pip:    ',1)) //From PIP Get Query Response
-	{
-	    nVaddioSuccess_ = TRUE;
-	    
-	    REMOVE_STRING (cVaddioOK, 'pip:    ',1)
-		cStatusPIP = cVaddioOK;
-	    IF (FIND_STRING(cStatusPIP,'on',1))
-	    {
-		    nPIPOn = TRUE;
-			ON [vdvTP_Main, BTN_AVB_PIP_TOGGLE]
-	    }
-	    IF (FIND_STRING(cStatusPIP,'off',1))
-	    {
-		    nPIPOn = FALSE;
-			    OFF [vdvTP_Main, BTN_AVB_PIP_TOGGLE]
-	    }
-	}
-    }
-}
-DEFINE_FUNCTION fnGetVaddioRep()
-{
-    IF (nVaddioSuccess_ == TRUE)
-    {
-	SEND_STRING dvVaddioBridge, "AVB_PIP_GET,CR"
-    }
-}
-DEFINE_FUNCTION fnStartConnection()
+DEFINE_FUNCTION fnStartSVSIConnection()
 {
     IP_CLIENT_OPEN (dvController.PORT,cControllerIP,nSVSI_Port,1) //TCP Connection
     WAIT 20
@@ -737,19 +562,19 @@ DEFINE_FUNCTION fnStartConnection()
 	fnGetSVSIRep()
     }
 }
-DEFINE_FUNCTION fnCloseConnection()
+DEFINE_FUNCTION fnCloseSVSIConnection()
 {
     IP_CLIENT_CLOSE (dvController.PORT)
 }
-DEFINE_FUNCTION fnReconnect()
+DEFINE_FUNCTION fnReconnectSVSI()
 {
-    fnCloseConnection()
+    fnCloseSVSIConnection()
     WAIT 10
     {
-	fnStartConnection()
+	fnStartSVSIConnection()
     }
 }
-DEFINE_FUNCTION char[100] GetIpError (LONG iErrorCode)
+DEFINE_FUNCTION char[100] GetSVSIIpError (LONG iErrorCode)
 {
     CHAR iReturn[100];
     
@@ -788,61 +613,6 @@ DEFINE_FUNCTION fnLoadTPDecoderIOs()
     FOR (cLoop=1; cLoop<=LENGTH_ARRAY(nSvsiOutputBtns); cLoop++)
     {
 	SEND_COMMAND vdvTP_Main, "'^TXT-',ITOA(nSvSiOutputBtns[cLoop]),',0,',ITOA(cLoop),$0A,$0D,nSvsiOutputName[cLoop]"
-    }
-}
-DEFINE_FUNCTION fnSystemCall (INTEGER nSys)
-{
-    SWITCH (nSys)
-    {
-	CASE BTN_START_PRESENTATION : //20
-	{
-	    nSystemOn_ = TRUE;
-	    ON [vdvPipeFB, DL_SET_ALL_TVS_ON]
-	    ON [dcNavBtns]
-		fnPowerDisplays (BTN_PWR_ON_L)
-		    fnPowerDisplays (BTN_PWR_ON_R)
-		fnPowerDisplays (BTN_PWR_ON_REAR_L)
-		    fnPowerDisplays (BTN_PWR_ON_REAR_R)
-		fnPowerDisplays (BTN_PWR_ON_SIDE_L)
-		    fnPowerDisplays (BTN_PWR_ON_SIDE_R)
-		    
-		    WAIT 20
-		    {
-			fnRouteVideoScriptLeft(STREAM_PC_MAIN)
-			    fnRouteVideoScriptRight(STREAM_PC_EXT)
-				fnRouteVideoRearLeft (STREAM_PC_MAIN)
-				    fnRouteVideoRearRight (STREAM_PC_MAIN)
-							fnRouteVideoSideLeft (STREAM_PC_MAIN)
-				    fnRouteVideoSideRight (STREAM_PC_MAIN)
-			    ON [dcDLDefaultFB]
-		    }
-	}
-	CASE BTN_PAGE_EXIT : //21
-	{		
-		//
-	}
-	CASE BTN_TV_ALL_SHUT : //24
-	{
-	    nSystemOn_ = FALSE;
-	    ON [vdvPipeFB, DL_SET_ALL_TVS_OFF]
-		fnPowerDisplays (BTN_PWR_OFF_L)
-		    fnPowerDisplays (BTN_PWR_OFF_R)
-		fnPowerDisplays (BTN_PWR_OFF_REAR_L)
-		    fnPowerDisplays (BTN_PWR_OFF_REAR_R)
-		fnPowerDisplays (BTN_PWR_OFF_SIDE_L)
-		    fnPowerDisplays (BTN_PWR_OFF_SIDE_R)
-
-	    WAIT 20
-	    {
-			fnRouteVideoScriptLeft(STREAM_PC_MAIN)
-			    fnRouteVideoScriptRight(STREAM_PC_EXT)
-				fnRouteVideoRearLeft (STREAM_PC_MAIN)
-				    fnRouteVideoRearRight (STREAM_PC_MAIN)
-							fnRouteVideoSideLeft (STREAM_PC_MAIN)
-				    fnRouteVideoSideRight (STREAM_PC_MAIN)
-		    			ON [dcDLDefaultFB]
-	    }
-	}
     }
 }
 DEFINE_FUNCTION fnRouteVideoScriptLeft(INTEGER cStream)
@@ -893,68 +663,6 @@ DEFINE_FUNCTION fnRouteVideoScriptRight(INTEGER cStream)
 	    ON [vdvTP_Main, BTN_AUDIO_MERSIVE]
 		SEND_STRING dvController, "'switchaudio ',OUT_AUDIO_ATC,' ',ITOA(cStream),CR" 
 	}
-    }
-}
-DEFINE_FUNCTION fnRouteVideoRearLeft(INTEGER cStream)
-{
-    SEND_STRING dvController, "'switch ',OUT_DISPLAY_REAR_LEFT,' ',ITOA(cStream),CR" 
-}
-DEFINE_FUNCTION fnRouteVideoRearRight(INTEGER cStream)
-{
-    SEND_STRING dvController, "'switch ',OUT_DISPLAY_REAR_RIGHT,' ',ITOA(cStream),CR" 
-}
-DEFINE_FUNCTION fnRouteVideoSideLeft(INTEGER cStream)
-{
-    SEND_STRING dvController, "'switch ',OUT_DISPLAY_SIDE_LEFT,' ',ITOA(cStream),CR" 
-}
-DEFINE_FUNCTION fnRouteVideoSideRight(INTEGER cStream)
-{
-    SEND_STRING dvController, "'switch ',OUT_DISPLAY_SIDE_RIGHT,' ',ITOA(cStream),CR" 
-}
-DEFINE_FUNCTION fnRouteVideoDLPreview (INTEGER cStream)
-{
-    SEND_STRING dvController, "'switch ',OUT_DL_CAPTURE,' ',ITOA(cStream),CR" 
-}
-DEFINE_FUNCTION fnRouteVideoAllDisplays (INTEGER cStream)
-{
-    SEND_STRING dvController, "'switch ',OUT_DISPLAY_FRONT_LEFT,' ',ITOA(cStream),CR" 
-	SEND_STRING dvController, "'switch ',OUT_MONITOR_LEFT,' ',ITOA(cStream),CR"
-	
-    
-    SWITCH (cStream)
-    {
-	CASE STREAM_PC_MAIN :
-	CASE STREAM_PC_EXT :
-	{
-	    SEND_STRING dvController, "'switchaudio ',OUT_AUDIO_ATC,' ',ITOA(cStream),CR" 
-		ON [vdvTP_Main, BTN_AUDIO_PC]
-	}
-	CASE STREAM_VGA_HDMI :
-	{
-	    SEND_STRING dvController, "'switchaudio ',OUT_AUDIO_ATC,' ',ITOA(cStream),CR" 
-		ON [vdvTP_Main, BTN_AUDIO_EXTERNAL]
-	}
-	CASE STREAM_MERSIVE :
-	{
-		    SEND_STRING dvController, "'switchaudio ',OUT_AUDIO_ATC,' ',ITOA(cStream),CR" 
-		ON [vdvTP_Main, BTN_AUDIO_MERSIVE]
-	}
-    }
-    
-    WAIT 10
-    {
-    SEND_STRING dvController, "'switch ',OUT_DISPLAY_FRONT_RIGHT,' ',ITOA(cStream),CR" 
-	SEND_STRING dvController, "'switch ',OUT_MONITOR_RIGHT,' ',ITOA(cStream),CR"
-    }
-    WAIT 20
-    {
-	SEND_STRING dvController, "'switch ',OUT_DISPLAY_SIDE_LEFT,' ',ITOA(cStream),CR" 
-	SEND_STRING dvController, "'switch ',OUT_DISPLAY_SIDE_RIGHT,' ',ITOA(cStream),CR" 
-    }
-    WAIT 30
-    {
-	SEND_STRING dvController, "'switch ',OUT_DISPLAY_REAR_LEFT,' ',ITOA(cStream),CR" 
-	SEND_STRING dvController, "'switch ',OUT_DISPLAY_REAR_RIGHT,' ',ITOA(cStream),CR" 
     }
 }
 DEFINE_FUNCTION fnRouteVideoPreview(INTEGER cIn)
@@ -1018,7 +726,7 @@ DEFINE_FUNCTION fnParseControllerIP() //Parse SVSI Controller...
 		}
 	    }
 	}
-	IF (FIND_STRING (cResponse,"TALK_DISPLAY_REAR_LEFT_IP,';2A 53 41 50 4F 57 52 '",1))
+	IF (FIND_STRING (cResponse,"TALK_DISPLAY_REAR_LEFT_IP,';2A 53 41 50 4F 57 52 '",1)) //Sony IP/HEX TV Parsing...
 	{
 	    REMOVE_STRING (cResponse,"TALK_DISPLAY_REAR_LEFT_IP,';2A 53 41 50 4F 57 52 '",1)
 		cProjectorStat = cResponse;
@@ -1204,7 +912,7 @@ DEFINE_FUNCTION fnKill()
 {
     IF (TIME == TIME_SHUT)
     {
-	fnSystemCall (BTN_TV_ALL_SHUT)
+	//
     }
 }
 DEFINE_FUNCTION fnPowerDisplays (INTEGER cPwr)
@@ -1311,28 +1019,7 @@ DEFINE_FUNCTION fnGetSVSIRep()
     //WAIT 120 fnQueryProjectorsSerial()
     WAIT 100 fnQueryProjectorsIP()
 }
-DEFINE_FUNCTION fnRouteCameraToUSB (INTEGER cStream)
-{
-    SWITCH (cStream)
-    {
-	CASE STREAM_CAM_FRONT :
-	{
-	    SEND_STRING dvController, "'switch ',OUT_AV_BRIDGE_1,' ',ITOA(cStream),CR"
-		[dvTP_Main, BTN_CAM_PWR] = nOnline_Front
-	}
-	CASE STREAM_CAM_REAR :
-	{
-	    [dvTP_Main, BTN_CAM_PWR] = nOnline_Rear
-		SEND_STRING dvController, "'switch ',OUT_AV_BRIDGE_1,' ',ITOA(cStream),CR"
-	}
-	CASE STREAM_DOC_CAM :
-	CASE STREAM_KAPTIVO :
-	CASE STREAM_LIGHT_BOARD :
-	{
-	    SEND_STRING dvController, "'switch ',OUT_AV_BRIDGE_2,' ',ITOA(cStream),CR"
-	}
-    }
-}
+
 
 (***********************************************************)
 (*                STARTUP CODE GOES BELOW                  *)
@@ -1344,14 +1031,7 @@ nBoot_ = TRUE;
 
 TIMELINE_CREATE (TL_FEEDBACK,lTLFeedback,1,TIMELINE_ABSOLUTE,TIMELINE_REPEAT);
 	CREATE_BUFFER dvController,nAbleBuffer; 
-	    CREATE_BUFFER dvVaddioBridge,nVaddioBridgeBuffer;
 
-WAIT 300
-{
-    cIndexCamera = 2; //Set Rear Control Default
-	fnRouteCameraToUSB (STREAM_CAM_REAR)
-	    ON [dvTP_Main, nCameraButtons[cIndexCamera]]
-}
 WAIT 450
 {
     nBoot_ = FALSE;
@@ -1361,94 +1041,6 @@ WAIT 450
 (*                THE EVENTS GO BELOW                      *)
 (***********************************************************)
 DEFINE_EVENT
-BUTTON_EVENT [vdvTP_Main,BTN_START_PRESENTATION] 
-BUTTON_EVENT [vdvTP_Main,BTN_PAGE_EXIT] 
-BUTTON_EVENT [vdvTP_Main,BTN_TV_ALL_SHUT] //System Mode Calls...
-{
-  PUSH:
-  {
-    ON [dvTP_Main, BUTTON.INPUT.CHANNEL]
-    
-    SWITCH(BUTTON.INPUT.CHANNEL)
-    {
-	CASE BTN_START_PRESENTATION: fnSystemCall (BTN_START_PRESENTATION)   
-	CASE BTN_PAGE_EXIT: fnSystemCall (BTN_PAGE_EXIT)  
-	CASE BTN_TV_ALL_SHUT: fnSystemCall (BTN_TV_ALL_SHUT)  
-    }          
-  }
-}
-BUTTON_EVENT [vdvTP_Main, BTN_PWR_ON_L]
-BUTTON_EVENT [vdvTP_Main, BTN_PWR_OFF_L] //Front Left TV's...
-{
-    PUSH :
-    {
-	SWITCH (BUTTON.INPUT.CHANNEL)
-	{
-	    CASE BTN_PWR_ON_L : fnPowerDisplays (BTN_PWR_ON_L)
-	    CASE BTN_PWR_OFF_L : fnPowerDisplays (BTN_PWR_OFF_L)
-	}
-    }
-}
-BUTTON_EVENT [vdvTP_Main, BTN_PWR_ON_R]
-BUTTON_EVENT [vdvTP_Main, BTN_PWR_OFF_R] //Front Right TV's
-{
-    PUSH :
-    {
-	SWITCH (BUTTON.INPUT.CHANNEL)
-	{
-	    CASE BTN_PWR_ON_R : fnPowerDisplays (BTN_PWR_ON_R)
-	    CASE BTN_PWR_OFF_R : fnPowerDisplays (BTN_PWR_OFF_R)
-	}
-    }
-}
-BUTTON_EVENT [vdvTP_Main, BTN_PWR_ON_REAR_L]
-BUTTON_EVENT [vdvTP_Main, BTN_PWR_OFF_REAR_L] //Rear Left TV's
-{
-    PUSH :
-    {
-	SWITCH (BUTTON.INPUT.CHANNEL)
-	{
-	    CASE BTN_PWR_ON_REAR_L : fnPowerDisplays (BTN_PWR_ON_REAR_L)
-	    CASE BTN_PWR_OFF_REAR_L : fnPowerDisplays (BTN_PWR_OFF_REAR_L)
-	}
-    }
-}
-BUTTON_EVENT [vdvTP_Main, BTN_PWR_ON_REAR_R]
-BUTTON_EVENT [vdvTP_Main, BTN_PWR_OFF_REAR_R] //Rear Right Tv's
-{
-    PUSH :
-    {
-	SWITCH (BUTTON.INPUT.CHANNEL)
-	{
-	    CASE BTN_PWR_ON_REAR_R : fnPowerDisplays (BTN_PWR_ON_REAR_R)
-	    CASE BTN_PWR_OFF_REAR_R : fnPowerDisplays (BTN_PWR_OFF_REAR_R)
-	}
-    }
-}
-BUTTON_EVENT [vdvTP_Main, BTN_PWR_ON_SIDE_L]
-BUTTON_EVENT [vdvTP_Main, BTN_PWR_OFF_SIDE_L] //Side Left TV's
-{
-    PUSH :
-    {
-	SWITCH (BUTTON.INPUT.CHANNEL)
-	{
-	    CASE BTN_PWR_ON_SIDE_L : fnPowerDisplays (BTN_PWR_ON_SIDE_L)
-	    CASE BTN_PWR_OFF_SIDE_L : fnPowerDisplays (BTN_PWR_OFF_SIDE_L)
-	}
-    }
-}
-BUTTON_EVENT [vdvTP_Main, BTN_PWR_ON_SIDE_R]
-BUTTON_EVENT [vdvTP_Main, BTN_PWR_OFF_SIDE_R] //side Right TV's
-{
-    PUSH :
-    {
-	SWITCH (BUTTON.INPUT.CHANNEL)
-	{
-	    CASE BTN_PWR_ON_SIDE_R : fnPowerDisplays (BTN_PWR_ON_SIDE_R)
-	    CASE BTN_PWR_OFF_SIDE_R : fnPowerDisplays (BTN_PWR_OFF_SIDE_R)
-	}
-    }
-}
 BUTTON_EVENT [vdvTP_Main, nSourceLeftBtns] //Front Left TV+Monitor Video...
 {
     PUSH :
@@ -1475,60 +1067,6 @@ BUTTON_EVENT [vdvTP_Main, nSourceRightBtns] //Front Right TV+Monitor Video...
 		OFF [vdvTP_Main, BTN_PRVW_ACTIVE_CAMERA]
     }
 }
-BUTTON_EVENT [vdvTP_Main, nSourceRearLeftBtns] //Rear Left TV+Monitor Video...
-{
-    PUSH :
-    {
-	STACK_VAR INTEGER nSTDX
-	    nSTDX = GET_LAST (nSourceRearLeftBtns)
-	fnRouteVideoRearLeft(nStreamSend[nSTDX])
-	    ON [vdvTP_Main, nSourceRearLeftBtns[nSTDX]] //Video FB
-		ON [vdvPipeFB, dcChanRearVidLeft[nSTDX]]
-    }
-}
-BUTTON_EVENT [vdvTP_Main, nSourceRearRightBtns] //Rear Right TV+Monitor Video...
-{
-    PUSH :
-    {
-	STACK_VAR INTEGER nSTDX
-	    nSTDX = GET_LAST (nSourceRearRightBtns)
-	fnRouteVideoRearRight(nStreamSend[nSTDX])
-	    ON [vdvTP_Main, nSourceRearRightBtns[nSTDX]] //Video FB
-		ON [vdvPipeFB, dcChanRearVidRight[nSTDX]]
-    }
-}
-BUTTON_EVENT [vdvTP_Main, nSourceSideLeftBtns] //Rear Right TV+Monitor Video...
-{
-    PUSH :
-    {
-	STACK_VAR INTEGER nSTDX
-	    nSTDX = GET_LAST (nSourceSideLeftBtns)
-	fnRouteVideoSideLeft(nStreamSend[nSTDX])
-	    ON [vdvTP_Main, nSourceSideLeftBtns[nSTDX]] //Video FB
-		ON [vdvPipeFB, dcChanSideVidLeft[nSTDX]]
-    }
-}
-BUTTON_EVENT [vdvTP_Main, nSourceSideRightBtns] //Rear Right TV+Monitor Video...
-{
-    PUSH :
-    {
-	STACK_VAR INTEGER nSTDX
-	    nSTDX = GET_LAST (nSourceSideRightBtns)
-	fnRouteVideoSideRight(nStreamSend[nSTDX])
-	    ON [vdvTP_Main, nSourceSideRightBtns[nSTDX]] //Video FB
-		ON [vdvPipeFB, dcChanSideVidRight[nSTDX]]
-    }
-}
-BUTTON_EVENT [vdvTP_Main, nSourceAllBtns] //Rear Right TV+Monitor Video...
-{
-    PUSH :
-    {
-	STACK_VAR INTEGER nSTDX
-	    nSTDX = GET_LAST (nSourceAllBtns)
-	fnRouteVideoAllDisplays(nStreamSend[nSTDX])
-	    ON [vdvTP_Main, nSourceAllBtns[nSTDX]] //Video FB
-    }
-}
 BUTTON_EVENT [vdvTP_Main, nVideoPrvwBtns]
 {
     PUSH :
@@ -1542,93 +1080,6 @@ BUTTON_EVENT [vdvTP_Main, nVideoPrvwBtns]
 	{
 	    CASE 1 : fnRouteVideoPreview (STREAM_PC_EXT)
 	}
-    }
-}
-BUTTON_EVENT [vdvTP_Main, nCameraButtons] //Rear
-{
-    PUSH :
-    {
-	cIndexCamera = GET_LAST (nCameraButtons);
-	//SEND_COMMAND dvTP_Main, "'^PPX'" //Make sure we reset/close first...
-	//SEND_COMMAND dvTP_Main, "'^PPN-',nCameraPages[cIndexCamera]" //Call correct Page
-	    fnRouteCameraToUSB (nSourceCameraIn[cIndexCamera]) //Index correct source..
-	    TOTAL_OFF [dvTP_Main, nPresetSelect]
-	    ON [dvTP_Main, nCameraButtons[cIndexCamera]] //Set FB
-	
-	    SWITCH (cIndexCamera)
-	    {
-		CASE 1 :
-		CASE 2 :
-		{
-		    SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(TXT_CAMERA_PAGE),',0,',nCameraPageTitles[cIndexCamera]" //Set Correct Title
-		    BREAK;
-		}
-		DEFAULT :
-		{
-		    //
-		}
-	    }	    
-    }
-}
-BUTTON_EVENT [vdvTP_Main, BTN_PRVW_ACTIVE_CAMERA]
-{
-    PUSH :
-    {
-	IF ( nLivePreview_ == FALSE)
-	{
-	    ON [dvTP_Main, BTN_PRVW_ACTIVE_CAMERA]
-		fnRouteVideoPreview (STREAM_AV_BRIDGE)
-		    nLivePreview_ = TRUE;
-	}
-	ELSE
-	{
-	    fnRouteVideoPreview (nSource_Right)
-		OFF [dvTP_Main, BTN_PRVW_ACTIVE_CAMERA]
-		    nLivePreview_ = FALSE;
-	}
-    }
-}
-BUTTON_EVENT [vdvTP_Main, BTN_CAMERA_POPUP]
-{
-    PUSH :
-    {
-	//SEND_COMMAND dvTP_Main, "'^PPN-',nCameraPages[cIndexCamera]" //Load appropriate Page...
-	SEND_COMMAND dvTP_Main, "'^PPN-_Camera'"
-	    SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(TXT_CAMERA_PAGE),',0,',nCameraPageTitles[cIndexCamera]" //Load Title
-    }
-}
-BUTTON_EVENT [dvTP_Main, BTN_SET_NUMBER]
-{
-    PUSH :
-    {
-	#IF_DEFINED G4PANEL
-	SEND_COMMAND dvTP_Main, "'@TKP'"
-	#END_IF
-	
-	#IF_DEFINED G5PANEL
-	SEND_COMMAND dvTP_Main, "'^TKP'"
-	#END_IF
-    }
-}
-BUTTON_EVENT [dvTP_Main, BTN_SET_LOCATION]
-{
-    PUSH :
-    {
-	#IF_DEFINED G4PANEL 
-	SEND_COMMAND dvTP_Main, "'@AKB'"
-	#END_IF
-	
-	#IF_DEFINED G5PANEL
-	SEND_COMMAND dvTP_Main, "'^AKB'"
-	#END_IF
-    }
-}
-BUTTON_EVENT [dvTP_Main, BTN_SET_ALL]
-{
-    PUSH :
-    {
-	SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(TXT_HELP),',0,',nRoom_Location"
-	SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(TXT_HELP),',0,',nHelp_Phone_"
     }
 }
 BUTTON_EVENT [vdvTP_Main, BTN_LOAD_IO]
@@ -1684,40 +1135,6 @@ BUTTON_EVENT [vdvTP_Main, nSvsiOutputBtns]
 	    }
     }
 }
-BUTTON_EVENT [vdvTP_Main, BTN_AVB_PIP_TOGGLE]
-{
-    PUSH :
-    {
-	IF (nPIPOn == FALSE)
-	{
-	    SEND_STRING dvVaddioBridge, "AVB_PIP_ON, CR"
-		ON [vdvTP_Main, BTN_AVB_PIP_TOGGLE]
-	}
-	ELSE
-	{
-	    SEND_STRING dvVaddioBridge, "AVB_PIP_OFF, CR"
-		OFF [vdvTP_Main, BTN_AVB_PIP_TOGGLE]
-	}
-    }
-}
-BUTTON_EVENT [vdvTP_Main, BTN_AVB_SWAP_SOURCE]
-{
-    PUSH :
-    {
-	IF (nBGSwap == FALSE)
-	{
-	    SEND_STRING dvVaddioBridge, "AVB_INPUT_DOC_CAM,CR"
-		nBGSwap = TRUE;
-		    ON [vdvTP_Main, BTN_AVB_SWAP_SOURCE]
-	}
-	ELSE
-	{
-	    SEND_STRING dvVaddioBridge, "AVB_INPUT_CAMERA,CR"
-		nBGSwap = FALSE;
-		    OFF [vdvTP_Main, BTN_AVB_SWAP_SOURCE]
-	}
-    }
-}
 
 DEFINE_EVENT
 DATA_EVENT [dvTP_Main] //
@@ -1725,17 +1142,6 @@ DATA_EVENT [dvTP_Main] //
     ONLINE :
     {
 	nTPOnline = TRUE;
-	
-	#IF_DEFINED G4PANEL
-	SEND_COMMAND DATA.DEVICE, "'ADBEEP'" //Make Your Presence Known...
-	#END_IF
-	
-	#IF_DEFINED G5PANEL 
-	SEND_COMMAND DATA.DEVICE, "'^ADP'" //Make Your Presence Known...
-	#END_IF
-	
-	SEND_COMMAND DATA.DEVICE, "'^TXT-',ITOA(TXT_ROOM),',0,',nRoom_Location"
-	SEND_COMMAND DATA.DEVICE, "'^TXT-',ITOA(TXT_HELP),',0,',nHelp_Phone_"
 	
 	IF (nBoot_ == FALSE)
 	{
@@ -1752,43 +1158,6 @@ DATA_EVENT [dvTP_Main] //
     OFFLINE :
     {
 	nTPOnline = FALSE;
-    }
-    STRING :
-    {
-	LOCAL_VAR CHAR sTmp[30]
-	
-	sTmp = DATA.TEXT
-	
-	IF (FIND_STRING(sTmp,'KEYB-',1)OR FIND_STRING(sTmp,'AKB-',1)) //G4 or G5 Parsing
-	{
-	   REMOVE_STRING(sTmp,'-',1)
-	   
-		IF (FIND_STRING(sTmp,'ABORT',1))
-		{
-		    nRoom_Location = 'Set Default'
-		    SEND_COMMAND vdvTP_Main, "'^TXT-',ITOA(TXT_ROOM),',0,',nRoom_Location"
-		}
-		ELSE
-		{
-		     nRoom_Location = sTmp
-		    SEND_COMMAND vdvTP_Main, "'^TXT-',ITOA(TXT_ROOM),',0,',nRoom_Location"
-		}
-	}
-	IF (FIND_STRING(sTmp,'KEYP-',1)OR FIND_STRING(sTmp,'TKP-',1)) //G4 or G5
-	{
-	    REMOVE_STRING(sTmp,'-',1)
-	    
-	    IF (FIND_STRING(sTmp,'ABORT',1)) //Keep Default if it was set...
-	    {
-		nHelp_Phone_ = nHelp_Phone_
-		SEND_COMMAND vdvTP_Main, "'^TXT-',ITOA(TXT_HELP),',0,',nHelp_Phone_"
-	    }
-	    ELSE
-	    {
-		nHelp_Phone_ = sTmp
-		SEND_COMMAND vdvTP_Main, "'^TXT-',ITOA(TXT_HELP),',0,',nHelp_Phone_"
-	    }
-	}
     }
 }
 DATA_EVENT [dvController]
@@ -1814,7 +1183,7 @@ DATA_EVENT [dvController]
 	    {
 		nSVSIOnline = FALSE;
 		    OFF [vdvTP_Main, BTN_NET_BOOT]
-			fnReconnect()
+			fnReconnectSVSI()
 	    }
 	    DEFAULT :
 	    {
@@ -1836,39 +1205,6 @@ DATA_EVENT [dvController]
 	//fnParseControllerSerial()
     }
 }
-DATA_EVENT [dvVaddioBridge]
-{
-    ONLINE :
-    {
-	nVaddioBridgeOnline = TRUE;
-    }
-    OFFLINE :
-    {
-	nVaddioBridgeOnline = FALSE;
-    }
-    ONERROR :
-    {
-	SEND_STRING dvDebug, "'AVBridg 2x1 Error : ',GetVaddioIpError(DATA.NUMBER)"
-	
-	SWITCH (DATA.NUMBER)
-	{
-	    CASE 7 :
-	    {
-		nVaddioBridgeOnline = FALSE;
-		    fnReconnectVaddio()
-	    }
-	    DEFAULT :
-	    {
-		nVaddioBridgeOnline = FALSE;
-	    }
-	}
-    }
-    STRING :
-    {
-	nVaddioBridgeOnline = TRUE;
-	    fnParseVaddioIP()
-    }
-}
 
 DEFINE_EVENT
 TIMELINE_EVENT [TL_FEEDBACK]
@@ -1876,23 +1212,12 @@ TIMELINE_EVENT [TL_FEEDBACK]
     fnKill()
     fnReboot()
     
-    WAIT 250 //30 Second Loop
-    {
-	IF (nVaddioBridgeOnline == FALSE)
-	{
-	    fnStartVaddioConnection()
-	}
-	ELSE
-	{
-	    fnGetVaddioRep()
-	}
-    }
         
     WAIT 450 //Second Loop
     {
 	IF (nSVSIOnline == FALSE)
 	{
-	    fnStartConnection()
+	    fnStartSVSIConnection()
 	}
 	ELSE
 	{
@@ -1909,7 +1234,7 @@ TIMELINE_EVENT [TL_FEEDBACK]
 (* X-Series masters, changing variables in the DEFINE_PROGRAM    *)
 (* section of code can negatively impact program performance.    *)
 (*                                                               *)
-(* See “Differences in DEFINE_PROGRAM Program Execution” section *)
+(* See Â“Differences in DEFINE_PROGRAM Program ExecutionÂ” section *)
 (* of the NX-Series Controllers WebConsole & Programming Guide   *)
 (* for additional and alternate coding methodologies.            *)
 (*****************************************************************)
