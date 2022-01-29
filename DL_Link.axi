@@ -4,300 +4,445 @@ PROGRAM_NAME='DL_Link'
 (***********************************************************)
 
 
-
 DEFINE_DEVICE
 
-vdvPipe =			33333:1:0 //Comm to DL Master...
+
+#IF_NOT_DEFINED vdvPipe
+vdvPipe =			33333:1:0 //Comm From DL Master
+#END_IF
+
+#IF_NOT_DEFINED vdvPipeFB
+vdvPipeFB =			33333:2:0 //Comm to DL Master...
+#END_IF
 
 
 
 DEFINE_CONSTANT
 
-PROJECTOR_LEFT_ON			= 1
-PROJECTOR_LEFT_OFF			= 2
-PROJECTOR_LEFT_MUTE		= 3
-SCREEN_LEFT_UP				= 4
-SCREEN_LEFT_DN				= 5
+//Pipe Channels...
+DL_SET_ALL_TVS_ON				= 1001
+DL_SET_ALL_TVS_OFF				= 1000
 
-PROJECTOR_RIGHT_ON		= 101
-PROJECTOR_RIGHT_OFF		= 102
-PROJECTOR_RIGHT_MUTE		= 103
-SCREEN_RIGHT_UP				= 104
-SCREEN_RIGHT_DN				= 105
+#IF_NOT_DEFINED DL_MUTE_CEILING_MICS
+DL_MUTE_CEILING_MICS			= 50 //to change led lighting + Mute...
+#END_IF
 
-PROJECTOR_REAR_ON			= 201
-PROJECTOR_REAR_OFF			= 202
-PROJECTOR_REAR_MUTE		= 203
-SCREEN_REAR_UP				= 204
-SCREEN_REAR_DN				= 205 
+//Front Left Sharp Display
+DL_PWR_ON_LEFT					= 1
+DL_PWR_OFF_LEFT					= 2
+DL_PC_MAIN_LEFT 					= 11 
+DL_PC_EXTENDED_LEFT	 			= 12 
+DL_LECTERN_LEFT					= 13 
+DL_DOC_CAM_LEFT				= 14 
+DL_MERSIVE_LEFT					= 15
+DL_KAPTIVO_LEFT					= 16
+DL_LIGHT_BOARD_LEFT				= 18 
+DL_TIELINE_1_LEFT					= 20
+DL_TIELINE_2_LEFT					= 21
+DL_TIELINE_3_LEFT					= 22
 
-DL_PC_MAIN_LEFT 				= 11 //Input 1 DVI
-DL_PC_EXTENDED_LEFT	 	= 12 //Input 2 DVI
-DL_EXTERNAL_LEFT				= 13 //Input 3 DVI
-DL_DOC_CAM_LEFT			= 14 //Input 4 DVI
-DL_MERSIVE_LEFT				= 15 //Input 5 HDMI
-DL_TIELINE_LEFT				= 18 //Input 8 HDMI
-DL_TESTPAT_LEFT				= 20
+//Front Right Sharp Display
+DL_PWR_ON_RIGHT				= 101
+DL_PWR_OFF_RIGHT				= 102
+DL_PC_MAIN_RIGHT 				= 111 
+DL_PC_EXTENDED_RIGHT	 		= 112 
+DL_LECTERN_RIGHT				= 113 
+DL_DOC_CAM_RIGHT				= 114 
+DL_MERSIVE_RIGHT				= 115 
+DL_KAPTIVO_RIGHT				= 116
+DL_LIGHT_BOARD_RIGHT			= 118 
+DL_TIELINE_1_RIGHT				= 120
+DL_TIELINE_2_RIGHT				= 121
+DL_TIELINE_3_RIGHT				= 122
+//Rear Left (Facing)
+DL_PWR_ON_REAR_L				= 201
+DL_PWR_OFF_REAR_L				= 202
+DL_PC_MAIN_REAR_L				= 211 
+DL_PC_EXTENDED_REAR_L			= 212 
+DL_LECTERN_REAR_L				= 213
+DL_DOC_CAM_REAR_L				= 214
+DL_MERSIVE_REAR_L				= 215
+DL_KAPTIVO_REAR_L				= 216
+DL_LIGHT_BOARD_REAR_L			= 218 
+DL_TIELINE_1_REAR_L				= 220
+DL_TIELINE_2_REAR_L				= 221
+DL_TIELINE_3_REAR_L				= 222
+//Rear Right (Facing)
+DL_PWR_ON_REAR_R				= 301
+DL_PWR_OFF_REAR_R				= 302
+DL_PC_MAIN_REAR_R				= 311 
+DL_PC_EXTENDED_REAR_R			= 312 
+DL_LECTERN_REAR_R				= 313
+DL_DOC_CAM_REAR_R				= 314
+DL_MERSIVE_REAR_R				= 315
+DL_KAPTIVO_REAR_R				= 316
+DL_LIGHT_BOARD_REAR_R			= 318 
+DL_TIELINE_1_REAR_R				= 320
+DL_TIELINE_2_REAR_R				= 321
+DL_TIELINE_3_REAR_R				= 322
+//Side Left(Teacher Facing)
+DL_PWR_ON_SIDE_L				= 401
+DL_PWR_OFF_SIDE_L				= 402
+DL_PC_MAIN_SIDE_L				= 411 
+DL_PC_EXTENDED_SIDE_L			= 412 
+DL_LECTERN_SIDE_L				= 413
+DL_DOC_CAM_SIDE_L				= 414
+DL_MERSIVE_SIDE_L				= 415
+DL_KAPTIVO_SIDE_L				= 416
+DL_LIGHT_BOARD_SIDE_L			= 418 
+DL_TIELINE_1_SIDE_L				= 420
+DL_TIELINE_2_SIDE_L				= 421
+DL_TIELINE_3_SIDE_L				= 422
+//Side Left(Teacher Facing)
+DL_PWR_ON_SIDE_R				= 701
+DL_PWR_OFF_SIDE_R				= 702
+DL_PC_MAIN_SIDE_R				= 711 
+DL_PC_EXTENDED_SIDE_R			= 712 
+DL_LECTERN_SIDE_R				= 713
+DL_DOC_CAM_SIDE_R				= 714
+DL_MERSIVE_SIDE_R				= 715
+DL_KAPTIVO_SIDE_R				= 716
+DL_LIGHT_BOARD_SIDE_R			= 718 
+DL_TIELINE_1_SIDE_R				= 720
+DL_TIELINE_2_SIDE_R				= 721
+DL_TIELINE_3_SIDE_R				= 722
+//DL Preview Monitor Buttons...
+DL_PC_MAIN_PREVIEW				= 511 
+DL_PC_EXTENDED_PREVIEW			= 512 
+DL_LECTERN_PREVIEW				= 513
+DL_DOC_CAM_PREVIEW				= 514
+DL_MERSIVE_PREVIEW				= 515
+DL_KAPTIVO_PREVIEW				= 516
+DL_LIGHT_BOARD_PREVIEW			= 518
 
-DL_PC_MAIN_RIGHT 			= 111 //Input 1 DVI
-DL_PC_EXTENDED_RIGHT	 	= 112 //Input 2 DVI
-DL_EXTERNAL_RIGHT			= 113 //Input 3 DVI
-DL_DOC_CAM_RIGHT			= 114 //Input 4 DVI
-DL_MERSIVE_RIGHT			= 115 //Input 5 HDMI
-DL_TIELINE_RIGHT				= 118 //Input 8 HDMI
-DL_TESTPAT_RIGHT				= 120
-
-DL_PC_MAIN_REAR			= 211 //Mirror Left Source
-DL_PC_EXTENDED_REAR		= 212 //Notes
-DL_EXTERNAL_REAR			= 213
-DL_DOC_CAM_REAR			= 214
-DL_MERSIVE_REAR				= 215
-DL_TIELINE_REAR				= 218 //
-DL_TESTPAT_REAR				= 220
-
-DL_MODE_ON					= 255
-DL_FOLLOW_LAST				= 256
-
+//End Pipe Channels
 
 DEFINE_VARIABLE
 
+VOLATILE INTEGER nDisplayFrontLeft
+VOLATILE INTEGER nDisplayFrontRight
+VOLATILE INTEGER nDisplayRearLeft
+VOLATILE INTEGER nDisplayRearRight
+VOLATILE INTEGER nDisplaySideLeft
+VOLATILE INTEGER nDisplaySideRight
+VOLATILE INTEGER nDLPreview
+
+VOLATILE INTEGER dcChanFrontVidLeft[]  =
+{
+    DL_PC_MAIN_LEFT,
+    DL_PC_EXTENDED_LEFT,
+    DL_LECTERN_LEFT,
+    DL_DOC_CAM_LEFT,
+    DL_MERSIVE_LEFT,
+    DL_KAPTIVO_LEFT,
+    DL_LIGHT_BOARD_LEFT,
+    DL_TIELINE_1_LEFT,
+    DL_TIELINE_2_LEFT,
+    DL_TIELINE_3_LEFT
+}
+VOLATILE INTEGER dcChanFrontVidRight[]  =
+{
+    DL_PC_MAIN_RIGHT,
+    DL_PC_EXTENDED_RIGHT,
+    DL_LECTERN_RIGHT,
+    DL_DOC_CAM_RIGHT,
+    DL_MERSIVE_RIGHT,
+    DL_KAPTIVO_RIGHT,
+    DL_LIGHT_BOARD_RIGHT,
+    DL_TIELINE_1_RIGHT,
+    DL_TIELINE_2_RIGHT,
+    DL_TIELINE_3_RIGHT
+}
+VOLATILE INTEGER dcChanRearVidLeft[]  =
+{
+    DL_PC_MAIN_REAR_L,
+    DL_PC_EXTENDED_REAR_L,
+    DL_LECTERN_REAR_L,
+    DL_DOC_CAM_REAR_L,
+    DL_MERSIVE_REAR_L,
+    DL_KAPTIVO_REAR_L,
+    DL_LIGHT_BOARD_REAR_L,
+    DL_TIELINE_1_REAR_L,
+    DL_TIELINE_2_REAR_L,
+    DL_TIELINE_3_REAR_L
+}
+VOLATILE INTEGER dcChanRearVidRight[]  =
+{
+    DL_PC_MAIN_REAR_R,
+    DL_PC_EXTENDED_REAR_R,
+    DL_LECTERN_REAR_R,
+    DL_DOC_CAM_REAR_R,
+    DL_MERSIVE_REAR_R,
+    DL_KAPTIVO_REAR_R,
+    DL_LIGHT_BOARD_REAR_R,
+    DL_TIELINE_1_REAR_R,
+    DL_TIELINE_2_REAR_R,
+    DL_TIELINE_3_REAR_R
+}
+VOLATILE INTEGER dcChanSideVidLeft[]  =
+{
+    DL_PC_MAIN_SIDE_L,
+    DL_PC_EXTENDED_SIDE_L,
+    DL_LECTERN_SIDE_L,
+    DL_DOC_CAM_SIDE_L,
+    DL_MERSIVE_SIDE_L,
+    DL_KAPTIVO_SIDE_L,
+    DL_LIGHT_BOARD_SIDE_L,
+    DL_TIELINE_1_SIDE_L,
+    DL_TIELINE_2_SIDE_L,
+    DL_TIELINE_3_SIDE_L
+}
+VOLATILE INTEGER dcChanSideVidRight[]  =
+{
+    DL_PC_MAIN_SIDE_R,
+    DL_PC_EXTENDED_SIDE_R,
+    DL_LECTERN_SIDE_R,
+    DL_DOC_CAM_SIDE_R,
+    DL_MERSIVE_SIDE_R,
+    DL_KAPTIVO_SIDE_R,
+    DL_LIGHT_BOARD_SIDE_R,
+    DL_TIELINE_1_SIDE_R,
+    DL_TIELINE_2_SIDE_R,
+    DL_TIELINE_3_SIDE_R
+}
+VOLATILE INTEGER dcChanPreview[]  =
+{
+    DL_PC_MAIN_PREVIEW,
+    DL_PC_EXTENDED_PREVIEW,
+    DL_LECTERN_PREVIEW,
+    DL_DOC_CAM_PREVIEW,
+    DL_MERSIVE_PREVIEW,
+    DL_KAPTIVO_PREVIEW,
+    DL_LIGHT_BOARD_PREVIEW
+}
+DEVCHAN dcDLDefaultFB[] =
+{
+    { vdvPipeFB, DL_PC_MAIN_LEFT },
+    { vdvPipeFB, DL_PC_EXTENDED_RIGHT },
+    { vdvPipeFB, DL_PC_MAIN_REAR_L },
+    { vdvPipeFB, DL_PC_MAIN_REAR_R },
+    { vdvPipeFB, DL_PC_MAIN_SIDE_L },
+    { vdvPipeFB, DL_PC_MAIN_SIDE_R }
+}
 
 (***********************************************************)
 (*       MUTUALLY EXCLUSIVE DEFINITIONS GO BELOW           *)
 (***********************************************************)
 DEFINE_MUTUALLY_EXCLUSIVE
 
-([vdvPipe, SCREEN_LEFT_UP], [vdvPipe, SCREEN_LEFT_DN])
-([vdvPipe, DL_PC_MAIN_LEFT]..[vdvPipe, DL_TIELINE_LEFT]) //Front Left Source
+([vdvPipe, DL_PWR_ON_LEFT],[vdvPipe, DL_PWR_OFF_LEFT])
+([vdvPipe, DL_PWR_ON_RIGHT],[vdvPipe, DL_PWR_OFF_RIGHT])
+([vdvPipe, DL_PWR_ON_REAR_L],[vdvPipe, DL_PWR_OFF_REAR_L])
+([vdvPipe, DL_PWR_ON_REAR_R],[vdvPipe, DL_PWR_OFF_REAR_R])
+([vdvPipe, DL_PWR_ON_SIDE_L],[vdvPipe, DL_PWR_OFF_SIDE_L])
+([vdvPipe, DL_PWR_ON_SIDE_R],[vdvPipe, DL_PWR_OFF_SIDE_R])
 
-([vdvPipe, SCREEN_RIGHT_UP], [vdvPipe, SCREEN_RIGHT_DN])
-([vdvPipe, DL_PC_MAIN_RIGHT]..[vdvPipe, DL_TIELINE_RIGHT]) //Front Right Source
+([vdvPipe, DL_PC_MAIN_LEFT]..[vdvPipe, DL_TIELINE_3_LEFT]) //Left Sources...
+([vdvPipe, DL_PC_MAIN_RIGHT]..[vdvPipe, DL_TIELINE_3_RIGHT]) //Right Sources...
+([vdvPipe, DL_PC_MAIN_REAR_L]..[vdvPipe, DL_TIELINE_3_REAR_L]) //
+([vdvPipe, DL_PC_MAIN_REAR_R]..[vdvPipe, DL_TIELINE_3_REAR_R]) //
+([vdvPipe, DL_PC_MAIN_SIDE_L]..[vdvPipe, DL_TIELINE_3_SIDE_L]) //
+([vdvPipe, DL_PC_MAIN_SIDE_R]..[vdvPipe, DL_TIELINE_3_SIDE_R]) //
+([vdvPipe, DL_PC_MAIN_PREVIEW]..[vdvPipe, DL_LIGHT_BOARD_PREVIEW]) //Preview Sources...
 
-([vdvPipe, SCREEN_REAR_UP], [vdvPipe, SCREEN_REAR_DN])
-([vdvPipe, DL_PC_MAIN_REAR]..[vdvPipe, DL_TIELINE_REAR]) //Front Right Source
+([vdvPipeFB, DL_PWR_ON_LEFT],[vdvPipeFB, DL_PWR_OFF_LEFT])
+([vdvPipeFB, DL_PWR_ON_RIGHT],[vdvPipeFB, DL_PWR_OFF_RIGHT])
+([vdvPipeFB, DL_PWR_ON_REAR_L],[vdvPipeFB, DL_PWR_OFF_REAR_L])
+([vdvPipeFB, DL_PWR_ON_REAR_R],[vdvPipeFB, DL_PWR_OFF_REAR_R])
+([vdvPipeFB, DL_PWR_ON_SIDE_L],[vdvPipeFB, DL_PWR_OFF_SIDE_L])
+([vdvPipeFB, DL_PWR_ON_SIDE_R],[vdvPipeFB, DL_PWR_OFF_SIDE_R])
+
+([vdvPipeFB, DL_PC_MAIN_LEFT]..[vdvPipeFB, DL_TIELINE_3_LEFT]) //Left Sources...
+([vdvPipeFB, DL_PC_MAIN_RIGHT]..[vdvPipeFB, DL_TIELINE_3_RIGHT]) //Right Sources...
+([vdvPipeFB, DL_PC_MAIN_REAR_L]..[vdvPipeFB, DL_TIELINE_3_REAR_L]) //
+([vdvPipeFB, DL_PC_MAIN_REAR_R]..[vdvPipeFB, DL_TIELINE_3_REAR_R]) //
+([vdvPipeFB, DL_PC_MAIN_SIDE_L]..[vdvPipeFB, DL_TIELINE_3_SIDE_L]) //
+([vdvPipeFB, DL_PC_MAIN_SIDE_R]..[vdvPipeFB, DL_TIELINE_3_SIDE_R]) //
+([vdvPipeFB, DL_PC_MAIN_PREVIEW]..[vdvPipeFB, DL_LIGHT_BOARD_PREVIEW]) //Preview Sources...
 
 
 DEFINE_START
 
-
-DEFINE_EVENT
-CHANNEL_EVENT [vdvPipe, PROJECTOR_LEFT_ON]			
-CHANNEL_EVENT [vdvPipe, PROJECTOR_LEFT_OFF]		
-CHANNEL_EVENT [vdvPipe, PROJECTOR_LEFT_MUTE]		
-CHANNEL_EVENT [vdvPipe, SCREEN_LEFT_UP	]		
-CHANNEL_EVENT [vdvPipe, SCREEN_LEFT_DN	]
-CHANNEL_EVENT [vdvPipe, DL_PC_MAIN_LEFT]
-CHANNEL_EVENT [vdvPipe,DL_PC_EXTENDED_LEFT]
-CHANNEL_EVENT [vdvPipe,DL_EXTERNAL_LEFT]
-CHANNEL_EVENT [vdvPipe,DL_DOC_CAM_LEFT]
-CHANNEL_EVENT [vdvPipe,DL_MERSIVE_LEFT]
-CHANNEL_EVENT [vdvPipe,DL_TIELINE_LEFT]
-CHANNEL_EVENT [vdvPipe, DL_TESTPAT_LEFT] //Left Control / Source...
+//This needs to be on DL- Master...
+WAIT 50
 {
-    ON :
+    SET_VIRTUAL_PORT_COUNT(vdvPipe, 2) //Must Set this first in order for vdvPipeFB to set desired Channels! - since by default port 2 does not exist yet.
+    WAIT 20
     {
-	SWITCH (CHANNEL.CHANNEL)
-	{
-	    CASE PROJECTOR_LEFT_ON : fnDisplayPWR ('PROJ LEFT ON')
-	    CASE PROJECTOR_LEFT_OFF : fnDisplayPWR ('PROJ LEFT OFF')
-	    CASE PROJECTOR_LEFT_MUTE :
-	    {
-		IF (!nMuteProjLeft)
-		{
-		    fnMuteDisplay(dvProjector_dxLeft, SET_MUTE_ON)
-		}
-		ELSE
-		{
-		    fnMuteDisplay(dvProjector_dxLeft, SET_MUTE_OFF)
-		}
+	SET_VIRTUAL_CHANNEL_COUNT (vdvPipe, 1001)
+	    SET_VIRTUAL_CHANNEL_COUNT (vdvPipeFB, 1001)
+    }
 	    
-	    }
-	    CASE SCREEN_LEFT_UP : fnRelayDirection(UP_LEFT)
-	    CASE SCREEN_LEFT_DN : fnRelayDirection(DN_LEFT)
-    
-	//Video Switching
-	    CASE DL_PC_MAIN_LEFT : fnSetDGXRouteLeft(IN_DESKTOP)
-	    CASE DL_PC_EXTENDED_LEFT : fnSetDGXRouteLeft(IN_DESK_EXT)
-	    CASE DL_EXTERNAL_LEFT : fnSetDGXRouteLeft(IN_EXTERNAL)
-	    CASE DL_DOC_CAM_LEFT : fnSetDGXRouteLeft(IN_DOCCAM)
-	    CASE DL_MERSIVE_LEFT : fnSetDGXRouteLeft(IN_AIRMEDIA)
-	    CASE DL_TIELINE_LEFT : fnSetDGXRoutePreview(IN_DL_1,OUT_PROJLEFT)
-	    CASE DL_TESTPAT_LEFT : 
-	    {
-		SEND_COMMAND dvProjector_dxLeft, "'VIDOUT_TESTPAT-Color Bar'"
-	    }
-	}
-    }
-    OFF :
-    {
-	SWITCH (CHANNEL.CHANNEL)
-	{
-	    CASE DL_TESTPAT_LEFT :
-	    {
-		SEND_COMMAND dvProjector_dxLeft, "'VIDOUT_TESTPAT-off'"
-	    }
-	}
-    }
 }
-CHANNEL_EVENT [vdvPipe, PROJECTOR_RIGHT_ON]			
-CHANNEL_EVENT [vdvPipe, PROJECTOR_RIGHT_OFF]		
-CHANNEL_EVENT [vdvPipe, PROJECTOR_RIGHT_MUTE]		
-CHANNEL_EVENT [vdvPipe, SCREEN_RIGHT_UP	]		
-CHANNEL_EVENT [vdvPipe, SCREEN_RIGHT_DN	]
-CHANNEL_EVENT [vdvPipe, DL_PC_MAIN_RIGHT]
-CHANNEL_EVENT [vdvPipe,DL_PC_EXTENDED_RIGHT]
-CHANNEL_EVENT [vdvPipe,DL_EXTERNAL_RIGHT]
-CHANNEL_EVENT [vdvPipe,DL_DOC_CAM_RIGHT]
-CHANNEL_EVENT [vdvPipe,DL_MERSIVE_RIGHT]
-CHANNEL_EVENT [vdvPipe,DL_TIELINE_RIGHT]
-CHANNEL_EVENT [vdvPipe, DL_TESTPAT_RIGHT] //Right Control + Source...
+
+//file_write
+
+DEFINE_EVENT
+CHANNEL_EVENT [vdvPipe, DL_PWR_ON_LEFT]
+CHANNEL_EVENT [vdvPipe, DL_PWR_OFF_LEFT] //Pwr On Left
 {
     ON :
     {
 	SWITCH (CHANNEL.CHANNEL)
 	{
-	    CASE PROJECTOR_RIGHT_ON : fnDisplayPWR ('PROJ RIGHT ON')
-	    CASE PROJECTOR_RIGHT_OFF : fnDisplayPWR ('PROJ RIGHT OFF')
-	    CASE PROJECTOR_RIGHT_MUTE :
-	    {
-		IF (!nMuteProjRight)
-		{
-		    fnMuteDisplay(dvProjector_dxRight, SET_MUTE_ON)
-		}
-		ELSE
-		{
-		    fnMuteDisplay(dvProjector_dxRight, SET_MUTE_OFF)
-		}
-	    }
-	    CASE SCREEN_RIGHT_UP : fnRelayDirection(UP_LEFT)
-	    CASE SCREEN_RIGHT_DN : fnRelayDirection(DN_LEFT)
-	    //Video Routing Calls...
-	    CASE DL_PC_MAIN_RIGHT : fnSetDGXRouteRight(IN_DESKTOP)
-	    CASE DL_PC_EXTENDED_RIGHT : fnSetDGXRouteRight(IN_DESK_EXT)
-	    CASE DL_EXTERNAL_RIGHT : fnSetDGXRouteRight(IN_EXTERNAL)
-	    CASE DL_DOC_CAM_RIGHT : fnSetDGXRouteRight(IN_DOCCAM)
-	    CASE DL_MERSIVE_RIGHT : fnSetDGXRouteRight(IN_AIRMEDIA)
-	    CASE DL_TIELINE_RIGHT : fnSetDGXRoutePreview(IN_DL_2,OUT_PROJRIGHT)
-	    CASE DL_TESTPAT_RIGHT : 
-	    {
-		SEND_COMMAND dvProjector_dxRight, "'VIDOUT_TESTPAT-Color Bar'"
-	    }
-	}
-    }
-    OFF :
-    {
-	SWITCH (CHANNEL.CHANNEL)
-	{
-	    CASE DL_TESTPAT_LEFT :
-	    {
-		SEND_COMMAND dvProjector_dxRight, "'VIDOUT_TESTPAT-off'"
-	    }
+	    CASE DL_PWR_ON_LEFT : fnPowerDisplays (BTN_PWR_ON_L)
+	    CASE DL_PWR_OFF_LEFT : fnPowerDisplays (BTN_PWR_OFF_L)
 	}
     }
 }
-CHANNEL_EVENT [vdvPipe, PROJECTOR_REAR_ON]			
-CHANNEL_EVENT [vdvPipe, PROJECTOR_REAR_OFF]		
-CHANNEL_EVENT [vdvPipe, PROJECTOR_REAR_MUTE]		
-CHANNEL_EVENT [vdvPipe, SCREEN_REAR_UP	]		
-CHANNEL_EVENT [vdvPipe, SCREEN_REAR_DN	]
-CHANNEL_EVENT [vdvPipe, DL_PC_MAIN_REAR]
-CHANNEL_EVENT [vdvPipe,DL_PC_EXTENDED_REAR]
-CHANNEL_EVENT [vdvPipe,DL_EXTERNAL_REAR]
-CHANNEL_EVENT [vdvPipe,DL_DOC_CAM_REAR]
-CHANNEL_EVENT [vdvPipe,DL_MERSIVE_REAR]
-CHANNEL_EVENT [vdvPipe,DL_TIELINE_REAR]
-CHANNEL_EVENT [vdvPipe, DL_TESTPAT_REAR]
-CHANNEL_EVENT [vdvPipe, DL_MODE_ON]
-CHANNEL_EVENT [vdvPipe, DL_FOLLOW_LAST] //Rear Control + Source...
+CHANNEL_EVENT [vdvPipe, DL_PWR_ON_RIGHT]
+CHANNEL_EVENT [vdvPipe, DL_PWR_OFF_RIGHT] //Pwr On Right
 {
     ON :
     {
 	SWITCH (CHANNEL.CHANNEL)
 	{
-	    CASE PROJECTOR_REAR_ON : fnDisplayPWR ('PROJ RIGHT ON')
-	    CASE PROJECTOR_REAR_OFF : fnDisplayPWR ('PROJ RIGHT OFF')
-	    CASE PROJECTOR_REAR_MUTE :
-	    {
-		IF (!nMuteProjRight)
-		{
-		    fnMuteDisplay(dvProjector_dxRight, SET_MUTE_ON)
-		}
-		ELSE
-		{
-		    fnMuteDisplay(dvProjector_dxRight, SET_MUTE_OFF)
-		}
-	    }
-	    CASE DL_PC_MAIN_Rear :fnSetDGXRoutePreview(IN_DESKTOP,OUT_REAR)
-	    CASE DL_PC_EXTENDED_RIGHT : fnSetDGXRoutePreview(IN_DESK_EXT,OUT_REAR)
-	    CASE DL_EXTERNAL_REAR : fnSetDGXRoutePreview(IN_EXTERNAL,OUT_REAR)
-	    CASE DL_DOC_CAM_REAR : fnSetDGXRoutePreview(IN_DOCCAM,OUT_REAR)
-	    CASE DL_MERSIVE_REAR : fnSetDGXRoutePreview(IN_AIRMEDIA,OUT_REAR)
-	    CASE DL_TIELINE_REAR : fnSetDGXRoutePreview(IN_DL_3,OUT_REAR)
-	    CASE DL_TESTPAT_REAR : 
-	    {
-		SEND_COMMAND dvProjector_dxRear, "'VIDOUT_TESTPAT-Color Bar'"
-	    }
-	    //Modes...
-	    CASE DL_MODE_ON :
-	    {
-		ON [nDLMode]
-	    }
-	    CASE DL_FOLLOW_LAST :
-	    {
-		ON [nDLFollow]
-	    }
+	    CASE DL_PWR_ON_RIGHT : fnPowerDisplays (BTN_PWR_ON_R)
+	    CASE DL_PWR_OFF_RIGHT : fnPowerDisplays (BTN_PWR_OFF_R)
 	}
+    }
+}
+CHANNEL_EVENT [vdvPipe, DL_PWR_ON_REAR_L]
+CHANNEL_EVENT [vdvPipe, DL_PWR_OFF_REAR_L]
+{
+    ON :
+    {
+	SWITCH (CHANNEL.CHANNEL)
+	{
+	   CASE DL_PWR_ON_REAR_L : fnPowerDisplays (BTN_PWR_ON_REAR_L)
+	    CASE DL_PWR_OFF_REAR_L : fnPowerDisplays (BTN_PWR_OFF_REAR_L)
+	}
+    }
+}
+CHANNEL_EVENT [vdvPipe, DL_PWR_ON_REAR_R]
+CHANNEL_EVENT [vdvPipe, DL_PWR_OFF_REAR_R]
+{
+    ON :
+    {
+	SWITCH (CHANNEL.CHANNEL)
+	{
+	    CASE DL_PWR_ON_REAR_R : fnPowerDisplays (BTN_PWR_ON_REAR_R)
+	    CASE DL_PWR_OFF_REAR_R : fnPowerDisplays (BTN_PWR_OFF_REAR_R)
+	}
+    }
+}
+CHANNEL_EVENT [vdvPipe, DL_PWR_ON_SIDE_L]
+CHANNEL_EVENT [vdvPipe, DL_PWR_OFF_SIDE_L] //Pwr Sides Left..
+{
+    ON :
+    {
+	SWITCH (CHANNEL.CHANNEL)
+	{
+	    CASE DL_PWR_ON_SIDE_L : fnPowerDisplays (BTN_PWR_ON_SIDE_L)
+	    CASE DL_PWR_OFF_SIDE_L : fnPowerDisplays (BTN_PWR_OFF_SIDE_L)
+	}
+    }
+}
+CHANNEL_EVENT [vdvPipe, DL_PWR_ON_SIDE_R]
+CHANNEL_EVENT [vdvPipe, DL_PWR_OFF_SIDE_R] //Pwr Sides Right...
+{
+    ON :
+    {
+	SWITCH (CHANNEL.CHANNEL)
+	{
+	    CASE DL_PWR_ON_SIDE_R : fnPowerDisplays (BTN_PWR_ON_SIDE_R)
+	    CASE DL_PWR_OFF_SIDE_R : fnPowerDisplays (BTN_PWR_OFF_SIDE_R)
+	}
+    }
+}
+CHANNEL_EVENT [vdvPipe, dcChanFrontVidLeft] //Front Video Route..
+{
+    ON :
+    {
+	nDisplayFrontLeft = GET_LAST (dcChanFrontVidLeft)
+	
+	    fnRouteVideoScriptLeft(nStreamSend[nDisplayFrontLeft])
+		ON [vdvPipeFB, dcChanFrontVidLeft[nDisplayFrontLeft]]
+    }
+}
+CHANNEL_EVENT [vdvPipe, dcChanFrontVidRight] //Front Right Video Route..
+{
+    ON :
+    {
+	nDisplayFrontRight = GET_LAST (dcChanFrontVidRight)
+	
+	    fnRouteVideoScriptRight(nStreamSend[nDisplayFrontRight])
+		ON [vdvPipeFB, dcChanFrontVidRight[nDisplayFrontRight]]
+    }
+}
+CHANNEL_EVENT [vdvPipe, dcChanRearVidLeft] //Rear Left Video
+{
+    ON :
+    {
+	nDisplayRearLeft = GET_LAST (dcChanRearVidLeft)
+	
+	    fnRouteVideoRearLeft(nStreamSend[nDisplayRearLeft])
+		ON [vdvPipeFB, dcChanRearVidLeft[nDisplayRearLeft]]
+    }
+}
+CHANNEL_EVENT [vdvPipe, dcChanRearVidRight] //Rear Right Video
+{
+    ON :
+    {
+	nDisplayRearRight = GET_LAST (dcChanRearVidRight)
+	
+	    fnRouteVideoRearRight(nStreamSend[nDisplayRearRight])
+		ON [vdvPipeFB, dcChanRearVidRight[nDisplayRearRight]]
+    }
+}
+CHANNEL_EVENT [vdvPipe, dcChanSideVidLeft] //Side Left Video
+{
+    ON :
+    {
+	nDisplaySideLeft = GET_LAST (dcChanSideVidLeft)
+	
+	    fnRouteVideoSideLeft (nStreamSend[nDisplaySideLeft])
+		ON [vdvPipeFB, dcChanSideVidLeft[nDisplaySideLeft]]
+    }
+}
+CHANNEL_EVENT [vdvPipe, dcChanSideVidRight] //Side Right Video
+{
+    ON :
+    {
+	nDisplaySideRight = GET_LAST (dcChanSideVidRight)
+	
+	    fnRouteVideoSideRight (nStreamSend[nDisplaySideRight])
+		ON [vdvPipeFB, dcChanSideVidRight[nDisplaySideRight]]
+    }
+}
+CHANNEL_EVENT [vdvPipe, dcChanPreview] //DL Preview..
+{
+    ON :
+    {
+	nDLPreview = GET_LAST (dcChanPreview)
+	
+	    fnRouteVideoDLPreview (nStreamSend[nDLPreview])
+		ON [vdvPipeFB, dcChanPreview[nDLPreview]]
+    }
+}
+CHANNEL_EVENT [vdvPipe, DL_SET_ALL_TVS_OFF]
+CHANNEL_EVENT [vdvPipe, DL_SET_ALL_TVS_ON] //Full Pwr On / Off
+{
+    ON :
+    {
+	SWITCH (CHANNEL.CHANNEL)
+	{
+	    CASE DL_SET_ALL_TVS_OFF : fnSystemCall (BTN_START_PRESENTATION)
+	    CASE DL_SET_ALL_TVS_ON : fnSystemCall (BTN_TV_ALL_SHUT)
+
+	}
+    }
+}
+CHANNEL_EVENT [vdvPipe, DL_MUTE_CEILING_MICS] //Mute Classroom Mics...
+{
+    ON :
+    {
+	fnMuteLogic(TAG_CEILING, ID_CEILING, YES_ON)
     }
     OFF :
     {
-	SWITCH(CHANNEL.CHANNEL)
-	{
-	    CASE DL_TESTPAT_LEFT :
-	    {
-		SEND_COMMAND dvProjector_dxRear, "'VIDOUT_TESTPAT-off'"
-	    }
-	    CASE DL_MODE_ON :
-	    {
-		OFF [nDLMode]
-	    }
-	    CASE DL_FOLLOW_LAST :
-	    {
-		OFF [nDLFollow]
-	    }
-	}
+	fnMuteLogic(TAG_CEILING, ID_CEILING, YES_OFF)
     }
 }
 
-DEFINE_EVENT
-TIMELINE_EVENT [TL_MAINLINE] //Used from Main Source
-{
-    //Left...
-     [vdvPipe,   PROJECTOR_LEFT_ON] =  [vdvProjector_Left, POWER]
-    [vdvPipe, PROJECTOR_LEFT_OFF] = ![vdvProjector_Left, POWER]
-   // [vdvPipe, PROJECTOR_LEFT_MUTE] = nMuteProjLeft
-    [vdvPipe, 601] =	[vdvProjector_Left, ON_LINE]
-    
-    [vdvPipe, DL_PC_MAIN_LEFT] = nSource_Left = IN_DESKTOP
-    [vdvPipe, DL_PC_EXTENDED_LEFT] = nSource_Left = IN_DESK_EXT
-    [vdvPipe, DL_EXTERNAL_LEFT] = nSource_Left = IN_EXTERNAL
-    [vdvPipe, DL_DOC_CAM_LEFT] = nSource_Left = IN_DOCCAM
-    [vdvPipe, DL_MERSIVE_LEFT] = nSource_Left = IN_AIRMEDIA
-    
-    
-    //Right...
-    //Right Projector
-    [vdvPipe, PROJECTOR_RIGHT_ON] = [vdvProjector_Right, POWER]
-    [vdvPipe, PROJECTOR_RIGHT_OFF] = ![vdvProjector_Right, POWER]
-   // [vdvPipe, PROJECTOR_RIGHT_MUTE] = nMuteProjRight
-    [vdvPipe, 611] = [vdvProjector_Right, ON_LINE]
-    
-    //Rear
-    //Rear Projector
-    [vdvPipe, PROJECTOR_REAR_ON] = [vdvProjector_Rear, POWER]
-    [vdvPipe, PROJECTOR_REAR_OFF] = ![vdvProjector_Rear, POWER]
-   // [vdvPipe, PROJECTOR_REAR_MUTE] = nMuteProjRear
-    [vdvPipe, 621] = [vdvProjector_Rear, ON_LINE]
-    
-}
 
-DEFINE_EVENT
