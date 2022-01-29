@@ -29,31 +29,22 @@ dvTesira =					5001:1:0
 (***********************************************************)
 DEFINE_CONSTANT
 
-#IF_NOT_DEFINED CR 
-CR 					= 13
-#END_IF
-
-#IF_NOT_DEFINED LF 
-LF 					= 10
-#END_IF
-
 MAX_COMP			= 88 //Biamp | Value= 1120 | Level=  12
-MAX_SPAN				= 6
+MAX_SPAN			= 6
 
 VOL_UP				= 1
 VOL_DN				= -1
 
-ID_PODIUM			= 1
-ID_LAV_1				= 2
-ID_LAV_2				= 3
-ID_MIC_3				= 4
-ID_MIC_4				= 5
+ID_LAV_1				= 1
+ID_LAV_2				= 2
+ID_MIC_3				= 3
+ID_MIC_4				= 4
 ID_PRGM_LEV			= 1
 ID_CEILING			= 1 //Logic Block
 
 //biamp tags...
 TAG_LEV_PRGM		= 'Program'
-TAG_LEV_MICS			= 'Microphones'
+TAG_LEV_MICS		= 'Microphones'
 TAG_MUTE_MICS		= 'MicMutes'
 TAG_MUTE_PRGM		= 'ProgramMute'
 TAG_CEILING			= 'privacymute'
@@ -62,21 +53,34 @@ YES_ON				= 'true'
 YES_OFF				= 'false'
 
 //Panel Addresses...
-TXT_PODIUM				= 1
-TXT_LAV_1				= 2
-TXT_LAV_2				= 3
-TXT_MIC_3				= 4
-TXT_MIC_4				= 5
-TXT_PRGM				= 10
+TXT_MIC_4			= 4
+TXT_MIC_3			= 3
+TXT_LAV_1			= 1
+TXT_LAV_2			= 2
+TXT_PRGM			= 10
 
 //Mute Buttons....
-BTN_MUTE_PODIUM		= 1
-BTN_MUTE_LAV_1			= 5
-BTN_MUTE_LAV_2			= 9
-BTN_MUTE_MIC_3			= 13
-BTN_MUTE_MIC_4 			= 17
-BTN_MUTE_PRGM			= 37
-BTN_MUTE_CEILING		= 50
+BTN_MUTE_LAV_1		= 1
+BTN_MUTE_LAV_2		= 5
+BTN_MUTE_MIC_3		= 9
+BTN_MUTE_MIC_4 		= 13
+BTN_MUTE_PRGM		= 37
+BTN_MUTE_CEILING	= 50
+
+BTN_SET_PRESET_LAV_1	= 101
+BTN_SET_PRESET_LAV_2	= 102
+BTN_SET_PRESET_MIC_3	= 103
+BTN_SET_PRESET_MIC_4	= 104
+BTN_SET_PRESET_PRGM	= 110
+
+#IF_NOT_DEFINED CR 
+CR 					= 13
+#END_IF
+
+#IF_NOT_DEFINED LF 
+LF 					= 10
+#END_IF
+
 
 (***********************************************************)
 (*               VARIABLE DEFINITIONS GO BELOW             *)
@@ -89,42 +93,43 @@ VOLATILE SINTEGER nMinimum = -88
 VOLATILE INTEGER nBiampOnline
 VOLATILE CHAR nAudioBuffer[1000]
 
-DEV vdvTP_Biamp[] = {dvTP_Biamp, dvTP_Biamp2}
-
-//152 Overflow Mute
-VOLATILE INTEGER nDLInput
-
 //Wireless Microphones...
-VOLATILE SINTEGER nPodium_Level
-VOLATILE SINTEGER nPodium_Level_Preset = -20
-VOLATILE INTEGER nPodium_Mute
-
 VOLATILE INTEGER nLav1_Mute
 VOLATILE SINTEGER nLav1_Level
 VOLATILE SINTEGER nLav1_Level_Preset = -18
+PERSISTENT SINTEGER nLav1_Level_Hold; //User Set Variable...
 
 VOLATILE INTEGER nLav2_Mute
 VOLATILE SINTEGER nLav2_Level
 VOLATILE SINTEGER nLav2_Level_Preset = -18
+PERSISTENT SINTEGER nLav2_Level_Hold;
 
 VOLATILE INTEGER nMic3_Mute
 VOLATILE SINTEGER nMic3_Level
 VOLATILE SINTEGER nMic3_Level_Preset = -15
+PERSISTENT SINTEGER nMic3_Level_Hold; //User Set Variable...
 
 VOLATILE INTEGER nMic4_Mute
 VOLATILE SINTEGER nMic4_Level
 VOLATILE SINTEGER nMic4_Level_Preset = -15
+PERSISTENT SINTEGER nMic4_Level_Hold; //User Set Variable...
 
 //Program
 VOLATILE INTEGER nProgram_Mute
 VOLATILE SINTEGER nProgram_Level
 VOLATILE SINTEGER nProgram_Level_Preset = -10
+PERSISTENT SINTEGER nProgram_Level_Hold;
 
 VOLATILE INTEGER nCeiling_Mute
 
+VOLATILE DEV vdvTP_Biamp[] = 
+{
+    dvTP_Biamp, 
+    dvTP_Biamp2
+}
 VOLATILE INTEGER nMicChnlbtns[] =
 {
-    // Lectern
+    // Lav 1
     1,2,3,4,
 
     // Lav 2
@@ -134,10 +139,7 @@ VOLATILE INTEGER nMicChnlbtns[] =
     9,10,11,12,
     
     //Mic 4
-    13,14,15,16,
-    
-    //Mic 4
-    17,18,19,20
+    13,14,15,16
 }
 VOLATILE INTEGER nPrgmChnlbtns[] =
 {
@@ -146,11 +148,18 @@ VOLATILE INTEGER nPrgmChnlbtns[] =
 }
 VOLATILE INTEGER nMicMuteBtns[] =
 {
-    BTN_MUTE_PODIUM,
     BTN_MUTE_LAV_1,
     BTN_MUTE_LAV_2,
     BTN_MUTE_MIC_3,
     BTN_MUTE_MIC_4
+}
+VOLATILE INTEGER nSetPresetBtns[] =
+{
+    BTN_SET_PRESET_LAV_1,
+    BTN_SET_PRESET_LAV_2,
+    BTN_SET_PRESET_MIC_3,
+    BTN_SET_PRESET_MIC_4,
+    BTN_SET_PRESET_PRGM
 }
 
 (***********************************************************)
@@ -186,39 +195,85 @@ DEFINE_FUNCTION fnSetVolumePreset(CHAR cTag[], INTEGER cIn, SINTEGER cLev)
 }
 DEFINE_FUNCTION fnResetAudio()
 {
-    WAIT 10 fnMuteChannel(TAG_MUTE_MICS, ID_PODIUM, YES_OFF)
-    WAIT 20 fnSetVolumePreset(TAG_LEV_MICS, ID_PODIUM, nPodium_Level_Preset)
+   WAIT 10 fnMuteChannel(TAG_MUTE_MICS, ID_LAV_1, YES_OFF)
     
-    WAIT 30 fnMuteChannel(TAG_MUTE_MICS, ID_LAV_1, YES_OFF)
-    WAIT 40 fnSetVolumePreset(TAG_LEV_MICS, ID_LAV_1, nLav1_Level_Preset)
+    WAIT 20 
+    {
+	IF (nLav1_Level_Hold == 0) 
+	{
+	    fnSetVolumePreset(TAG_LEV_MICS, ID_LAV_1, nLav1_Level_Preset)
+	}
+	ELSE
+	{
+	    fnSetVolumePreset(TAG_LEV_MICS, ID_LAV_1, nLav1_Level_Hold)
+	}
+    }
+    WAIT 30 fnMuteChannel(TAG_MUTE_MICS, ID_LAV_2, YES_OFF)
+    
+    WAIT 40 
+    {
+	IF (nLav2_Level_Hold == 0)
+	{
+	    fnSetVolumePreset(TAG_LEV_MICS, ID_LAV_2, nLav2_Level_Preset)
+	}
+	ELSE
+	{
+	    fnSetVolumePreset(TAG_LEV_MICS, ID_LAV_2, nLav2_Level_Hold)
+	}
+    }
+    
+    WAIT 50 fnMuteChannel(TAG_MUTE_MICS, ID_MIC_3, YES_OFF)
+    WAIT 60 
+    {
+	IF (nMic3_Level_Hold == 0)
+	{
+	    fnSetVolumePreset(TAG_LEV_MICS, ID_MIC_3, nMic3_Level_Preset)
+	}
+	ELSE
+	{
+	    fnSetVolumePreset(TAG_LEV_MICS, ID_MIC_3, nMic3_Level_Hold)
+	}
+    }
+    
+    WAIT 70 fnMuteChannel(TAG_MUTE_MICS, ID_MIC_4, YES_OFF)
+    WAIT 80 
+    {
+	IF (nMic4_Level_Hold == 0)
+	{
+	    fnSetVolumePreset(TAG_LEV_MICS, ID_MIC_4, nMic4_Level_Preset)
+	}
+	ELSE
+	{
+	    fnSetVolumePreset(TAG_LEV_MICS, ID_MIC_4, nMic4_Level_Hold)
+	}
+    }
                  
-    WAIT 50 fnMuteChannel(TAG_MUTE_MICS, ID_LAV_2, YES_OFF)
-    WAIT 60 fnSetVolumePreset(TAG_LEV_MICS, ID_LAV_2, nLav2_Level_Preset)
-
-    WAIT 70 fnMuteChannel(TAG_MUTE_MICS, ID_MIC_3, YES_OFF)
-    WAIT 80 fnSetVolumePreset(TAG_LEV_MICS, ID_MIC_3, nMic3_Level_Preset)
+    WAIT 90 fnMuteChannel(TAG_LEV_PRGM, ID_PRGM_LEV, YES_OFF)
+    WAIT 100 
+    {
+	IF (nProgram_Level_Hold == 0)
+	{
+	    fnSetVolumePreset(TAG_LEV_PRGM, ID_PRGM_LEV, nProgram_Level_Preset)
+	}
+	ELSE
+	{
+	    fnSetVolumePreset(TAG_LEV_PRGM, ID_PRGM_LEV, nProgram_Level_Hold)
+	}
+    }
     
-    WAIT 90 fnMuteChannel(TAG_MUTE_MICS, ID_MIC_4, YES_OFF)
-    WAIT 100 fnSetVolumePreset(TAG_LEV_MICS, ID_MIC_4, nMic4_Level_Preset)
-                     
-    WAIT 110 fnMuteChannel(TAG_LEV_PRGM, ID_PRGM_LEV, YES_OFF)
-    WAIT 120 fnSetVolumePreset(TAG_LEV_PRGM, ID_PRGM_LEV, nProgram_Level_Preset)
-    
-    WAIT 130 fnMuteLogic(TAG_CEILING, ID_CEILING, YES_OFF)
+    WAIT 110 fnMuteLogic(TAG_CEILING, ID_CEILING, YES_OFF)
     
 }
 DEFINE_FUNCTION fnParseTesira()
 {
 	STACK_VAR CHAR cResponse[500] 
 	STACK_VAR INTEGER cID
-	STACK_VAR CHAR cMsg[4]
+	LOCAL_VAR CHAR cMsg[4]
 	LOCAL_VAR CHAR cState[5]
 
 	WHILE(FIND_STRING(nAudioBuffer,"$0D,$0A",1))
 	{	
 	    cResponse = REMOVE_STRING(nAudioBuffer,"$0D,$0A",1)
-	    
-	    SEND_STRING dvDebug, "'From Biamp ',cResponse" 
     
 	    IF (FIND_STRING(cResponse,"TAG_LEV_MICS,' set level '",1))
 	    {
@@ -229,11 +284,6 @@ DEFINE_FUNCTION fnParseTesira()
 		    
 		SWITCH (cID)
 		{
-		    CASE ID_PODIUM :
-		    {
-			nPodium_Level = ATOI(cMsg)
-		    		    SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_PODIUM),',0,',ITOA(nPodium_Level + MAX_COMP),'%'"
-		    }
 		    CASE ID_LAV_1 :
 		    {
 			nLav1_Level = ATOI(cMsg)
@@ -241,10 +291,10 @@ DEFINE_FUNCTION fnParseTesira()
 		    }
 		    CASE ID_LAV_2 :
 		    {
-			    nLav2_Level = ATOI(cMsg)
-				SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_LAV_2),',0,',ITOA(nLav2_Level + MAX_COMP),'%'"
+			nLav2_Level = ATOI(cMsg)
+			    SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_LAV_2),',0,',ITOA(nLav2_Level + MAX_COMP),'%'"
 		    }
-    		    CASE ID_MIC_3 :
+		    CASE ID_MIC_3 :
 		    {
 			nMic3_Level = ATOI(cMsg)
 			    SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_MIC_3),',0,',ITOA(nMic3_Level + MAX_COMP),'%'"
@@ -274,7 +324,7 @@ DEFINE_FUNCTION fnParseTesira()
 				OFF [nProgram_Mute]
 		    }
 	    }
-    	    IF (FIND_STRING (cResponse, "TAG_CEILING,' set state ',ITOA(ID_CEILING),' '",1))
+	    IF (FIND_STRING (cResponse, "TAG_CEILING,' set state ',ITOA(ID_CEILING),' '",1))
 	    {
 		REMOVE_STRING (cResponse, "TAG_CEILING,' set state ',ITOA(ID_CEILING),' '",1)
 		cState = cResponse
@@ -300,11 +350,6 @@ DEFINE_FUNCTION fnParseTesira()
 			
 			SWITCH (cID)
 			{
-			    CASE ID_PODIUM :
-			    {
-				ON [nPodium_Mute]
-				    SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_PODIUM),',0,Muted'"
-			    }
 			    CASE ID_LAV_1 : 
 			    {
 				ON [nLav1_Mute]
@@ -335,11 +380,6 @@ DEFINE_FUNCTION fnParseTesira()
 			
 			SWITCH (cID)
 			{
-			    CASE ID_PODIUM :
-			    {
-				OFF [nPodium_Mute]
-				    SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_PODIUM),',0,',ITOA(nPodium_Level + MAX_COMP),'%'"
-			    }
 			    CASE ID_LAV_1 : 
 			    {
 				OFF [nLav1_Mute]
@@ -371,7 +411,7 @@ DEFINE_FUNCTION fnParseTesira()
 		    
 		    SEND_COMMAND vdvTP_Biamp, "'^TXT-',ITOA(TXT_PRGM),',0,',ITOA(nProgram_Level + MAX_COMP),'%'"
 	    }
-	}
+    }
 }
 
 (***********************************************************)
@@ -392,6 +432,24 @@ WAIT 600 //1 Minute
 (*                THE EVENTS GO BELOW                      *)
 (***********************************************************)
 DEFINE_EVENT
+BUTTON_EVENT [vdvTP_Biamp, nSetPresetBtns]
+{
+    HOLD [30] :
+    {
+	STACK_VAR INTEGER nPDX
+	nPDX = GET_LAST (nSetPresetBtns)
+	    SEND_COMMAND vdvTP_Biamp, "'ADBEEP'"
+	
+	SWITCH (nPDX)
+	{
+	    CASE 1 : nLav1_Level_Hold = nLav1_Level;
+	    CASE 2 : nLav2_Level_Hold = nLav2_Level;
+	    CASE 3 : nMic3_Level_Hold = nMic3_Level;
+	    CASE 4 : nMic4_Level_Hold = nMic4_Level;
+	    CASE 5 : nProgram_Level_Hold = nProgram_Level;
+	}
+    }
+}
 BUTTON_EVENT [vdvTP_Biamp, nMicChnlbtns]
 {
     PUSH :
@@ -401,24 +459,8 @@ BUTTON_EVENT [vdvTP_Biamp, nMicChnlbtns]
 	nChnlIdx = GET_LAST (nMicChnlbtns)
 	SWITCH (nChnlIdx)
 	{
-	    //Podium...
-	    CASE 1:
-	    {
-		IF (!nPodium_Mute)
-		{
-		    fnMuteChannel(TAG_MUTE_MICS, ID_PODIUM,YES_ON)
-		}
-		ELSE
-		{
-		    fnMuteChannel(TAG_MUTE_MICS, ID_PODIUM,YES_OFF)
-		}
-	    }
-	    CASE 2 : fnSetVolumeUp(TAG_LEV_MICS, ID_PODIUM, nPodium_Level)
-	    CASE 3 : fnSetVolumeDown(TAG_LEV_MICS, ID_PODIUM, nPodium_Level)
-	    CASE 4 : fnSetVolumePreset(TAG_LEV_MICS, ID_PODIUM, nPodium_Level_Preset)
-	    
 	    //LAV 1
-	    CASE 5:
+	    CASE 1:
 	    {
 		IF (!nLav1_Mute)
 		{
@@ -429,12 +471,23 @@ BUTTON_EVENT [vdvTP_Biamp, nMicChnlbtns]
 		    fnMuteChannel(TAG_MUTE_MICS, ID_LAV_1,YES_OFF)
 		}
 	    }
-	    CASE 6 : fnSetVolumeUp(TAG_LEV_MICS, ID_LAV_1, nLav1_Level)
-	    CASE 7 : fnSetVolumeDown(TAG_LEV_MICS, ID_LAV_1, nLav1_Level)
-	    CASE 8 : fnSetVolumePreset(TAG_LEV_MICS, ID_LAV_1, nLav1_Level_Preset)
+	    CASE 2 : fnSetVolumeUp(TAG_LEV_MICS, ID_LAV_1, nLav1_Level)
+	    CASE 3 : fnSetVolumeDown(TAG_LEV_MICS, ID_LAV_1, nLav1_Level)
+
+	    CASE 4 : 
+	    {
+		IF (nLav1_Level_Hold == 0)
+		{
+		    fnSetVolumePreset(TAG_LEV_MICS, ID_LAV_1, nLav1_Level_Preset)
+		}
+		ELSE
+		{
+		    fnSetVolumePreset(TAG_LEV_MICS, ID_LAV_1, nLav1_Level_Hold)
+		}
+	    }
 	    
 	    //LAV 2
-	    CASE 9 :
+	    CASE 5:
 	    {
 		IF (!nLav2_Mute)
 		{
@@ -446,12 +499,23 @@ BUTTON_EVENT [vdvTP_Biamp, nMicChnlbtns]
 
 		}
 	    }
-	    CASE 10 : fnSetVolumeUp(TAG_LEV_MICS, ID_LAV_2, nLav2_Level)
-	    CASE 11 : fnSetVolumeDown(TAG_LEV_MICS, ID_LAV_2, nLav2_Level)
-	    CASE 12 : fnSetVolumePreset(TAG_LEV_MICS, ID_LAV_2, nLav2_Level_Preset)
+	    CASE 6: fnSetVolumeUp(TAG_LEV_MICS, ID_LAV_2, nLav2_Level)
+	    CASE 7: fnSetVolumeDown(TAG_LEV_MICS, ID_LAV_2, nLav2_Level)
+
+	    CASE 8: 
+	    {
+		IF (nLav2_Level_Hold == 0)
+		{
+		    fnSetVolumePreset(TAG_LEV_MICS, ID_LAV_2, nLav2_Level_Preset)
+		}
+		ELSE
+		{
+		    fnSetVolumePreset(TAG_LEV_MICS, ID_LAV_2, nLav2_Level_Hold)
+		}
+	    }
 	    
 	    //HH 3
-	    CASE 13 :
+	    CASE 9 :
 	    {
 		IF (!nMic3_Mute)
 		{
@@ -462,11 +526,22 @@ BUTTON_EVENT [vdvTP_Biamp, nMicChnlbtns]
 		   fnMuteChannel(TAG_MUTE_MICS, ID_MIC_3,YES_OFF)
 		}
 	    }
-	    CASE 14 : fnSetVolumeUp(TAG_LEV_MICS, ID_MIC_3, nMic3_Level)
-	    CASE 15 : fnSetVolumeDown(TAG_LEV_MICS, ID_MIC_3, nMic3_Level)
-	    CASE 16 : fnSetVolumePreset(TAG_LEV_MICS, ID_MIC_3, nMic3_Level_Preset)
+	    CASE 10 : fnSetVolumeUp(TAG_LEV_MICS, ID_MIC_3, nMic3_Level)
+	    CASE 11 : fnSetVolumeDown(TAG_LEV_MICS, ID_MIC_3, nMic3_Level)
+
+	    CASE 12 : 
+	    {
+		IF (nMic3_Level_Hold == 0)
+		{
+		    fnSetVolumePreset(TAG_LEV_MICS, ID_MIC_3, nMic3_Level_Preset)
+		}
+		ELSE
+		{
+		    fnSetVolumePreset(TAG_LEV_MICS, ID_MIC_3, nMic3_Level_Hold)
+		}
+	    }
 	    
-	    CASE 17 :
+	    CASE 13 :
 	    {
 		IF (!nMic4_Mute)
 		{
@@ -477,9 +552,20 @@ BUTTON_EVENT [vdvTP_Biamp, nMicChnlbtns]
 		   fnMuteChannel(TAG_MUTE_MICS, ID_MIC_4,YES_OFF)
 		}
 	    }
-	    CASE 18 : fnSetVolumeUp(TAG_LEV_MICS, ID_MIC_4, nMic4_Level)
-	    CASE 19 : fnSetVolumeDown(TAG_LEV_MICS, ID_MIC_4, nMic4_Level)
-	    CASE 20 : fnSetVolumePreset(TAG_LEV_MICS, ID_MIC_4, nMic4_Level_Preset)
+	    CASE 14 : fnSetVolumeUp(TAG_LEV_MICS, ID_MIC_4, nMic4_Level)
+	    CASE 15 : fnSetVolumeDown(TAG_LEV_MICS, ID_MIC_4, nMic4_Level)
+
+	    CASE 16 : 
+	    {
+		IF (nMic4_Level_Hold == 0)
+		{
+		    fnSetVolumePreset(TAG_LEV_MICS, ID_MIC_4, nMic4_Level_Preset)
+		}
+		ELSE
+		{
+		    fnSetVolumePreset(TAG_LEV_MICS, ID_MIC_4, nMic4_Level_Hold)
+		}  
+	    }
 	}
     }
     HOLD [2, REPEAT]:
@@ -489,20 +575,17 @@ BUTTON_EVENT [vdvTP_Biamp, nMicChnlbtns]
 	nChnlIdx = GET_LAST (nMicChnlbtns)
 	SWITCH (nChnlIdx)
 	{
-	    CASE 2 : fnSetVolumeUp(TAG_LEV_MICS, ID_PODIUM, nPodium_Level)
-	    CASE 3 : fnSetVolumeDown(TAG_LEV_MICS, ID_PODIUM, nPodium_Level)
+	    CASE 2 : fnSetVolumeUp(TAG_LEV_MICS, ID_LAV_1, nLav1_Level)
+	    CASE 3 : fnSetVolumeDown(TAG_LEV_MICS, ID_LAV_1, nLav1_Level)
 	    
-	    CASE 6 : fnSetVolumeUp(TAG_LEV_MICS, ID_LAV_1, nLav1_Level)
-	    CASE 7 : fnSetVolumeDown(TAG_LEV_MICS, ID_LAV_1, nLav1_Level)
+	    CASE 6: fnSetVolumeUp(TAG_LEV_MICS, ID_LAV_2, nLav2_Level)
+	    CASE 7: fnSetVolumeDown(TAG_LEV_MICS, ID_LAV_2, nLav2_Level)
 	    
-	    CASE 10 : fnSetVolumeUp(TAG_LEV_MICS, ID_LAV_2, nLav2_Level)
-	    CASE 11 : fnSetVolumeDown(TAG_LEV_MICS, ID_LAV_2, nLav2_Level)
-	    
-	    CASE 14 : fnSetVolumeUp(TAG_LEV_MICS, ID_MIC_3, nMic3_Level)
-	    CASE 15 : fnSetVolumeDown(TAG_LEV_MICS, ID_MIC_3, nMic3_Level)
+	    CASE 10 : fnSetVolumeUp(TAG_LEV_MICS, ID_MIC_3, nMic3_Level)
+	    CASE 11 : fnSetVolumeDown(TAG_LEV_MICS, ID_MIC_3, nMic3_Level)
 
-	    CASE 18 : fnSetVolumeUp(TAG_LEV_MICS, ID_MIC_4, nMic4_Level)
-	    CASE 19 : fnSetVolumeDown(TAG_LEV_MICS, ID_MIC_4, nMic4_Level)
+	    CASE 14 : fnSetVolumeUp(TAG_LEV_MICS, ID_MIC_4, nMic4_Level)
+	    CASE 15 : fnSetVolumeDown(TAG_LEV_MICS, ID_MIC_4, nMic4_Level)
 	}
     }
 }
@@ -529,7 +612,18 @@ BUTTON_EVENT [vdvTP_Biamp, nPrgmChnlbtns]
 	    }
 	    CASE 2 : fnSetVolumeUp(TAG_LEV_PRGM, ID_PRGM_LEV, nProgram_Level)
 	    CASE 3 : fnSetVolumeDown(TAG_LEV_PRGM, ID_PRGM_LEV, nProgram_Level)
-	    CASE 4 : fnSetVolumePreset(TAG_LEV_PRGM, ID_PRGM_LEV, nProgram_Level_Preset)
+
+	    CASE 4 : 
+	    {
+		IF (nProgram_Level_Hold == 0)
+		{
+		    fnSetVolumePreset(TAG_LEV_PRGM, ID_PRGM_LEV, nProgram_Level_Preset)
+		}
+		ELSE
+		{
+		    fnSetVolumePreset(TAG_LEV_PRGM, ID_PRGM_LEV, nProgram_Level_Hold)
+		}
+	    }
 	}
     }
     HOLD [2, REPEAT] :
@@ -548,14 +642,14 @@ BUTTON_EVENT [vdvTP_Biamp, BTN_MUTE_CEILING]
 {
     PUSH :
     {
-    		IF (!nCeiling_Mute)
-		{
-		    fnMuteLogic(TAG_CEILING, ID_CEILING, YES_ON)
-		}
-		ELSE
-		{
-		    fnMuteLogic(TAG_CEILING, ID_CEILING, YES_OFF)
-		}
+	IF (!nCeiling_Mute)
+	{
+	    fnMuteLogic(TAG_CEILING, ID_CEILING, YES_ON)
+	}
+	ELSE
+	{
+	    fnMuteLogic(TAG_CEILING, ID_CEILING, YES_OFF)
+	}
     }
 }
 
@@ -575,24 +669,22 @@ DATA_EVENT [dvTesira]
     ONLINE :
     {
 	ON [dvTesira, 251]
-	SEND_STRING dvDebug, "'Biamp Now Online! '"
 	SEND_COMMAND DATA.DEVICE, "'SET BAUD 115200,N,8,1'"
 	SEND_COMMAND DATA.DEVICE, "'RXON'"
 	SEND_COMMAND DATA.DEVICE, "'HSOFF'"
 	
 	WAIT 150
 	{
-		    fnResetAudio()
+	    fnResetAudio()
 	}
     }
     OFFLINE :
     {
 	OFF [dvTesira, 251]
-	    SEND_STRING dvDebug, "'Lost Biamp Serial Communication'" //Dropped off the Bus
     }
     STRING :
     {
 	    fnParseTesira()
     }
 }
-	
+    
