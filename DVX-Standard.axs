@@ -24,7 +24,7 @@ DEFINE_DEVICE
 
 dvMaster 		=		0:1:0	//DVX Master
 dvDebug =					0:0:0 //Diag Port
-dvTP_MAIN   	= 		10001:1:0
+dvTP_Main   	= 		10001:1:0
 
 dvDvxSwitcher =			5002:1:0 //DVX Switcher
 
@@ -84,8 +84,11 @@ screen_up_left					= 2
 screen_down_left				= 1
 screen_up_right				= 4
 screen_down_right				= 3
-screen_up_center				= 6 
-screen_down_center			= 5 
+
+//Button Opacity Values...
+SET_OP_LOW					= 30
+SET_OP_MAX					= 255
+
 
 //DVX Volume Adjustment Values
 Volume_Up_Single			= 1
@@ -180,8 +183,16 @@ TXT_HELP						= 99
 TXT_ROOM					= 100
 
 // Time Lines
-TL_FLASH					= 2
 TL_FEEDBACK 				= 1
+TL_ON_SEQ_L				= 91
+TL_OFF_SEQ_L				= 92
+TL_ON_SEQ_R				= 93
+TL_OFF_SEQ_R				= 94
+TL_STATUS_L				= 95
+TL_STATUS_R				= 96
+TL_SHUTDOWN				= 100
+SET_RUN_TIME				= 10 //10 Second Startup/Shutdown..
+
 TIME_REBOOT				= '06:00:00'
 TIME_KILL					= '22:00:00'
 
@@ -259,11 +270,19 @@ DEFINE_VARIABLE
 PERSISTENT CHAR nHelp_Phone_[15] //
 PERSISTENT CHAR nRoom_Location[30]
 
+VOLATILE INTEGER cLockOutLeft;
+VOLATILE INTEGER cLockOutRight;
+VOLATILE INTEGER nPwrStateLeft;
+VOLATILE INTEGER nPwrStateRight;
+
 VOLATILE INTEGER nSourceLeft
 VOLATILE INTEGER nSourceRight
 VOLATILE INTEGER nSourceAudio
 VOLATILE INTEGER nBootup_
 VOLATILE INTEGER nTpOnline
+VOLATILE INTEGER nMute_left
+VOLATILE INTEGER nMute_right
+
 
 VOLATILE SINTEGER nProgram_Level
 VOLATILE SINTEGER nProgram_Level_Preset = -40
@@ -274,17 +293,11 @@ VOLATILE SINTEGER nMicrophone_Level_Preset = -40
 VOLATILE SINTEGER nMicrophone_Hold
 
 VOLATILE LONG lTLFeedback[] = {500}
-VOLATILE LONG lTLFlash[] = {1000} 
-VOLATILE INTEGER iFLASH 
-
-VOLATILE INTEGER nMute_left //Mute DxLink Left
-VOLATILE INTEGER nMute_right //Mute DxLink Right
-VOLATILE INTEGER nMute_Center //Mute Center Projector
-
+VOLATILE LONG lTLPwrStatus[] = {1000}
 
 VOLATILE DEV vdvTP_Main[] = 
 {
-    dvTP_MAIN
+    dvTP_Main
 }
 VOLATILE INTEGER nVideoSources[] = 
 {
@@ -336,14 +349,7 @@ VOLATILE INTEGER nAudioBtns[] =
     BTN_MIC_UP,
     BTN_MIC_DN,
     BTN_MIC_PRESET
-}
-VOLATILE INTEGER nAudioFBBtns[] =
-{
-    BTN_AUDIO_PC,			
-    BTN_AUDIO_VGA,			
-    BTN_AUDIO_HDMI,			
-    BTN_AUDIO_MERSIVE
-}   
+} 
 VOLATILE CHAR nDvxInputNames[10][31] =
 {
     'Desktop Main',
@@ -389,6 +395,26 @@ VOLATILE DEV dcDisplays[] =
     vdvProjector_right,
     vdvProjector_rear
 }
+VOLATILE LONG lTLPwrSequenceLeft[] =
+{
+    0, //Initial Set
+    1000, //1 Second
+    3000 //3 Seconds
+}
+VOLATILE LONG lTLPwrSequenceRight[] =
+{
+    0, //Initial Set
+    1000, //1 Second
+    3000 //3 Seconds
+}
+VOLATILE LONG lTLPwrShutdown[] =
+{
+    0,
+    1000, //Off
+    4000, //Screens Up...
+    5000, //Video Reset
+    8000 //Audio Reset...
+}
 
 #INCLUDE 'SetMasterClock_'
 
@@ -418,9 +444,10 @@ DEFINE_MUTUALLY_EXCLUSIVE
 (* EXAMPLE: DEFINE_CALL '<NAME>' (<PARAMETERS>) *)
 DEFINE_FUNCTION fnLoadDVXVideoLabels()
 {
-    STACK_VAR INTEGER cLoop
+    STACK_VAR INTEGER cLoop;
+    	SEND_STRING dvDebug, "'dvDvxSwitcher : Set Video Input Descriptions'"
     
-    FOR (cLoop=1; cLoop<=MAX_LENGTH_ARRAY(dcDVXVideoSlots); cLoop++)
+    FOR (cLoop=1; cLoop<=LENGTH_ARRAY(dcDVXVideoSlots); cLoop++)
     {
 	SEND_COMMAND dcDVXVideoSlots[cLoop], "'VIDIN_NAME-',nDvxInputNames[cLoop]"
 
@@ -428,7 +455,8 @@ DEFINE_FUNCTION fnLoadDVXVideoLabels()
 }
 DEFINE_FUNCTION fnLoadDVXEdids()
 {
-    STACK_VAR INTEGER cLoop
+    STACK_VAR INTEGER cLoop;
+    	SEND_STRING dvDebug, "'dvDvxSwitcher : Set EDIDs'"
     
     FOR (cLoop=1; cLoop<=MAX_LENGTH_ARRAY(nDvxInputEDID); cLoop++)
     {
@@ -437,12 +465,16 @@ DEFINE_FUNCTION fnLoadDVXEdids()
 }
 DEFINE_FUNCTION fnDVXPull()
 {
+	SEND_STRING dvDebug, "'dvDvxSwitcher : Query Output Ties...'"
+	
     WAIT 10 SEND_COMMAND dvDvxSwitcher, "'?INPUT-VIDEO,',ITOA(OUT_PROJECTOR_LEFT)" 
     WAIT 20 SEND_COMMAND dvDvxSwitcher, "'?INPUT-VIDEO,',ITOA(OUT_PROJECTOR_RIGHT)"
     WAIT 30 SEND_COMMAND dvDvxSwitcher, "'?INPUT-AUDIO,',ITOA(OUT_AUDIO_MIX)"
 }
 DEFINE_FUNCTION fnSetAudioLevels()
 {
+	SEND_STRING dvDebug, "'dvDvxSwitcher : Set Audio Defaults'"
+	
     WAIT 10 SEND_LEVEL dvProgram,OUTPUT_VOLUME,MAX_LEVEL_OUT
     WAIT 20 SEND_LEVEL dvProgram,PROGRAM_MIX,nProgram_Level_Preset
     WAIT 30 SEND_LEVEL dvProgram,MICROPHONE_MIX_1,nMicrophone_Level_Preset
@@ -482,11 +514,9 @@ DEFINE_FUNCTION fnKill()
 {
     IF (TIME == TIME_KILL)
     {
-    	IF ([vdvProjector_Left, POWER] || [vdvProjector_Right, POWER] || [vdvProjector_rear, POWER])
+	IF (!TIMELINE_ACTIVE (TL_SHUTDOWN))
 	{
-	    fnPowerDisplays (BTN_PWR_OFF_L)
-		fnPowerDisplays (BTN_PWR_OFF_R)
-		    fnPowerDisplays (BTN_PWR_OFF_REAR)
+	    TIMELINE_CREATE (TL_SHUTDOWN, lTLPwrShutdown, LENGTH_ARRAY (lTLPwrShutdown), TIMELINE_ABSOLUTE, TIMELINE_ONCE);
 	}
     }
 }
@@ -593,41 +623,58 @@ DEFINE_FUNCTION fnPowerDisplays(INTEGER cPwr)
     {
 	CASE BTN_PWR_ON_L :
 	{
-	    PULSE [vdvProjector_left, POWER_ON] 
-		fnSCREEN (screen_down_left)
+	    IF (cLockOutLeft == TRUE)
+	    {
+		//Wait
+	    }
+	    ELSE
+	    {
+		IF (!TIMELINE_ACTIVE (TL_ON_SEQ_L))
+		{
+		    TIMELINE_CREATE (TL_ON_SEQ_L, lTLPwrSequenceLeft, LENGTH_ARRAY (lTLPwrSequenceLeft), TIMELINE_ABSOLUTE, TIMELINE_ONCE);
+		}
+	    }
 	}
 	CASE BTN_PWR_OFF_L :
 	{
-	    PULSE [vdvProjector_left, POWER_OFF]
-	    WAIT 30
+	    IF (cLockOutLeft == TRUE)
 	    {
-		fnSCREEN (screen_up_left)
+		//Wait
+	    }
+	    ELSE
+	    {
+		IF (!TIMELINE_ACTIVE (TL_OFF_SEQ_L))
+		{
+		    TIMELINE_CREATE (TL_OFF_SEQ_L, lTLPwrSequenceLeft, LENGTH_ARRAY (lTLPwrSequenceLeft), TIMELINE_ABSOLUTE, TIMELINE_ONCE);
+		}
 	    }
 	}
 	CASE BTN_PWR_ON_R :
 	{
-	    PULSE [vdvProjector_right, POWER_ON]
-	    fnSCREEN (screen_down_right)
+	    IF (cLockOutRight == TRUE)
+	    {
+		//Wait
+	    }
+	    ELSE
+	    {
+		IF (!TIMELINE_ACTIVE (TL_ON_SEQ_R))
+		{
+		    TIMELINE_CREATE (TL_ON_SEQ_R, lTLPwrSequenceRight, LENGTH_ARRAY (lTLPwrSequenceRight), TIMELINE_ABSOLUTE, TIMELINE_ONCE);
+		}
+	    }
 	}
 	CASE BTN_PWR_OFF_R :
 	{
-	    PULSE [vdvProjector_right, POWER_OFF]
-	    WAIT 30
+	    IF (cLockOutRight == TRUE)
 	    {
-		fnSCREEN (screen_up_right)
+		//Wait
 	    }
-	}
-	CASE BTN_PWR_ON_REAR :
-	{
-	    PULSE [vdvProjector_rear, POWER_ON]
-	    fnSCREEN (screen_down_center)
-	}
-	CASE BTN_PWR_OFF_REAR :
-	{
-	    PULSE [vdvProjector_rear, POWER_OFF]
-	    WAIT 30
+	    ELSE
 	    {
-		fnSCREEN (screen_up_center)
+		IF (!TIMELINE_ACTIVE (TL_OFF_SEQ_R))
+		{
+		    TIMELINE_CREATE (TL_OFF_SEQ_R, lTLPwrSequenceRight, LENGTH_ARRAY (lTLPwrSequenceRight), TIMELINE_ABSOLUTE, TIMELINE_ONCE);
+		}
 	    }
 	}
     }
@@ -657,17 +704,7 @@ DEFINE_FUNCTION fnSetScale(DEV cDev)
       #END_IF
     }
 }
-DEFINE_FUNCTION fnToggleChannels()
-{
-    STACK_VAR INTEGER cToggle;
-    
-    FOR (cToggle =1; cToggle <=MAX_LENGTH_ARRAY(dcDisplays); cToggle ++)
-    {
-	ON [dcDisplays[cToggle], POWER]
-	    OFF [dcDisplays[cToggle], ON_LINE]
-    }
 
-}
 
 (***********************************************************)
 (*                STARTUP CODE GOES BELOW                  *)
@@ -675,18 +712,23 @@ DEFINE_FUNCTION fnToggleChannels()
 DEFINE_START
 
 nBootup_ = TRUE;
+SEND_STRING dvDebug, "'dvMaster : Startup! '"
 
 WAIT 50
 {
-    TIMELINE_CREATE (TL_FEEDBACK,lTLFeedback,LENGTH_ARRAY(lTLFeedback),TIMELINE_ABSOLUTE,TIMELINE_REPEAT);
-    TIMELINE_CREATE (TL_FLASH,lTLFlash,LENGTH_ARRAY(lTLFlash),TIMELINE_ABSOLUTE,TIMELINE_REPEAT);
-    
-    fnToggleChannels()
+    IF (!TIMELINE_ACTIVE (TL_FEEDBACK))
+    {
+	SEND_STRING dvDebug, "'dvMaster : TIMELINE[TL_FEEDBACK] - Started'"
+	TIMELINE_CREATE (TL_FEEDBACK,lTLFeedback,LENGTH_ARRAY(lTLFeedback),TIMELINE_ABSOLUTE,TIMELINE_REPEAT);
+    }
 }
+
 WAIT ONE_MINUTE
 {
    nBootup_ = FALSE;
 }
+
+
 (***********************************************************)
 (*                MODULE DEFINITIONS GO BELOW              *)
 (***********************************************************)
@@ -753,17 +795,23 @@ BUTTON_EVENT [vdvTP_Main,nVideoLeftBtns] //Video Source Left Screen
 {
     PUSH:
     {
-	fnRouteVideoLeft(nVideoSources[GET_LAST(nVideoLeftBtns)])
+	STACK_VAR INTEGER nVidLeftIdx;
+	
+	nVidLeftIdx = GET_LAST (nVideoLeftBtns)
+	    fnRouteVideoLeft (nVideoSources[nVidLeftIdx])
     }
 }
 BUTTON_EVENT [vdvTP_Main,nVideoRightBtns] //Video Source Left Screen
 {
     PUSH:
     {
-	fnRouteVideoRight(nVideoSources[GET_LAST(nVideoRightBtns)])
+	STACK_VAR INTEGER nVidRightIdx;
+	
+	nVidRightIdx = GET_LAST (nVideoRightBtns)
+	    fnRouteVideoRight (nVideoSources[nVidRightIdx])
     }
 }
-BUTTON_EVENT [vdvTp_Main, nAudioBtns] //Audio Controls for Classroom!
+BUTTON_EVENT [vdvTp_Main, nAudioBtns] //Audio Controls
 {
     PUSH:
     {
@@ -773,14 +821,14 @@ BUTTON_EVENT [vdvTp_Main, nAudioBtns] //Audio Controls for Classroom!
 	    SWITCH (nVolumeIdx)
 	    {
 		CASE 1: CALL 'PROGRAM MUTE'
-		CASE 2: SEND_LEVEL dvProgram,PROGRAM_MIX,nProgram_Level + Volume_Up_Single
-		CASE 3: SEND_LEVEL dvProgram,PROGRAM_MIX,nProgram_Level + Volume_Down_Single
-		CASE 4: SEND_LEVEL dvProgram,PROGRAM_MIX,nProgram_Level_Preset
+		CASE 2: SEND_LEVEL dvProgram,PROGRAM_MIX,nProgram_Level + Volume_Up_Single;
+		CASE 3: SEND_LEVEL dvProgram,PROGRAM_MIX,nProgram_Level + Volume_Down_Single;
+		CASE 4: SEND_LEVEL dvProgram,PROGRAM_MIX,nProgram_Level_Preset;
 		
 		CASE 5: CALL 'MICROPHONE MUTE'
-		CASE 6: SEND_LEVEL dvMicrophone1,MICROPHONE_MIX_1,nMicrophone_Level + Volume_Up_Single
-		CASE 7: SEND_LEVEL dvMicrophone1,MICROPHONE_MIX_1,nMicrophone_Level + Volume_Down_Single
-		CASE 8: SEND_LEVEL dvMicrophone1,MICROPHONE_MIX_1,nMicrophone_Level_Preset
+		CASE 6: SEND_LEVEL dvMicrophone1,MICROPHONE_MIX_1,nMicrophone_Level + Volume_Up_Single;
+		CASE 7: SEND_LEVEL dvMicrophone1,MICROPHONE_MIX_1,nMicrophone_Level + Volume_Down_Single;
+		CASE 8: SEND_LEVEL dvMicrophone1,MICROPHONE_MIX_1,nMicrophone_Level_Preset;
 	    }
     }
     HOLD [2,REPEAT]: //If you hold the Volume Change Buttons
@@ -790,10 +838,10 @@ BUTTON_EVENT [vdvTp_Main, nAudioBtns] //Audio Controls for Classroom!
 	nVolumeIdx = GET_LAST (nAudioBtns)
 	SWITCH (nVolumeIdx)
 	{
-	    CASE 2: SEND_LEVEL dvProgram,PROGRAM_MIX,nProgram_Level + Volume_Up_Multiple
-	    CASE 3: SEND_LEVEL dvProgram,PROGRAM_MIX,nProgram_Level + Volume_Down_Multiple
-	    CASE 6: SEND_LEVEL dvMicrophone1,MICROPHONE_MIX_1,nMicrophone_Level + Volume_Up_Multiple
-	    CASE 7: SEND_LEVEL dvMicrophone1,MICROPHONE_MIX_1,nMicrophone_Level + Volume_Down_Multiple
+	    CASE 2: SEND_LEVEL dvProgram,PROGRAM_MIX,nProgram_Level + Volume_Up_Multiple;
+	    CASE 3: SEND_LEVEL dvProgram,PROGRAM_MIX,nProgram_Level + Volume_Down_Multiple;
+	    CASE 6: SEND_LEVEL dvMicrophone1,MICROPHONE_MIX_1,nMicrophone_Level + Volume_Up_Multiple;
+	    CASE 7: SEND_LEVEL dvMicrophone1,MICROPHONE_MIX_1,nMicrophone_Level + Volume_Down_Multiple;
 	}
     }
 }
@@ -879,13 +927,13 @@ CHANNEL_EVENT [vdvProjector_left, 0]
 	{
 	    CASE ON_LINE :
 	    {
-		SEND_COMMAND vdvTP_Main, "'^BMF-1.2,0,%OP255'"
+		SEND_COMMAND vdvTP_Main, "'^BMF-',ITOA(BTN_PWR_ON_L),'.',ITOA(BTN_PWR_OFF_L),',0,%OP',ITOA(SET_OP_MAX)"
 		ON [vdvTP_Main, BTN_ONLINE_L]
 	    }
 	    CASE WARMING :
 	    CASE COOLING :
 	    {
-		SEND_COMMAND vdvTP_Main, "'^BMF-1.2,0,%OP30'"
+		SEND_COMMAND vdvTP_Main, "'^BMF-',ITOA(BTN_PWR_ON_L),'.',ITOA(BTN_PWR_OFF_L),',0,%OP',ITOA(SET_OP_LOW)"
 	    }
 	    CASE POWER :
 	    {
@@ -899,13 +947,13 @@ CHANNEL_EVENT [vdvProjector_left, 0]
 	{
 	    CASE ON_LINE :
 	    {
-		SEND_COMMAND vdvTP_Main, "'^BMF-1.2,0,%OP30'"
+		SEND_COMMAND vdvTP_Main, "'^BMF-',ITOA(BTN_PWR_ON_L),'.',ITOA(BTN_PWR_OFF_L),',0,%OP',ITOA(SET_OP_LOW)"
 		OFF [vdvTP_Main, BTN_ONLINE_L]
 	    }
 	    CASE WARMING :
 	    CASE COOLING :
 	    {
-		SEND_COMMAND vdvTP_Main, "'^BMF-1.2,0,%OP255'"
+		SEND_COMMAND vdvTP_Main, "'^BMF-',ITOA(BTN_PWR_ON_L),'.',ITOA(BTN_PWR_OFF_L),',0,%OP',ITOA(SET_OP_MAX)"
 	    }
 	    CASE POWER :
 	    {
@@ -922,13 +970,13 @@ CHANNEL_EVENT [vdvProjector_right, 0]
 	{
 	    CASE ON_LINE :
 	    {
-		SEND_COMMAND vdvTP_Main, "'^BMF-101.102,0,%OP255'"
+		SEND_COMMAND vdvTP_Main, "'^BMF-',ITOA(BTN_PWR_ON_R),'.',ITOA(BTN_PWR_OFF_R),',0,%OP',ITOA(SET_OP_MAX)"
 		ON [vdvTP_Main, BTN_ONLINE_R]
 	    }
 	    CASE WARMING :
 	    CASE COOLING :
 	    {
-		SEND_COMMAND vdvTP_Main, "'^BMF-101.102,0,%OP30'"
+		SEND_COMMAND vdvTP_Main, "'^BMF-',ITOA(BTN_PWR_ON_R),'.',ITOA(BTN_PWR_OFF_R),',0,%OP',ITOA(SET_OP_LOW)"
 	    }
 	    CASE POWER :
 	    {
@@ -942,13 +990,13 @@ CHANNEL_EVENT [vdvProjector_right, 0]
 	{
 	    CASE ON_LINE :
 	    {
-		SEND_COMMAND vdvTP_Main, "'^BMF-101.102,0,%OP30'"
+		SEND_COMMAND vdvTP_Main, "'^BMF-',ITOA(BTN_PWR_ON_R),'.',ITOA(BTN_PWR_OFF_R),',0,%OP',ITOA(SET_OP_LOW)"
 		OFF [vdvTP_Main, BTN_ONLINE_R]
 	    }
 	    CASE WARMING :
 	    CASE COOLING :
 	    {
-		SEND_COMMAND vdvTP_Main, "'^BMF-101.102,0,%OP255'"
+		SEND_COMMAND vdvTP_Main, "'^BMF-',ITOA(BTN_PWR_ON_R),'.',ITOA(BTN_PWR_OFF_R),',0,%OP',ITOA(SET_OP_MAX)"
 	    }
 	    	    CASE POWER :
 	    {
@@ -1049,12 +1097,6 @@ DATA_EVENT [dvTp_Main] //TouchPanel Online
 	
 	SEND_COMMAND DATA.DEVICE, "'^TXT-',ITOA(TXT_ROOM),',0,',nRoom_Location"
 	SEND_COMMAND DATA.DEVICE, "'^TXT-',ITOA(TXT_HELP),',0,',nHelp_Phone_"
-	
-	IF (nBootup_==FALSE)
-	{
-	    fnToggleChannels()
-	    fnDVXPull()
-	}
     }
     OFFLINE :
     {
@@ -1172,7 +1214,7 @@ DATA_EVENT [dvProjector_dxRight]
 	    }
     }
 }
-DATA_EVENT [vdvProjector_Left]
+DATA_EVENT [vdvProjector_Left] //This will only work with my Custom Projector Module - 
 {
     COMMAND :
     {
@@ -1201,18 +1243,18 @@ DATA_EVENT [vdvProjector_Left]
 		CASE 'ONLINE':
 		{
 		    ON [vdvTP_Main, BTN_ONLINE_L]
-			SEND_COMMAND vdvTP_Main, "'^BMF-1.2,0,%OP255'"
+			SEND_COMMAND vdvTP_Main, "'^BMF-',ITOA(BTN_PWR_ON_L),'.',ITOA(BTN_PWR_OFF_L),',0,%OP',ITOA(SET_OP_MAX)"
 		}
 		CASE 'OFFLINE' :
 		{
 		    OFF [vdvTP_Main, BTN_ONLINE_L]
-			SEND_COMMAND vdvTP_Main, "'^BMF-1.2,0,%OP30'"
+			SEND_COMMAND vdvTP_Main, "'^BMF-',ITOA(BTN_PWR_ON_L),'.',ITOA(BTN_PWR_OFF_L),',0,%OP',ITOA(SET_OP_LOW)"
 		}
 	    }
 	}
     }
 }
-DATA_EVENT [vdvProjector_Right]
+DATA_EVENT [vdvProjector_Right] //This will only work with my Custom Projector Module - 
 {
     COMMAND :
     {
@@ -1241,12 +1283,12 @@ DATA_EVENT [vdvProjector_Right]
 		CASE 'ONLINE':
 		{
 		    ON [vdvTP_Main, BTN_ONLINE_R]
-			SEND_COMMAND vdvTP_Main, "'^BMF-101.102,0,%OP255'"
+			SEND_COMMAND vdvTP_Main, "'^BMF-',ITOA(BTN_PWR_ON_R),'.',ITOA(BTN_PWR_OFF_R),',0,%OP',ITOA(SET_OP_MAX)"
 		}
 		CASE 'OFFLINE' :
 		{
 		    OFF [vdvTP_Main, BTN_ONLINE_R]
-			SEND_COMMAND vdvTP_Main, "'^BMF-101.102,0,%OP30'"
+			SEND_COMMAND vdvTP_Main, "'^BMF-',ITOA(BTN_PWR_ON_R),'.',ITOA(BTN_PWR_OFF_R),',0,%OP',ITOA(SET_OP_LOW)"
 		}
 	    }
 	}
@@ -1254,43 +1296,213 @@ DATA_EVENT [vdvProjector_Right]
 }
 
 DEFINE_EVENT
-TIMELINE_EVENT [TL_FLASH]
+TIMELINE_EVENT [TL_ON_SEQ_L] //Left Pwr On Sequence...
 {
-    iFlash = !iFLASH
+    SEND_STRING dvDebug, "'timeline_event[TL_ON_SEQ_L]: timeline.sequence = ', ITOA(TIMELINE.SEQUENCE)";
+    
+    SWITCH (TIMELINE.SEQUENCE)
+    {
+	CASE 1 :
+	{
+	    cLockOutLeft = TRUE;
+		nPwrStateLeft = TRUE;
+		    PULSE [vdvProjector_left, POWER_ON]
+	    BREAK;
+	}
+	CASE 2 :
+	{
+	    fnSCREEN (screen_down_left)
+			
+	    IF (!TIMELINE_ACTIVE(TL_STATUS_L))
+	    {
+		TIMELINE_CREATE (TL_STATUS_L, lTLPwrStatus, LENGTH_ARRAY(lTLPwrStatus), TIMELINE_ABSOLUTE, TIMELINE_REPEAT);
+	    }
+	    BREAK;
+	}
+	CASE 3 :
+	{
+	    BREAK;
+	}
+    }
+}
+TIMELINE_EVENT [TL_OFF_SEQ_L]	 //Right Pwr Off Sequence..
+{
+    SEND_STRING dvDebug, "'timeline_event[TL_OFF_SEQ_L]: timeline.sequence = ', ITOA(TIMELINE.SEQUENCE)";
+    
+    SWITCH (TIMELINE.SEQUENCE)
+    {
+	CASE 1 :
+	{
+	    cLockOutLeft = TRUE;
+		nPwrStateLeft = FALSE;
+		    PULSE [vdvProjector_left, POWER_OFF]
+	    BREAK;
+	}
+	CASE 2 :
+	{
+	    
+	    IF (!TIMELINE_ACTIVE(TL_STATUS_L))
+	    {
+		TIMELINE_CREATE (TL_STATUS_L, lTLPwrStatus, LENGTH_ARRAY(lTLPwrStatus), TIMELINE_ABSOLUTE, TIMELINE_REPEAT);
+	    }
+	    BREAK;
+	}
+	CASE 3 :
+	{
+	    fnSCREEN (screen_up_left)
+	    BREAK;
+	}
+    }
+}
+TIMELINE_EVENT [TL_ON_SEQ_R]
+{
+    SEND_STRING dvDebug, "'timeline_event[TL_ON_SEQ_R]: timeline.sequence = ', ITOA(TIMELINE.SEQUENCE)";
+    
+    SWITCH (TIMELINE.SEQUENCE)
+    {
+	CASE 1 :
+	{
+	    cLockOutRight = TRUE;
+		nPwrStateRight = TRUE;
+		    PULSE [vdvProjector_right, POWER_ON]
+	    BREAK;
+	}
+	CASE 2 :
+	{
+		fnSCREEN (screen_down_right)
+		    
+	    IF (!TIMELINE_ACTIVE(TL_STATUS_R))
+	    {
+		TIMELINE_CREATE (TL_STATUS_R, lTLPwrStatus, LENGTH_ARRAY(lTLPwrStatus), TIMELINE_ABSOLUTE, TIMELINE_REPEAT);
+	    }
+	    BREAK;
+	}
+	CASE 3 :
+	{
+	    BREAK;
+	}
+    }
+}
+TIMELINE_EVENT [TL_OFF_SEQ_R]
+{
+    SEND_STRING dvDebug, "'timeline_event[TL_OFF_SEQ_R]: timeline.sequence = ', ITOA(TIMELINE.SEQUENCE)";
+    
+    SWITCH (TIMELINE.SEQUENCE)
+    {
+	CASE 1 :
+	{
+	    cLockOutRight = TRUE;
+		nPwrStateRight = FALSE;
+		    PULSE [vdvProjector_right, POWER_OFF]
+	    BREAK;
+	}
+	CASE 2 :
+	{
+	    
+	    IF (!TIMELINE_ACTIVE(TL_STATUS_R))
+	    {
+		TIMELINE_CREATE (TL_STATUS_R, lTLPwrStatus, LENGTH_ARRAY(lTLPwrStatus), TIMELINE_ABSOLUTE, TIMELINE_REPEAT);
+	    }
+	    BREAK;
+	}
+	CASE 3 :
+	{
+	    fnSCREEN (screen_up_right)
+	    BREAK;
+	}
+    }
+}
+TIMELINE_EVENT [TL_STATUS_L]
+{
+    IF (TIMELINE.REPETITION < SET_RUN_TIME)
+    {
+	SEND_COMMAND vdvTP_Main, "'^BMF-',ITOA(BTN_PWR_ON_L),'.',ITOA(BTN_PWR_OFF_L),',0,%OP',ITOA(SET_OP_LOW)"
+	
+	SWITCH (nPwrStateLeft)
+	{
+	    CASE 1 :
+	    {
+		[vdvTP_Main, 602] = ![vdvTP_Main, 602]
+	    }
+	    DEFAULT :
+	    {
+		[vdvTP_Main, 603] = ![vdvTP_Main, 603]
+	    }
+	}
+    }
+    ELSE
+    {
+	SEND_COMMAND vdvTP_Main, "'^BMF-',ITOA(BTN_PWR_ON_L),'.',ITOA(BTN_PWR_OFF_L),',0,%OP',ITOA(SET_OP_MAX)"
+	TIMELINE_KILL (TL_STATUS_L)
+	    cLockOutLeft = FALSE;
+		OFF [vdvTP_Main, 602]
+		OFF [vdvTP_Main, 603]
+    }
+}
+TIMELINE_EVENT [TL_STATUS_R]
+{
+    IF (TIMELINE.REPETITION < SET_RUN_TIME)
+    {
+	SEND_COMMAND vdvTP_Main, "'^BMF-',ITOA(BTN_PWR_ON_R),'.',ITOA(BTN_PWR_OFF_R),',0,%OP',ITOA(SET_OP_LOW)"
+	
+	SWITCH (nPwrStateRight)
+	{
+	    CASE 1 :
+	    {
+		[vdvTP_Main, 612] = ![vdvTP_Main, 612]
+	    }
+	    DEFAULT :
+	    {
+		[vdvTP_Main, 613] = ![vdvTP_Main, 613]
+	    }
+	}
+    }
+    ELSE
+    {
+	SEND_COMMAND vdvTP_Main, "'^BMF-',ITOA(BTN_PWR_ON_R),'.',ITOA(BTN_PWR_OFF_R),',0,%OP',ITOA(SET_OP_MAX)"
+	TIMELINE_KILL (TL_STATUS_R)
+	    cLockOutRight = FALSE;
+		OFF [vdvTP_Main, 612]
+		    OFF [vdvTP_Main, 613]
+    }
+}
+TIMELINE_EVENT [TL_SHUTDOWN]
+{
+    SEND_STRING dvDebug, "'timeline_event[TL_SHUTDOWN]: timeline.sequence = ', ITOA(TIMELINE.SEQUENCE)";
+    
+    SWITCH (TIMELINE.SEQUENCE)
+    {
+	CASE 1 : //UnBlanK
+	{
+	    fnMuteProjector (dvProjector_dxLeft, SET_MUTE_OFF)
+		fnMuteProjector (dvProjector_dxRight, SET_MUTE_OFF)
+	}
+	CASE 2 :
+	{
+	    PULSE [vdvProjector_left, POWER_OFF]
+		PULSE [vdvProjector_right, POWER_OFF]
+	}
+	CASE 3 :
+	{
+	    fnScreen (screen_up_left)
+		fnScreen (screen_up_right)
+	}
+	CASE 4 :
+	{
+	    fnRouteVideoLeft (VIDEO_PC_MAIN)
+		fnRouteVideoRight (VIDEO_PC_EXTENDED)
+	}
+	CASE 5 :
+	{
+	    fnSetAudioLevels()
+	}
+    }
 }
 TIMELINE_EVENT [TL_FEEDBACK]
 {
     fnKill()
     fnReboot()
-    
-    IF([vdvProjector_left,WARMING])
-    {
-	[dvTP_MAIN, 602] = iFLASH
-    }
-    ELSE IF ([vdvProjector_left, COOLING]) 
-    {
-	[dvTP_MAIN, 603] = iFLASH
-    }
-    ELSE
-    {
-	[dvTP_MAIN, 602] = [vdvProjector_left, WARMING]
-	[dvTP_MAIN, 603] = [vdvProjector_left, COOLING]
-    }
-
-    
-    IF([vdvProjector_right,WARMING]) 
-    {
-	[dvTP_MAIN, 612] = iFLASH
-    }
-    ELSE IF ([vdvProjector_right, COOLING]) 
-    {
-	[dvTP_MAIN, 613] = iFLASH
-    }
-    ELSE
-    {
-	[dvTP_MAIN, 612] = [vdvProjector_right, WARMING]
-	[dvTP_MAIN, 613] = [vdvProjector_right, COOLING]
-    }
+        
     
     WAIT ONE_MINUTE
     {
