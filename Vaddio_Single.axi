@@ -10,8 +10,8 @@ PROGRAM_NAME='Vaddio_Connect'
 
 DEFINE_DEVICE
 
-(** UNCOMMENT 1 of 2 lines below -
-    Specify how many camera(s) your room has
+(** See this -
+    This Include file works in Conjunction with my custom Vaddio Module
     **)
 
 #IF_NOT_DEFINED dvVaddioFront
@@ -43,34 +43,26 @@ PAN_LEFT					= 134
 PAN_RIGHT				= 135
 ZOOM_IN 						= 158
 ZOOM_OUT					= 159
+AUTO_FOCUS					= 97
+AUTO_WB					= 98
+IMAGE_FLIP_ON				= 11
+IMAGE_FLIP_OFF				= 12
 
-CAM_PRESET_1				= 1
-CAM_PRESET_2				= 2
-CAM_PRESET_3				= 3
-CAM_PRESET_4				= 4
-CAM_PRESET_5				= 5 
-
-CAM_PRESET_6				= 6
-CAM_PRESET_7				= 7
-CAM_PRESET_8				= 8
-CAM_PRESET_9				= 9
+BTN_PRESET_1					= 71
+BTN_PRESET_2					= 72
+BTN_PRESET_3					= 73
+BTN_PRESET_4					= 74
+BTN_PRESET_5					= 75
+BTN_PRESET_6					= 76
+BTN_PRESET_HOME			= 77
 
 TXT_CAMERA_SAVED			= 22
+TXT_CAMERA_PAGE			= 23
 
-BTN_CAM_FRONT				= 51
-BTN_CAM_REAR				= 52
+//Buttons...
+BTN_CAM_PWR				= 50
 
-BTN_PRESET_1				= 71
-BTN_PRESET_2				= 72
-BTN_PRESET_3				= 73
-BTN_PRESET_4				= 74
-BTN_PRESET_5				= 75
-
-BTN_SAVE_1				= 81
-BTN_SAVE_2				= 82
-BTN_SAVE_3				= 83
-BTN_SAVE_4				= 84
-BTN_SAVE_5				= 85
+BTN_CAMERA_POPUP		= 245
 
 
 (***********************************************************)
@@ -78,7 +70,7 @@ BTN_SAVE_5				= 85
 (***********************************************************)
 DEFINE_VARIABLE
 
-//DEV vdvTP_Camera[] = {dvTP_Main}
+VOLATILE INTEGER nOnline_Front;
 
 VOLATILE INTEGER nPresetSelect[] =
 {
@@ -86,14 +78,13 @@ VOLATILE INTEGER nPresetSelect[] =
     BTN_PRESET_2,
     BTN_PRESET_3,
     BTN_PRESET_4,
-    BTN_PRESET_5
+    BTN_PRESET_5,
+    BTN_PRESET_6,
+    BTN_PRESET_HOME
 }
-
 DEFINE_MUTUALLY_EXCLUSIVE
 
-([dvTP_Main, BTN_CAM_FRONT],[dvTP_Main, BTN_CAM_REAR])
-
-([dvTP_Main, BTN_PRESET_1]..[dvTP_Main, BTN_PRESET_5]) 
+([dvTP_Main, BTN_PRESET_1]..[dvTP_Main, BTN_PRESET_HOME])
 
 (***********************************************************)
 (*        SUBROUTINE/FUNCTION DEFINITIONS GO BELOW         *)
@@ -108,10 +99,6 @@ DEFINE_MUTUALLY_EXCLUSIVE
 (***********************************************************)
 DEFINE_START
 
-WAIT 300
-{
-    ON [vdvVaddioFront, POWER]
-}
 
 (***********************************************************)
 (*                MODULE DEFINITIONS GO BELOW              *)
@@ -123,14 +110,6 @@ DEFINE_MODULE 'Vaddio_RoboShot12_Comm' VaddioFrontMod(vdvVaddioFront, dvVaddioFr
 (*                THE EVENTS GO BELOW                      *)
 (***********************************************************)
 DEFINE_EVENT
-BUTTON_EVENT [dvTP_Main, BTN_CAM_FRONT] //Front
-{
-    PUSH :
-    {
-	PULSE [vdvVaddioFront, POWER_ON]
-	ON [dvTP_Main, BTN_CAM_FRONT]
-    }
-}
 BUTTON_EVENT [dvTP_Main, TILT_UP] 
 BUTTON_EVENT [dvTP_Main, TILT_DOWN] 
 BUTTON_EVENT [dvTP_Main, PAN_LEFT] 
@@ -153,52 +132,109 @@ BUTTON_EVENT [dvTP_Main, BTN_PRESET_1]
 BUTTON_EVENT [dvTP_Main, BTN_PRESET_2]
 BUTTON_EVENT [dvTP_Main, BTN_PRESET_3]
 BUTTON_EVENT [dvTP_Main, BTN_PRESET_4]
-BUTTON_EVENT [dvTP_Main, BTN_PRESET_5] //Recall Presets...
+BUTTON_EVENT [dvTP_Main, BTN_PRESET_5] 
+BUTTON_EVENT [dvTP_Main, BTN_PRESET_6] //Store + Recall Presets...
 {	
-    PUSH :
-    {
-	ON [dvTP_Main, BUTTON.INPUT.CHANNEL]
-	
-	    SEND_COMMAND vdvVaddioFront, "'CAMERAPRESET-',ITOA(BUTTON.INPUT.CHANNEL - 70)"
-    }
-}
-BUTTON_EVENT [dvTP_Main, BTN_SAVE_1] 
-BUTTON_EVENT [dvTP_Main, BTN_SAVE_2]
-BUTTON_EVENT [dvTP_Main, BTN_SAVE_3]
-BUTTON_EVENT [dvTP_Main, BTN_SAVE_4]
-BUTTON_EVENT [dvTP_Main, BTN_SAVE_5]
-{
     HOLD [30] :
     {
 	SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Preset Saved!'"
-    
-	SEND_COMMAND vdvVaddioFront, "'CAMERAPRESETSAVE-',ITOA(BUTTON.INPUT.CHANNEL - 80)"
-    
+	    SEND_COMMAND vdvVaddioFront, "'CAMERAPRESETSAVE-',ITOA(BUTTON.INPUT.CHANNEL - 70)"
+	
 	WAIT 50 
 	{
-	    SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Hold for 3 Seconds to Save Camera Presets'"
+	    SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Press to Recall',$0A,$0D,'Hold to Save'"
 	}
-
+    }	
+    RELEASE :
+    {
+	ON [dvTP_Main, BUTTON.INPUT.CHANNEL]
+	    SEND_COMMAND vdvVaddioFront, "'CAMERAPRESET-',ITOA(BUTTON.INPUT.CHANNEL - 70)"
     }
 }
-CHANNEL_EVENT [vdvVaddioFront, POWER]
+BUTTON_EVENT [dvTP_Main, BTN_PRESET_HOME] //Custom Home Button - Set your own Default Position!
 {
-    ON :
+    HOLD [90] :
     {
-	ON [dvTP_Main, BTN_CAM_FRONT]
+    	SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Preset Saved!'"
+	    SEND_COMMAND vdvVaddioFront, "'CAMERAPRESETSAVE-',ITOA(BTN_PRESET_HOME - 70)"
+	
+	WAIT 20 
+	{
+	    SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Press to Recall',$0A,$0D,'Hold to Save'"
+	}
     }
-    OFF :
+    RELEASE :
     {
-	OFF [dvTP_Main, BTN_CAM_FRONT]
+	ON [dvTP_Main, BTN_PRESET_HOME]
+	    SEND_COMMAND vdvVaddioFront, "'CAMERAPRESET-',ITOA(BTN_PRESET_HOME - 70)"
+	    
+	    WAIT 10 PULSE [vdvVaddioFront, AUTO_FOCUS]
+		WAIT 20 PULSE [vdvVaddioFront, AUTO_WB]
     }
 }
+BUTTON_EVENT [dvTP_Main, BTN_CAMERA_POPUP] //check Power State - Not Necessary with Single Camera
+{
+    PUSH :
+    {
+	[dvTP_Main, BTN_CAM_PWR] = nOnline_Front;
+    }
+}
+
+DEFINE_EVENT
 DATA_EVENT [dvTP_Main]
 {
     ONLINE :
     {
-	SEND_COMMAND DATA.DEVICE, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Hold for 3 Seconds to Save Camera Presets'"
-	WAIT 150 ON [vdvVaddioFront, POWER]
+	SEND_COMMAND DATA.DEVICE, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Press to Recall',$0A,$0D,'Hold to Save'"
     }
 }
+DATA_EVENT [vdvVaddioFront] //will only work with custom module - Module Sends Messages that will Read Status
+{
+    COMMAND :
+    {
+	LOCAL_VAR CHAR cGrabStatus[8]
+	
+	CHAR cMsg[30]
+	cMsg = DATA.TEXT
+	
+	IF (FIND_STRING (cMsg,'FBPOWER-',1))
+	{
+	    REMOVE_STRING (cMsg,'-',1)
+		cGrabStatus = cMsg
+	    
+	    SWITCH (cGrabStatus)
+	    {
+		CASE 'ON':
+		{
+		    nOnline_Front = TRUE;
+			//[dvTP_Main, BTN_CAM_PWR] = TRUE;
+		}
+		CASE 'OFF' :
+		{
+		    nOnline_Front = TRUE;
+			//[dvTP_Main, BTN_CAM_PWR] = TRUE;
+		}
+	    }
+	}
+	IF (FIND_STRING (cMsg,'FBCAMERA-',1))
+	{
+	    REMOVE_STRING (cMsg,'-',1)
+		cGrabStatus = cMsg
+	    
+	    SWITCH (cGrabStatus)
+	    {
+		CASE 'ONLINE':
+		{
+		    nOnline_Front = TRUE;
+		}
+		CASE 'OFFLINE' :
+		{
+		    nOnline_Front = FALSE;
+		}
+	    }
+	}
+    }
+}
+
 
 
