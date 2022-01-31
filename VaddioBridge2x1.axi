@@ -44,35 +44,6 @@ dvTP_Booth = 			10002:1:0 //MD-702
 (***********************************************************)
 DEFINE_CONSTANT
 
-//Decoder IPs
-OUT_DISPLAY_FRONT_LEFT		 = '10.10.0.101' //Sharp
-OUT_DISPLAY_FRONT_RIGHT		= '10.10.0.102' //Sharp
-OUT_DISPLAY_REAR_LEFT		= '10.10.0.103'
-OUT_DISPLAY_REAR_RIGHT		= '10.10.0.104'
-OUT_DISPLAY_SIDE_LEFT		= '10.10.0.106'
-OUT_DISPLAY_SIDE_RIGHT		= '10.10.0.105'
-OUT_MONITOR_LEFT			= '10.10.0.107' //Lectern Monitor
-OUT_MONITOR_RIGHT			= '10.10.0.108' //Dell Monitor
-OUT_AV_BRIDGE_1				= '10.10.0.109'
-OUT_AV_BRIDGE_2				= '10.10.0.110'
-OUT_DL_CAPTURE				= '10.10.0.111'
-OUT_AUDIO_ATC				= '10.10.0.199' //Pull audio from Pearl decoder
-
-//Endocder Stream #'s
-STREAM_PC_MAIN				= 11 //
-STREAM_PC_EXT				= 12 //
-STREAM_VGA_HDMI			= 13 //
-STREAM_DOC_CAM			= 14  //
-STREAM_MERSIVE				= 15
-STREAM_CAM_FRONT			= 16
-STREAM_CAM_REAR			= 17 
-STREAM_KAPTIVO				= 23
-STREAM_LIGHT_BOARD			= 18 
-STREAM_AV_BRIDGE			= 19 
-STREAM_DL_1					= 20
-STREAM_DL_2					= 21
-STREAM_DL_3					= 22
-
 //Av Bridge Stuff....
 CHAR AVB_PIP_ON[]					= 'video program pip on'
 CHAR AVB_PIP_OFF[]					= 'video program pip off'
@@ -86,13 +57,10 @@ CHAR AVB_MODEL[20]					= 'vaddio-av-bridge-2x1'
 //End AV Bridge Stuff...
 
 TL_FEEDBACK					= 1
-TL_FLASH					= 2
 CR 							= 13
 LF 							= 10
 
 //TP Addresses
-TXT_HELP					= 99
-TXT_ROOM					= 100
 TXT_CAMERA_PAGE			= 23
 
 //Btns....
@@ -122,9 +90,6 @@ DEFINE_TYPE
 (***********************************************************)
 DEFINE_VARIABLE
 
-PERSISTENT CHAR nHelp_Phone_[15] //
-PERSISTENT CHAR nRoom_Location[30]
-
 CHAR cAvBridge[15] = '172.21.6.204'
 LONG nVaddio_Port = 23
 VOLATILE INTEGER nVaddioBridgeOnline
@@ -137,39 +102,12 @@ VOLATILE INTEGER cIndexCamera
 VOLATILE INTEGER nLivePreview_ //Is Camera Live or naw..
 
 
-VOLATILE INTEGER nOnlineLeft_
-VOLATILE INTEGER nOnlineRight_
-VOLATILE INTEGER nTPOnline
-VOLATILE INTEGER nBoot_
-VOLATILE INTEGER nSystemOn_ 
-
 VOLATILE LONG lTLFeedback[] = {500};
-VOLATILE LONG lTLFlash[] = {1000};
-VOLATILE INTEGER iFlash
 
 VOLATILE DEV vdvTP_Main[] = 
 {
     dvTP_Main, 
     dvTP_Booth
-}
-VOLATILE INTEGER nStreamSend[] =
-{
-    STREAM_PC_MAIN,
-    STREAM_PC_EXT,	
-    STREAM_VGA_HDMI,
-    STREAM_DOC_CAM,
-    STREAM_MERSIVE,
-    STREAM_KAPTIVO,
-    STREAM_LIGHT_BOARD,
-    STREAM_DL_1,
-    STREAM_DL_2,	
-    STREAM_DL_3
-}
-VOLATILE INTEGER nVideoPrvwBtns[] =
-{
-    BTN_PRVW_PC_EXT,
-    BTN_PRVW_REC,
-    BTN_PRVW_ACTIVE_CAMERA
 }
 VOLATILE INTEGER nCameraButtons[] =
 {
@@ -351,10 +289,6 @@ DEFINE_FUNCTION fnGetVaddioRep()
     {
 	SEND_STRING dvVaddioBridge, "AVB_PIP_GET,CR"
     }
-}
-DEFINE_FUNCTION fnRouteVideoPreview(INTEGER cIn)
-{
-    SEND_STRING dvController, "'switch ',OUT_MONITOR_RIGHT,' ',ITOA(cIn),CR"
 }
 DEFINE_FUNCTION fnRouteCameraToUSB (INTEGER cStream)
 {
