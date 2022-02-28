@@ -99,12 +99,9 @@ BTN_RECALL_PRESET_2		= 72
 BTN_RECALL_PRESET_3		= 73
 BTN_RECALL_PRESET_4		= 74
 BTN_RECALL_PRESET_5		= 75
+BTN_RECALL_PRESET_6		= 76
+BTN_RECALL_PRESET_7		= 77 //Home Option
 
-BTN_STORE_PRESET_1		= 81
-BTN_STORE_PRESET_2		= 82
-BTN_STORE_PRESET_3		= 83
-BTN_STORE_PRESET_4		= 84
-BTN_STORE_PRESET_5		= 85
 
 BTN_CALL_ANSWER		= 100
 BTN_CALL_HANGUP		= 101
@@ -198,15 +195,9 @@ VOLATILE INTEGER nPresetSelectBtns[] =
     BTN_RECALL_PRESET_2,
     BTN_RECALL_PRESET_3,
     BTN_RECALL_PRESET_4,
-    BTN_RECALL_PRESET_5
-}
-VOLATILE INTEGER nPresetStoreBtns[] =
-{
-    BTN_STORE_PRESET_1,
-    BTN_STORE_PRESET_2,
-    BTN_STORE_PRESET_3,
-    BTN_STORE_PRESET_4,
-    BTN_STORE_PRESET_5
+    BTN_RECALL_PRESET_5,
+    BTN_RECALL_PRESET_6,
+    BTN_RECALL_PRESET_7
 }
 VOLATILE INTEGER nSelectCameraBtns[] =
 {
@@ -258,7 +249,7 @@ DEFINE_MUTUALLY_EXCLUSIVE
 ([dvTP_Codec, BTN_DISTURB_ALLOW],[dvTP_Codec, BTN_DISTURB_NO])
 ([dvTP_Codec, BTN_START_SHARING],[dvTP_Codec, BTN_STOP_SHARING])
 ([dvTP_Codec, BTN_PRESENTATION_ON],[dvTP_Codec, BTN_PRESENTATION_OFF])
-([dvTP_Codec, BTN_RECALL_PRESET_1]..[dvTP_Codec, BTN_RECALL_PRESET_5])
+([dvTP_Codec, BTN_RECALL_PRESET_1]..[dvTP_Codec, BTN_RECALL_PRESET_7])
 
 (***********************************************************)
 (*        SUBROUTINE/FUNCTION DEFINITIONS GO BELOW         *)
@@ -859,32 +850,47 @@ BUTTON_EVENT [vdvTP_Codec, nCameraControlsBtns] //Camera Controls
 	}
     }
 }
-BUTTON_EVENT [vdvTP_Codec, nPresetSelectBtns]
+BUTTON_EVENT [vdvTP_Codec, nPresetSelectBtns] //Store + Recall Presets...
 {
-    PUSH :
+    HOLD [30] : //Store After 3 Second Hold
     {
-	STACK_VAR INTEGER nPresetIdx
-	
-	nPresetIdx = GET_LAST (nPresetSelectBtns)
-	
-	SEND_STRING dvCodec, "'xCommand Camera Preset Activate PresetId:',ITOA(nPresetIdx),CR"
-	    ON [dvTP_Codec, nPresetSelectBtns[nPresetIdx]] //Send Feedback
-    }
-}
-BUTTON_EVENT [vdvTP_Codec, nPresetStoreBtns]
-{
-    HOLD [30] :
-    {
-	STACK_VAR INTEGER nStoreIdx
-	
-	nStoreIdx = GET_LAST (nPresetStoreBtns)
-	SEND_COMMAND dvTP_Codec, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Preset Saved!'"
-	    SEND_STRING dvCodec, "'xCommand Camera Preset Store PresetId: ',ITOA(nStoreIdx), ' CameraId: ',ITOA(nCameraSelect), ' ListPosition:',ITOA(nStoreIdx),CR"
-	    
-	    WAIT 50
+	STACK_VAR INTEGER nPresetIdx;
+	    nPresetIdx = GET_LAST (nPresetSelectBtns)
+		SEND_COMMAND dvTP_Codec, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Preset Saved!'"
+		
+	    SELECT
 	    {
-		 SEND_COMMAND dvTP_Codec, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Hold for 3 Seconds to Save Camera Presets'"
+		ACTIVE (nCameraSelect == SOURCE_CAMERA_FRONT) :
+		{
+		    SEND_STRING dvCodec, "'xCommand Camera Preset Store PresetId: ',ITOA(nPresetIdx), ' CameraId: ',ITOA(nCameraSelect), ' ListPosition:',ITOA(nPresetIdx),CR" //Camera 1 Calls Slots 1-5
+		}
+		ACTIVE (nCameraSelect == SOURCE_CAMERA_REAR) :
+		{
+		    SEND_STRING dvCodec, "'xCommand Camera Preset Store PresetId: ',ITOA(nPresetIdx + 8), ' CameraId: ',ITOA(nCameraSelect), ' ListPosition:',ITOA(nPresetIdx + 8),CR" //Camera 2 Call Slots 6-10
+		}
 	    }
+	WAIT 50
+	{
+	    SEND_COMMAND vdvTP_Codec, "'^TXT-',ITOA(TXT_CAMERA_SAVED),',0,Press to Recall',$0D,'Hold to Save'"
+	}
+    }
+    RELEASE :
+    {
+	STACK_VAR INTEGER nPresetIdx;
+	    nPresetIdx = GET_LAST (nPresetSelectBtns)
+		ON [vdvTP_Codec, nPresetSelectBtns[nPresetIdx]]
+	
+	SELECT
+	{
+	    ACTIVE (nCameraSelect == SOURCE_CAMERA_FRONT) :
+	    {
+		SEND_STRING dvCodec, "'xCommand Camera Preset Activate PresetId:',ITOA(nPresetIdx),CR" //Camera 1 Calls Slots 1-5
+	    }
+	    ACTIVE (nCameraSelect == SOURCE_CAMERA_REAR) :
+	    {
+		SEND_STRING dvCodec, "'xCommand Camera Preset Activate PresetId:',ITOA(nPresetIdx + 8),CR" //Camera 2 Call Slots 6-10
+	    }
+	}
     }
 }
 BUTTON_EVENT [vdvTP_Codec, BTN_CALL_ANSWER]
