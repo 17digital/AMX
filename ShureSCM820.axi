@@ -50,8 +50,6 @@ dvTP_Shure2 =		10002:5:0
 (***********************************************************)
 DEFINE_CONSTANT
 
-TL_FEEDBACK				= 1
-
 //Mic + Line Input IDS...
 IN_MIC_1				= 1
 IN_MIC_2				= 2
@@ -64,19 +62,6 @@ IN_MIC_8				= 8
 IN_LINE_AUX			= 9
 OUT_LINE_A				= 18
 OUT_LINE_B				= 19
-
-//Channel Names...Max 31
-NAME_1				= 'Roku-L'
-NAME_2				= 'Roku-R'
-NAME_3				= 'Nothing Here 3'
-NAME_4				= 'Nothing Here 4'
-NAME_5				= 'Nothing Here 5'
-NAME_6				= 'Nothing Here 6'
-NAME_7				= 'Nothing Here 7'
-NAME_8				= 'Nothing Here 8'
-NAME_9				= 'External Aux'
-NAME_18				= 'Front Speakers'
-NAME_19				= 'SUBZ'
 
 //Buttons..
 BTN_MUTE_DAN_1		= 1
@@ -128,14 +113,12 @@ BTN_MUTE_SUB 			= 13
 (***********************************************************)
 DEFINE_VARIABLE
 
-
 CHAR shureDevice[30] = 'I am Chris' //This will show up on the touchpanel
 
-CHAR shureIP[15]= '172.21.24.30' //Living Dsp
+VOLATILE URL_STRUCT uShureConnection;
 
-LONG SCM820_Port= 2202 //Port Shure uses!
-VOLATILE INTEGER scm820Online
-VOLATILE INTEGER cBooted
+VOLATILE INTEGER scm820Online;
+VOLATILE INTEGER cBooted;
 
 VOLATILE CHAR cShureBuffer[500]
 
@@ -266,24 +249,41 @@ VOLATILE INTEGER nNameSlot[] =
 (* EXAMPLE: DEFINE_CALL '<NAME>' (<PARAMETERS>) *)  
 DEFINE_FUNCTION fnStartConnection()
 {
-    IP_CLIENT_OPEN(dvShure.PORT,shureIP,SCM820_Port,1) //#1 is for TCP/IP connection
+    IP_CLIENT_OPEN (dvShure.PORT,uShureConnection.URL,uShureConnection.Port,uShureConnection.Flags) 
+    
+    WAIT 30
+    {
+	IF (scm820Online == TRUE)
+	{
+	    fnGetSCM820Rep();
+
+	    WAIT 100
+	    {
+		fnSCM820ChannelNames();
+	    }
+	}
+	ELSE
+	{
+	    fnCloseSCM820Connection()
+	}
+    }
 }
-DEFINE_FUNCTION fnCloseConnection()
+DEFINE_FUNCTION fnCloseSCM820Connection()
 {
     IP_CLIENT_CLOSE(dvShure.PORT) //Closes Connection When Done
 }
-DEFINE_FUNCTION fnChannelNames() //Set Channel Names (31 Characters Max)
+DEFINE_FUNCTION fnSCM820ChannelNames()//Set Channel Names (31 Characters Max)
 {
     //Names can have a Max of (1) Space - Or it will Not work!!
     STACK_VAR INTEGER b;
     
-    FOR (b =1; b <=MAX_LENGTH_ARRAY(nNameSlot); b++)
+    FOR (b =1; b <=LENGTH_ARRAY(nNameSlot); b++)
     {
 	SEND_STRING dvShure, " '< SET ',ITOA(b), ' CHAN_NAME {',cShureNames[b],'} >'"
 	    SEND_COMMAND dvTP_Shure, "'^TXT-',ITOA(nNameSlot[b]),',0,',cShureNames[b]"
     }
 }
-DEFINE_FUNCTION fnShureID() //Set Shure Id
+DEFINE_FUNCTION fnShureSCM820ID() //Set Shure Id
 {
     SEND_STRING dvShure, '< SET DEVICE_ID {CHRISMIX} >'
 }
@@ -303,10 +303,9 @@ DEFINE_FUNCTION fnSetGainAdjustDOWN(INTEGER cInput)
 {
     SEND_STRING dvShure, " '< SET ',ITOA(cInput), ' AUDIO_GAIN_HI_RES DEC 10 >' "
 }
-DEFINE_FUNCTION fnGetShureRep()
+DEFINE_FUNCTION fnGetSCM820Rep()
 {
     //0 Will Set All Channels
-    //SEND_STRING dvShure, '< SET 0 AUDIO_GAIN_HI_RES 1040 >'
     WAIT 10 SEND_STRING dvShure, '< GET 1 AUDIO_GAIN_HI_RES >'
     WAIT 20 SEND_STRING dvShure, '< GET 1 AUDIO_MUTE >'
     
@@ -319,16 +318,15 @@ DEFINE_FUNCTION fnGetShureRep()
     WAIT 70 SEND_STRING dvShure, '< GET 19 AUDIO_GAIN_HI_RES >'
     WAIT 90 SEND_STRING dvShure, '< GET 19 AUDIO_MUTE >'
 }
-DEFINE_FUNCTION fnReconnect()
+DEFINE_FUNCTION fnSCM820Reconnect()
 {
-    fnCloseConnection()
+    fnCloseSCM820Connection()
 	WAIT 20
 	{
-	    fnStartConnection()
-	    WAIT 30 fnGetShureRep()
+	    fnStartSCM820Connection()
 	}
 }
-DEFINE_FUNCTION char[100] GetIpError (LONG iErrorCode)
+DEFINE_FUNCTION char[100] GetSCM820IpError (LONG iErrorCode)
 {
     CHAR iReturn[100];
     
@@ -357,14 +355,16 @@ DEFINE_FUNCTION char[100] GetIpError (LONG iErrorCode)
 (***********************************************************)
 DEFINE_START
 
-ON [cBooted]
+cShureBoot = TRUE;
 CREATE_BUFFER dvShure, cShureBuffer;
 
-TIMELINE_CREATE (TL_FEEDBACK, lTlFeedback,LENGTH_ARRAY(lTlFeedback),TIMELINE_ABSOLUTE, TIMELINE_REPEAT);
+uShureConnection.URL = '172.21.24.17' //Living Dsp
+uShureConnection.Port = 2202;
+uShureConnection.Flags = IP_TCP;
 
 WAIT 600
 {
-    OFF [cBooted]
+   cShureBoot = FALSE;
 }
     
 
@@ -377,11 +377,6 @@ DATA_EVENT [vdvTP_Shure]
     ONLINE:
     {
 	SEND_COMMAND vdvTP_Shure, "'^TXT-100,0,',shureDevice"
-	
-	IF (!cBooted)
-	{
-	    fnGetShureRep()
-	}
     }
 }
 DATA_EVENT [dvShure]
@@ -406,7 +401,7 @@ DATA_EVENT [dvShure]
 	    CASE 7 : //Connection Time Out...
 	    {
 		scm820Online = FALSE;
-		    fnReconnect()
+		    fnSCM820Reconnect()
 	    }
 	    DEFAULT :
 	    {
@@ -417,10 +412,10 @@ DATA_EVENT [dvShure]
     }
     STRING :
     {
-    	STACK_VAR CHAR cResponse[100]
-	STACK_VAR INTEGER cID //Holds Input ID
-	STACK_VAR INTEGER cLev
-	LOCAL_VAR CHAR cChName[20]
+    	STACK_VAR CHAR cResponse[100];
+	STACK_VAR INTEGER cID; //Holds Input ID
+	STACK_VAR INTEGER cLev;
+	LOCAL_VAR CHAR cChName[20];
 	
 	Send_String 0,"'RECEIVING AUDIO ',cShureBuffer" 
 	AMX_LOG (AMX_INFO, "'dvShure:STRING: ',cShureBuffer");
@@ -562,28 +557,13 @@ BUTTON_EVENT [vdvTP_Shure, nShureChannelIdx]
 	}
     }
 }
-BUTTON_EVENT [vdvTP_Shure, 1000]
-{
-    PUSH :
-    {
-	fnReconnect()
-    }
-}
 TIMELINE_EVENT [TL_FEEDBACK] //Feedback /Hearbeat Check...
 {
     WAIT 300
     {
 	IF (scm820Online == FALSE)
 	{
-	    fnStartConnection()
-	    WAIT 20
-	    {
-		fnChannelNames()
-		WAIT 50
-		{
-		    fnGetShureRep()
-		}
-	    }
+	    fnStartSCM820Connection()
 	}
 	ELSE
 	{
