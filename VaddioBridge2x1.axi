@@ -1,196 +1,88 @@
 PROGRAM_NAME='VaddioBridge2x1'
-(***********************************************************)
-(*  FILE CREATED ON: 10/31/2019  AT: 11:07:31              *)
-(***********************************************************)
-(***********************************************************)
-(***********************************************************)
-(*  FILE_LAST_MODIFIED_ON: 03/31/2020  AT: 16:19:33        *)
-(***********************************************************)
-(* System Type : NetLinx                                   *)
-(***********************************************************)
-(* REV HISTORY:                                            *)
-(***********************************************************)
-(*
-    $History: $	
-	Notes...
-	
-	Add "Hold" 3 Seconds to Engage 152 Stream...
-	
-	Add Manual 152 Switching buttons for sources on screen?? -
-	152 Buttons feedback - mutall exculsive 
-	
-	http://www.audioscience.com/internet/products/avb/hono_avb_controller.htm
-	
-*)
-(***********************************************************)
-(*          DEVICE NUMBER DEFINITIONS GO BELOW             *)
-(***********************************************************)
+
+
 DEFINE_DEVICE
 
-dvMaster =			0:1:0
 
-dvDebug =			0:0:0 //Send to Diag...
-//dvShure =			0:3:0 
-//dvCamFront =		0:4:0
-//dvCamRear =		0:5:0
-dvVaddioBridge =		0:6:0 //av Bridge klaus1207avbridge:23
-
-dvTP_Main =			10001:1:0 //MT-1002
-dvTP_Booth = 			10002:1:0 //MD-702
+dvAvbridge	=    0:4:0 //IP
+//dvAvbridge	=	5001:1:0 //Serial
 
 
-(***********************************************************)
-(*               CONSTANT DEFINITIONS GO BELOW             *)
-(***********************************************************)
 DEFINE_CONSTANT
 
+CHAR MSG_END					= $0D;
+CHAR MSG_FD					= $0A;
+
+DATA_INITIALIZED				= 251;
+
 //Av Bridge Stuff....
-CHAR AVB_PIP_ON[]					= 'video program pip on'
-CHAR AVB_PIP_OFF[]					= 'video program pip off'
-CHAR AVB_PIP_GET[]					= 'video program pip get'
-CHAR AVB_LOGIN[]					= 'admin'
-CHAR AVB_PASS[]						= 'password'
-CHAR AVB_INPUT_CAMERA[]				= 'video program source set input 1'
-CHAR AVB_INPUT_DOC_CAM[]			= 'video program source set input 2'
-CHAR AVB_MAC_ADD[17]				= '04-91-62-DB-60-BA'
-CHAR AVB_MODEL[20]					= 'vaddio-av-bridge-2x1'
-//End AV Bridge Stuff...
+CHAR AVB_PIP_ON[]				= 'video program pip on'
+CHAR AVB_PIP_OFF[]				= 'video program pip off'
+CHAR AVB_PIP_GET[]				= 'video program pip get'
 
-TL_FEEDBACK					= 1
-CR 							= 13
-LF 							= 10
+IN_AVB_CAMERA					= 1;
+IN_AVB_CONTENT					= 2;
 
-//TP Addresses
-TXT_CAMERA_PAGE			= 23
-
-//Btns....
-BTN_PRVW_ACTIVE_CAMERA		= 120
-BTN_PRVW_PC_EXT				= 121
-BTN_PRVW_REC				= 122
-
-BTN_CAM_PWR				= 50
-BTN_CAM_FRONT				= 51
-BTN_CAM_REAR 				= 52 
-BTN_CAM_DOC				= 53
-BTN_CAM_KAPTIVO			= 54
-BTN_CAM_LIGHT				= 55
-
-BTN_CAMERA_POPUP			= 245
-BTN_AVB_PIP_TOGGLE			= 246
-BTN_AVB_SWAP_SOURCE		= 247
-
+//Buttons..
+BTN_AVB_PIP_TOGGLE				= 246;
+BTN_AVB_SWAP_SOURCE				= 247
 
 (***********************************************************)
-(*              DATA TYPE DEFINITIONS GO BELOW             *)
+(*              STRUCTURE DEFINITIONS GO BELOW             *)
 (***********************************************************)
 DEFINE_TYPE
+
+
+STRUCTURE _AVBStruct
+{
+    CHAR aURL[128];
+    INTEGER aPort;
+    CHAR aFlag;
+    CHAR aOnline;
+}
+
 
 (***********************************************************)
 (*               VARIABLE DEFINITIONS GO BELOW             *)
 (***********************************************************)
 DEFINE_VARIABLE
 
-CHAR cAvBridge[15] = '172.21.6.204'
-LONG nVaddio_Port = 23
-VOLATILE INTEGER nVaddioBridgeOnline
+VOLATILE _AVBStruct avbStruct;
+
+VOLATILE CHAR nAVBBuffer[1500];
+
 VOLATILE INTEGER nVaddioSuccess_
 VOLATILE INTEGER nPIPOn
 VOLATILE INTEGER nBGSwap
-VOLATILE CHAR nVaddioBridgeBuffer[100]
+VOLATILE INTEGER nLogAttempt;
 
-VOLATILE INTEGER cIndexCamera
-VOLATILE INTEGER nLivePreview_ //Is Camera Live or naw..
+VOLATILE CHAR cUser[5] = 'admin'
+VOLATILE CHAR cPassword[8] = 'password'
 
-
-VOLATILE LONG lTLFeedback[] = {500};
-
-VOLATILE DEV vdvTP_Main[] = 
-{
-    dvTP_Main, 
-    dvTP_Booth
-}
-VOLATILE INTEGER nCameraButtons[] =
-{
-    BTN_CAM_FRONT,
-    BTN_CAM_REAR,
-    BTN_CAM_DOC,
-    BTN_CAM_KAPTIVO,
-    BTN_CAM_LIGHT
-}
-VOLATILE INTEGER nSourceCameraIn[] =
-{
-    STREAM_CAM_FRONT,
-    STREAM_CAM_REAR,
-    STREAM_DOC_CAM,
-    STREAM_KAPTIVO,
-    STREAM_LIGHT_BOARD
-}
-VOLATILE CHAR nCameraPages[5][20] =
-{
-    '_Camera',
-    '_Camera',
-    '_Camera_DocCAm',
-    '_Camera_Kaptivo',
-    '_Camera_Board'
-}
-VOLATILE CHAR nCameraPageTitles[5][30] =
-{
-    'Audience Camera',
-    'Instructor Camera',
-    'Doc Camera',
-    'Kaptivo Camera',
-    'Light Board'
-}
-DEVCHAN dcNavBtns[] =
-{
-    {dvTP_Main, BTN_PC_MAIN_REAR_L},
-    {dvTP_Main, BTN_PC_MAIN_REAR_R},
-    {dvTP_Main, BTN_PC_MAIN_SIDE_L},
-    {dvTP_Main, BTN_PC_MAIN_SIDE_R}
-}
-   
-(***********************************************************)
-(*       MUTUALLY EXCLUSIVE DEFINITIONS GO BELOW           *)
-(***********************************************************)
-DEFINE_MUTUALLY_EXCLUSIVE
-
-([dvTP_Main, BTN_CAM_FRONT]..[dvTP_Main, BTN_CAM_REAR])
-([dvTP_Main, BTN_CAM_DOC]..[dvTP_Main, BTN_CAM_LIGHT])
-([dvTP_Main, BTN_PRVW_ACTIVE_CAMERA]..[dvTP_Main, BTN_PRVW_REC])
 
 (***********************************************************)
 (*        SUBROUTINE/FUNCTION DEFINITIONS GO BELOW         *)
 (***********************************************************)
 (* EXAMPLE: DEFINE_FUNCTION <RETURN_TYPE> <NAME> (<PARAMETERS>) *)
-(* EXAMPLE: DEFINE_CALL '<NAME>' (<PARAMETERS>) *)
-DEFINE_FUNCTION fnStartVaddioConnection()
+(* EXAMPLE: DEFINE_CALL '<NAME>' (<PARAMETERS>) *)  
+DEFINE_FUNCTION fnStartAVBConnection()
 {
-    IP_CLIENT_OPEN (dvVaddioBridge.PORT,cAvBridge,nVaddio_Port,1) //TCP Connection
+    nVaddioSuccess_ = FALSE;
+    SEND_STRING 0, "'Attempt to Start AVBridge Connection...'"
     
-    WAIT 20
-    {
-	fnGetVaddioRep()
-    }
+    IP_CLIENT_OPEN (dvAvbridge.PORT, avbStruct.aURL, avbStruct.aPort, avbStruct.aFlag)
 }
-DEFINE_FUNCTION fnCloseVaddioConnection()
+DEFINE_FUNCTION fnCloseAVBConnections()
 {
-    IP_CLIENT_CLOSE (dvVaddioBridge.PORT)
+    IP_CLIENT_CLOSE (dvAvbridge.PORT)
 }
-DEFINE_FUNCTION fnReconnectVaddio()
-{
-    fnCloseVaddioConnection()
-    WAIT 10
-    {
-	fnStartVaddioConnection()
-    }
-}
-DEFINE_FUNCTION char[100] GetVaddioIpError (LONG iErrorCode)
+DEFINE_FUNCTION char[100] GetAVBIpError (LONG iErrorCode)
 {
     CHAR iReturn[100];
     
     SWITCH (iErrorCode)
     {
-	CASE 2 : iReturn = "'General failure (Out of Memory) '" ;
+	CASE 2 : iReturn = "'General failure (Out of Memory) '";
 	CASE 4 : iReturn = "'Unknown host'";
 	CASE 6 : iReturn = "'Connection Refused'";
 	CASE 7 : iReturn = "'Connection timed Out'";
@@ -201,57 +93,119 @@ DEFINE_FUNCTION char[100] GetVaddioIpError (LONG iErrorCode)
 	CASE 14 : iReturn = "'Local Port Already Used'";
 	CASE 15 : iReturn = "'UDP Socket Already Listening'";
 	CASE 16 : iReturn = "'Too Many Open Sockets'";
-	CASE 17 : iReturn = "'Local Port Not Open'"
+	CASE 17 : iReturn = "'Local Port Not Open'";
 	
-	DEFAULT : iReturn = "'(', ITOA(iErrorCode),') Undefined'";
+	DEFAULT : iReturn = "'(',ITOA(iErrorCode),') Undefined'";
     }
     RETURN iReturn;
 }
-DEFINE_FUNCTION fnParseVaddioIP() //Parse Vaddio IP
+DEFINE_FUNCTION fnSendAVBString(CHAR iSend[])
 {
-    LOCAL_VAR CHAR cVaddioData[80]
-    LOCAL_VAR CHAR cVaddioPassFind[25]
-    LOCAL_VAR CHAR cVaddioOK[100]
+    SEND_STRING dvAvbridge, "iSend, MSG_END";
+	SEND_STRING 0, "'Sent to AVB-2x1 : ',iSend"
+}
+DEFINE_FUNCTION fnParseVaddioAVB()
+{
+    STACK_VAR CHAR iFind[200];
+    LOCAL_VAR CHAR iMsg[200]; //Debug Reader...
+    STACK_VAR INTEGER cInput;
     LOCAL_VAR CHAR cStatusPIP[15]
     
-    WHILE (FIND_STRING(nVaddioBridgeBuffer, 'login',1) OR FIND_STRING(nVaddioBridgeBuffer,'Password:',1) OR FIND_STRING(nVaddioBridgeBuffer,"$0D,$0A",1))
+    WHILE (FIND_STRING (nAVBBuffer, "$0D,$0A",1)) //OR FIND_STRING(nAVBBuffer, 'login:',1))
     {
-	cVaddioOK = REMOVE_STRING (nVaddioBridgeBuffer,"$0D,$0A",1)
-	cVaddioData = REMOVE_STRING (nVaddioBridgeBuffer,'login',1)
-	cVaddioPassFind = REMOVE_STRING (nVaddioBridgeBuffer,'Password:',1)
+	iFind = REMOVE_STRING (nAVBBuffer, "$0D,$0A",1)
+
+	iMsg = iFind;
 	
-	
-	IF (FIND_STRING(cVaddioData, 'login',1)) //Initial Login...
+	IF (FIND_STRING(iFind,'www.legrandav.com/vaddio',1)) //apart of the login splash page...
 	{
-	    SEND_STRING dvVaddioBridge, "AVB_LOGIN,CR"
-		nVaddioSuccess_ = FALSE;
-	}
-	IF (FIND_STRING(cVaddioPassFind, 'Password:',1))
-	{
-	    SEND_STRING dvVaddioBridge, "AVB_PASS,CR"
-		nVaddioSuccess_ = FALSE;
-	}
-	IF (FIND_STRING(cVaddioOK, 'Welcome admin',1))
-	{
-	    nVaddioSuccess_ = TRUE;
-	    SEND_STRING dvDebug, "'Vaddio AVBridge 2x1 -Login Success!'"
+	    nVaddioSuccess_ = FALSE;
 	    
-	    WAIT 10
+	    WAIT 20 '2-Seconds'
 	    {
-		nBGSwap = FALSE;
-		    SEND_STRING dvVaddioBridge, "AVB_INPUT_CAMERA,CR" //Set Default
+		fnSendAVBString (cUser)
+			SEND_STRING 0, "'Sent Login ',cUser ,'=====>'"
+		WAIT 20
+		{
+			fnSendAVBString (cPassword)
+			    SEND_STRING 0, "'Sent Login ',cPassword ,'=====>'"
+		}
 	    }
 	}
-	IF (FIND_STRING (cVaddioOK,'Login incorrect',1))
+	IF (FIND_STRING (iFind,"'Welcome admin'",1)) 
 	{
-	    SEND_STRING dvDebug, "'Vaddio AVBridge 2x1 - Login Incorrect!! Try Again ModaSucka!!'"
-	    SEND_STRING dvVaddioBridge, "CR"
-	} 
-	IF (FIND_STRING (cVaddioOK,'video program pip ',1)) //Direct On FB...
+		nVaddioSuccess_ = TRUE;
+		    SEND_STRING 0, "'Vaddio AVBridge 2x1 -Login Success!'"
+	}
+	IF (FIND_STRING (iFind, "'Login incorrect'",1)) 
+	{
+	    nVaddioSuccess_ = FALSE;
+		nLogAttempt = nLogAttempt +1;
+		SEND_STRING 0, "'Login for Vaddio 2x1 Incorrect Attempt 1 of ',ITOA(nLogAttempt)"
+	    
+	    WAIT 20 'Try Again'
+	    {
+		fnSendAVBString (cUser)
+			SEND_STRING 0, "'Sent Login ',cUser ,'=====>'"
+		WAIT 20
+		{
+			fnSendAVBString (cPassword)
+			    SEND_STRING 0, "'Sent Login ',cPassword ,'=====>'"
+		}
+	    }
+	    //After Incorrect login - 
+	    //vaddio-av-bridge-2x1-Mac-Address login: //Will result...with no Carriage Return
+	}
+	IF (FIND_STRING (iFind,'video program source set input',1)) //Direct Change FB...
+	{
+	   nVaddioSuccess_ = TRUE;
+	   REMOVE_STRING (iFind,'video program source set input',1)
+	    cInput = ATOI(LEFT_STRING(iFind,1))
+	    
+	    SWITCH (cInput)
+	    {
+		CASE IN_AVB_CAMERA :
+		{
+		    nBGSwap = FALSE;
+			OFF [vdvTP_Main, BTN_AVB_SWAP_SOURCE]
+		}
+		CASE IN_AVB_CONTENT :
+		{
+		    nBGSwap = TRUE;
+			ON [vdvTP_Main, BTN_AVB_SWAP_SOURCE]
+		}
+	    }
+	}
+	IF (FIND_STRING (iFind, "'source: input'",1))
 	{
 	    nVaddioSuccess_ = TRUE;
-	    REMOVE_STRING (cVaddioOK,'video program pip ',1)
-	    cStatusPIP = cVaddioOK;
+	    REMOVE_STRING(iFind,'source: input',1)
+		//cCamIDX  = ATOI(LEFT_STRING (iFind,1)) //Only need Remaing #
+		    cInput  = ATOI(LEFT_STRING (iFind,1)) //Only need Remaing #
+		
+	    SWITCH (cInput)
+	    {
+		CASE IN_AVB_CAMERA :
+		{
+		    //[vdvTP_Main, BTN_CAM_PWR] = nCamOnline_Rear;
+			//ON [vdvTP_Main, BTN_CAM_REAR]
+			nBGSwap = FALSE;
+			OFF [vdvTP_Main, BTN_AVB_SWAP_SOURCE]
+		}
+		CASE IN_AVB_CONTENT :
+		{
+		    //[vdvTP_Main, BTN_CAM_PWR] = nCamOnline_Front;
+			//ON [vdvTP_Main, BTN_CAM_FRONT]
+			nBGSwap = TRUE;
+			ON [vdvTP_Main, BTN_AVB_SWAP_SOURCE]
+		}
+	    }
+	}
+	IF (FIND_STRING (iFind,'video program pip ',1)) //Direct On FB...
+	{
+	    nVaddioSuccess_ = TRUE;
+	    REMOVE_STRING (iFind,'video program pip ',1)
+	    cStatusPIP = iFind;
 	    
 	    IF (FIND_STRING(cStatusPIP,'on',1))
 	    {
@@ -264,12 +218,12 @@ DEFINE_FUNCTION fnParseVaddioIP() //Parse Vaddio IP
 			    OFF [vdvTP_Main, BTN_AVB_PIP_TOGGLE]
 	    }
 	}
-	IF (FIND_STRING (cVaddioOK, 'pip:    ',1)) //From PIP Get Query Response
+	IF (FIND_STRING (iFind, 'pip:    ',1)) //From PIP Get Query Response
 	{
 	    nVaddioSuccess_ = TRUE;
 	    
-	    REMOVE_STRING (cVaddioOK, 'pip:    ',1)
-		cStatusPIP = cVaddioOK;
+	    REMOVE_STRING (iFind, 'pip:    ',1)
+		cStatusPIP = iFind;
 	    IF (FIND_STRING(cStatusPIP,'on',1))
 	    {
 		    nPIPOn = TRUE;
@@ -283,129 +237,38 @@ DEFINE_FUNCTION fnParseVaddioIP() //Parse Vaddio IP
 	}
     }
 }
-DEFINE_FUNCTION fnGetVaddioRep()
-{
-    IF (nVaddioSuccess_ == TRUE)
-    {
-	SEND_STRING dvVaddioBridge, "AVB_PIP_GET,CR"
-    }
-}
-DEFINE_FUNCTION fnRouteCameraToUSB (INTEGER cStream)
-{
-    SWITCH (cStream)
-    {
-	CASE STREAM_CAM_FRONT :
-	{
-	    SEND_STRING dvController, "'switch ',OUT_AV_BRIDGE_1,' ',ITOA(cStream),CR"
-		[dvTP_Main, BTN_CAM_PWR] = nOnline_Front
-	}
-	CASE STREAM_CAM_REAR :
-	{
-	    [dvTP_Main, BTN_CAM_PWR] = nOnline_Rear
-		SEND_STRING dvController, "'switch ',OUT_AV_BRIDGE_1,' ',ITOA(cStream),CR"
-	}
-	CASE STREAM_DOC_CAM :
-	CASE STREAM_KAPTIVO :
-	CASE STREAM_LIGHT_BOARD :
-	{
-	    SEND_STRING dvController, "'switch ',OUT_AV_BRIDGE_2,' ',ITOA(cStream),CR"
-	}
-    }
-}
+
 
 (***********************************************************)
 (*                STARTUP CODE GOES BELOW                  *)
 (***********************************************************)
 DEFINE_START
 
+avbStruct.aURL = 'weberl4avbridge.amx.uno.edu'
+avbStruct.aPort = 23;
+avbStruct.aFlag = IP_TCP;
 
-nBoot_ = TRUE;
+CREATE_BUFFER dvAvbridge, nAVBBuffer;
 
-TIMELINE_CREATE (TL_FEEDBACK,lTLFeedback,1,TIMELINE_ABSOLUTE,TIMELINE_REPEAT);
-	    CREATE_BUFFER dvVaddioBridge,nVaddioBridgeBuffer;
-
-WAIT 300
+WAIT 100
 {
-    cIndexCamera = 2; //Set Rear Control Default
-	fnRouteCameraToUSB (STREAM_CAM_REAR)
-	    ON [dvTP_Main, nCameraButtons[cIndexCamera]]
-}
-WAIT 450
-{
-    nBoot_ = FALSE;
+    fnStartAVBConnection();
 }
 
-(***********************************************************)
-(*                THE EVENTS GO BELOW                      *)
-(***********************************************************)
+
 DEFINE_EVENT
-BUTTON_EVENT [vdvTP_Main, nCameraButtons] //Rear
-{
-    PUSH :
-    {
-	cIndexCamera = GET_LAST (nCameraButtons);
-	//SEND_COMMAND dvTP_Main, "'^PPX'" //Make sure we reset/close first...
-	//SEND_COMMAND dvTP_Main, "'^PPN-',nCameraPages[cIndexCamera]" //Call correct Page
-	    fnRouteCameraToUSB (nSourceCameraIn[cIndexCamera]) //Index correct source..
-	    TOTAL_OFF [dvTP_Main, nPresetSelect]
-	    ON [dvTP_Main, nCameraButtons[cIndexCamera]] //Set FB
-	
-	    SWITCH (cIndexCamera)
-	    {
-		CASE 1 :
-		CASE 2 :
-		{
-		    SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(TXT_CAMERA_PAGE),',0,',nCameraPageTitles[cIndexCamera]" //Set Correct Title
-		    BREAK;
-		}
-		DEFAULT :
-		{
-		    //
-		}
-	    }	    
-    }
-}
-BUTTON_EVENT [vdvTP_Main, BTN_PRVW_ACTIVE_CAMERA]
-{
-    PUSH :
-    {
-	IF ( nLivePreview_ == FALSE)
-	{
-	    ON [dvTP_Main, BTN_PRVW_ACTIVE_CAMERA]
-		fnRouteVideoPreview (STREAM_AV_BRIDGE)
-		    nLivePreview_ = TRUE;
-	}
-	ELSE
-	{
-	    fnRouteVideoPreview (nSource_Right)
-		OFF [dvTP_Main, BTN_PRVW_ACTIVE_CAMERA]
-		    nLivePreview_ = FALSE;
-	}
-    }
-}
-BUTTON_EVENT [vdvTP_Main, BTN_CAMERA_POPUP]
-{
-    PUSH :
-    {
-	//SEND_COMMAND dvTP_Main, "'^PPN-',nCameraPages[cIndexCamera]" //Load appropriate Page...
-	SEND_COMMAND dvTP_Main, "'^PPN-_Camera'"
-	    SEND_COMMAND dvTP_Main, "'^TXT-',ITOA(TXT_CAMERA_PAGE),',0,',nCameraPageTitles[cIndexCamera]" //Load Title
-    }
-}
 BUTTON_EVENT [vdvTP_Main, BTN_AVB_PIP_TOGGLE]
 {
     PUSH :
     {
 	IF (nPIPOn == FALSE)
 	{
-	    SEND_STRING dvVaddioBridge, "AVB_PIP_ON, CR"
-		ON [vdvTP_Main, BTN_AVB_PIP_TOGGLE]
+	    fnSendAVBString (AVB_PIP_ON)
 	}
 	ELSE
 	{
-	    SEND_STRING dvVaddioBridge, "AVB_PIP_OFF, CR"
-		OFF [vdvTP_Main, BTN_AVB_PIP_TOGGLE]
-	}
+	    fnSendAVBString (AVB_PIP_OFF)
+	}    
     }
 }
 BUTTON_EVENT [vdvTP_Main, BTN_AVB_SWAP_SOURCE]
@@ -414,90 +277,66 @@ BUTTON_EVENT [vdvTP_Main, BTN_AVB_SWAP_SOURCE]
     {
 	IF (nBGSwap == FALSE)
 	{
-	    SEND_STRING dvVaddioBridge, "AVB_INPUT_DOC_CAM,CR"
-		nBGSwap = TRUE;
-		    ON [vdvTP_Main, BTN_AVB_SWAP_SOURCE]
+	    fnSendAVBString ("'video program source set input',ITOA(IN_AVB_CONTENT)")
 	}
 	ELSE
 	{
-	    SEND_STRING dvVaddioBridge, "AVB_INPUT_CAMERA,CR"
-		nBGSwap = FALSE;
-		    OFF [vdvTP_Main, BTN_AVB_SWAP_SOURCE]
+	    fnSendAVBString ("'video program source set input',ITOA(IN_AVB_CAMERA)")
 	}
     }
 }
 
 DEFINE_EVENT
-DATA_EVENT [dvVaddioBridge]
+DATA_EVENT [dvAvbridge]
 {
     ONLINE :
     {
-	nVaddioBridgeOnline = TRUE;
+	avbStruct.aOnline = TRUE;
     }
     OFFLINE :
     {
-	nVaddioBridgeOnline = FALSE;
+	avbStruct.aOnline = FALSE;
     }
     ONERROR :
     {
-	SEND_STRING dvDebug, "'AVBridg 2x1 Error : ',GetVaddioIpError(DATA.NUMBER)"
-	
+		AMX_LOG (AMX_ERROR, "'dvAvbridge : onerror: ',GetAVBIpError(DATA.NUMBER)");
+	Send_String 0,"'AVBridge onerror : ',GetAVBIpError(DATA.NUMBER)"; 
+
 	SWITCH (DATA.NUMBER)
 	{
-	    CASE 17 :
+	    CASE 7 : //Connection Time Out...
 	    {
-		nVaddioBridgeOnline = FALSE;
-		    fnReconnectVaddio()
+		avbStruct.aOnline = FALSE;
+		    fnStartAVBConnection()
 	    }
 	    DEFAULT :
 	    {
-		nVaddioBridgeOnline = FALSE;
+		ShureStruct.sOnline = FALSE;
 	    }
 	}
     }
     STRING :
     {
-	nVaddioBridgeOnline = TRUE;
-	    fnParseVaddioIP()
+	avbStruct.aOnline = TRUE;
+	    fnParseVaddioAVB()
     }
 }
-
-DEFINE_EVENT
-TIMELINE_EVENT [TL_FEEDBACK]
-{    
-    WAIT 250 //30 Second Loop
+TIMELINE_EVENT [TL_FEEDBACK] //Created on Main Program File....
+{
+    WAIT 200
     {
-	IF (nVaddioBridgeOnline == FALSE)
+	IF (avbStruct.aOnline == FALSE)
 	{
-	    fnStartVaddioConnection()
+	    fnStartAVBConnection()
+	}
+	ELSE IF (nVaddioSuccess_ == TRUE)
+	{
+	    fnSendAVBString ('video program source get')
 	}
 	ELSE
 	{
-	    fnGetVaddioRep()
+	    //We Wait till logged in...
 	}
     }
 }
-
-(*****************************************************************)
-(*                                                               *)
-(*                      !!!! WARNING !!!!                        *)
-(*                                                               *)
-(* Due to differences in the underlying architecture of the      *)
-(* X-Series masters, changing variables in the DEFINE_PROGRAM    *)
-(* section of code can negatively impact program performance.    *)
-(*                                                               *)
-(* See Differences in DEFINE_PROGRAM Program Execution section *)
-(* of the NX-Series Controllers WebConsole & Programming Guide   *)
-(* for additional and alternate coding methodologies.            *)
-(*****************************************************************)
-
-DEFINE_PROGRAM
-
-(*****************************************************************)
-(*                       END OF PROGRAM                          *)
-(*                                                               *)
-(*         !!!  DO NOT PUT ANY CODE BELOW THIS COMMENT  !!!      *)
-(*                                                               *)
-(*****************************************************************)
-
 
