@@ -17,6 +17,7 @@ INTEGER TIME_SYNC_PERIOD 	= 60 //1 hour
 (***********************************************************)
 DEFINE_VARIABLE
 
+VOLATILE DNS_STRUCT DnsList;
 
 (***********************************************************)
 (*        SUBROUTINE/FUNCTION DEFINITIONS GO BELOW         *)
@@ -39,7 +40,15 @@ DEFINE_FUNCTION fnSetClock()
 
 DEFINE_START
 
+DnsList.DomainName = 'amx.gatech.edu'
+DnsList.DNS1 = '130.207.244.251'
+DnsList.DNS2 = '130.207.244.244'
+DnsList.DNS3 = '128.61.244.254'
 
+WAIT 300
+{
+    SET_DNS_LIST (0:1:0, DnsList)
+}
 WAIT 450
 {
     fnSetClock()
