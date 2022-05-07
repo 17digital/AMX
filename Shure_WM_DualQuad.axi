@@ -1,21 +1,26 @@
 PROGRAM_NAME='Shure_WM_Quad'
 
 
-
 DEFINE_DEVICE
 
+#IF_NOT_DEFINED dvShureWm1
+dvShureWm1 =				0:6:0 //Shure WM Receiver
+#END_IF
 
-dvShure =				0:4:0 //Shure WM Receiver
-dvShure2 =				0:5:0 //Shure WM Receiver 2
+#IF_NOT_DEFINED dvShureWm2
+dvShureWm2 =				0:7:0 //Shure WM Receiver 2
+#END_IF
 
-dvTP_Shure =				10001:6:0
+dvTP_ShureWM =				10001:6:0
 
-#IF_NOT_DEFINED dvTP_Shure2
-dvTP_Shure2 =			10002:6:0
+#IF_NOT_DEFINED dvTP_ShureWM2
+dvTP_ShureWM2 =			10002:6:0
 #END_IF
 
 
 DEFINE_CONSTANT
+
+RECEIVER_COUNT		= 2;
 
 
 //Mic + Line Input IDS...
@@ -23,13 +28,9 @@ IN_MIC_1				= 1
 IN_MIC_2				= 2
 IN_MIC_3				= 3
 IN_MIC_4				= 4
-IN_MIC_5				= 1
-IN_MIC_6				= 2
-IN_MIC_7				= 3
-IN_MIC_8				= 4
 
 BTN_NET_BOOT		= 1000
-BTN_POLL_WM		= 10
+BTN_WM_POLL		= 10
 
 //TXT Addresses...
 TXT_CH_1				= 311
@@ -40,28 +41,50 @@ TXT_CH_5				= 315
 TXT_CH_6				= 316
 TXT_CH_7				= 317
 TXT_CH_8				= 318
+
 TXT_DEVICE				= 1001
+
+(***********************************************************)
+(*              STRUCTURE DEFINITIONS GO BELOW             *)
+(***********************************************************)
+DEFINE_TYPE
+
+STRUCTURE _SHUREStruct
+{
+    CHAR sURL[128];
+    INTEGER sPort;
+    CHAR sFlag;
+    CHAR sOnline;
+}
+STRUCTURE _MYShureWm
+{
+    CHAR sLocation[8]; //Is 8 Char of the device ID
+    CHAR sModel[25];
+    CHAR sFreq1[7]; 
+    CHAR sFreq2[7];
+    CHAR sFirmware[20];
+    CHAR sSummMode[10];
+    CHAR sEncryption[6];
+}
 
 (***********************************************************)
 (*               VARIABLE DEFINITIONS GO BELOW             *)
 (***********************************************************)
 DEFINE_VARIABLE
 
-CHAR shureIP[15]= '172.21.0.96' //cob100wm1
-CHAR shureIP2[15] = '172.21.0.97' //cob100wm2
+VOLATILE _SHUREStruct ShureIPStruct[RECEIVER_COUNT];
+VOLATILE _MYShureWm ShureInfo[RECEIVER_COUNT];
 
-LONG SCM820_Port= 2202 //Port Shure uses!
-VOLATILE INTEGER scm820Online
-VOLATILE INTEGER scmShureWm2Online
+
 VOLATILE INTEGER lBooted
 
-VOLATILE CHAR cShureBuffer[500]
-VOLATILE CHAR cShureBuffer2[500]
+VOLATILE CHAR cShureWm1Buffer[100];
+VOLATILE CHAR cShureWm2Buffer[100];
 
-VOLATILE DEV vdvTP_Shure[] = 
+VOLATILE DEV vdvTP_ShureWM[] = 
 {
-    dvTP_Shure,
-    dvTP_Shure2
+    dvTP_ShureWM,
+    dvTP_ShureWM2
 }
 VOLATILE INTEGER nNameSlot[] =
 {
@@ -83,51 +106,85 @@ VOLATILE INTEGER nNameSlot2[] =
 (***********************************************************)
 (* EXAMPLE: DEFINE_FUNCTION <RETURN_TYPE> <NAME> (<PARAMETERS>) *)
 (* EXAMPLE: DEFINE_CALL '<NAME>' (<PARAMETERS>) *)  
-DEFINE_FUNCTION fnStartShureConnection()
+DEFINE_FUNCTION fnStartShureWm1Connection()
 {
-    IP_CLIENT_OPEN(dvShure.PORT,shureIP,SCM820_Port,1) //#1 is for TCP/IP connection
-    WAIT 10 
+    IP_CLIENT_OPEN (dvShureWm1.PORT,ShureIPStruct[1].sURL, ShureIPStruct[1].sPort, ShureIPStruct[1].sFlag) 
+
+    WAIT 20
     {
-	 IP_CLIENT_OPEN(dvShure2.PORT,shureIP2,SCM820_Port,1) //#1 is for TCP/IP connection
+	fnGetShureWm1Rep()
     }
 }
-DEFINE_FUNCTION fnCloseShureConnection()
+DEFINE_FUNCTION fnStartShureWm2Connection()
 {
-    IP_CLIENT_CLOSE(dvShure.PORT) 
-	IP_CLIENT_CLOSE(dvShure2.PORT) 
+    IP_CLIENT_OPEN(dvShureWm2.PORT,ShureIPStruct[2].sURL, ShureIPStruct[1].sPort, ShureIPStruct[1].sFlag) 
+
+    WAIT 20
+    {
+	fnGetShureWm2Rep()
+    }
 }
-DEFINE_FUNCTION fnGetShureRep()
+DEFINE_FUNCTION fnCloseShureWm1Connection()
 {
-    WAIT 10 SEND_STRING dvShure, '< GET 1 FREQUENCY >'
-    WAIT 15 SEND_STRING dvShure, '< GET 2 FREQUENCY >'
-    WAIT 20 SEND_STRING dvShure, '< GET 3 FREQUENCY >'
-    WAIT 25 SEND_STRING dvShure, '< GET 4 FREQUENCY >'
-    
-    WAIT 30 SEND_STRING dvShure, '< GET 1 BATT_BARS >'
-    WAIT 35 SEND_STRING dvShure, '< GET 2 BATT_BARS >'
-    WAIT 40 SEND_STRING dvShure, '< GET 3 BATT_BARS >'
-    WAIT 45 SEND_STRING dvShure, '< GET 4 BATT_BARS >'
-    
-    WAIT 50 SEND_STRING dvShure2, '< GET 1 FREQUENCY >'
-    WAIT 55 SEND_STRING dvShure2, '< GET 2 FREQUENCY >'
-    WAIT 60 SEND_STRING dvShure2, '< GET 3 FREQUENCY >'
-    WAIT 65 SEND_STRING dvShure2, '< GET 4 FREQUENCY >'
-    
-    WAIT 70 SEND_STRING dvShure2, '< GET 1 BATT_BARS >'
-    WAIT 75 SEND_STRING dvShure2, '< GET 2 BATT_BARS >'
-    WAIT 80 SEND_STRING dvShure2, '< GET 3 BATT_BARS >'
-    WAIT 85 SEND_STRING dvShure2, '< GET 4 BATT_BARS >'
+    IP_CLIENT_CLOSE(dvShureWm1.PORT) 
 }
-DEFINE_FUNCTION fnShureReconnect()
+DEFINE_FUNCTION fnCloseShureWm2Connection()
 {
-    fnCloseShureConnection()
+    IP_CLIENT_CLOSE(dvShureWm2.PORT) 
+}
+DEFINE_FUNCTION fnGetShureWm1Rep()
+{
+    WAIT 10 SEND_STRING dvShureWm1, " '< GET ',ITOA(IN_MIC_1),' FREQUENCY >' "
+    WAIT 15 SEND_STRING dvShureWm1, " '< GET ',ITOA(IN_MIC_2),' FREQUENCY >' "
+    WAIT 20 SEND_STRING dvShureWm1, " '< GET ',ITOA(IN_MIC_3),' FREQUENCY >' "
+    WAIT 25 SEND_STRING dvShureWm1, " '< GET ',ITOA(IN_MIC_4),' FREQUENCY >' "
+    
+    WAIT 30 SEND_STRING dvShureWm1, " '< GET ',ITOA(IN_MIC_1),' BATT_BARS >' "
+    WAIT 35 SEND_STRING dvShureWm1, " '< GET ',ITOA(IN_MIC_2),' BATT_BARS >' "
+    WAIT 40 SEND_STRING dvShureWm1, " '< GET ',ITOA(IN_MIC_3),' BATT_BARS >' "
+    WAIT 45 SEND_STRING dvShureWm1, " '< GET ',ITOA(IN_MIC_4),' BATT_BARS >' "
+    
+    WAIT 50 SEND_STRING dvShureWm1, " '< GET FW_VER >' "
+    WAIT 60 SEND_STRING dvShureWm1, '< GET AUDIO_SUMMING_MODE >'
+    WAIT 70 SEND_STRING dvShureWm1, '< GET DEVICE_ID >' //Can be 1-8 Characters Long...
+    WAIT 80 SEND_STRING dvShureWm1, '< GET ENCRYPTION >' 
+    WAIT 90 SEND_STRING dvShureWm1, '< GET MODEL >' //Needs FW 2.4+
+}
+DEFINE_FUNCTION fnGetShureWm2Rep()
+{    
+    WAIT 10 SEND_STRING dvShureWm2, " '< GET ',ITOA(IN_MIC_1),' FREQUENCY >' "
+    WAIT 15 SEND_STRING dvShureWm2, " '< GET ',ITOA(IN_MIC_2),' FREQUENCY >' "
+    WAIT 20 SEND_STRING dvShureWm2, " '< GET ',ITOA(IN_MIC_3),' FREQUENCY >' "
+    WAIT 25 SEND_STRING dvShureWm2, " '< GET ',ITOA(IN_MIC_4),' FREQUENCY >' "
+    
+    WAIT 30 SEND_STRING dvShureWm2, " '< GET ',ITOA(IN_MIC_1),' BATT_BARS >' "
+    WAIT 35 SEND_STRING dvShureWm2, " '< GET ',ITOA(IN_MIC_2),' BATT_BARS >' "
+    WAIT 40 SEND_STRING dvShureWm2, " '< GET ',ITOA(IN_MIC_3),' BATT_BARS >' "
+    WAIT 45 SEND_STRING dvShureWm2, " '< GET ',ITOA(IN_MIC_4),' BATT_BARS >' "
+
+    WAIT 50 SEND_STRING dvShureWm2, " '< GET FW_VER >' "
+    WAIT 60 SEND_STRING dvShureWm2, '< GET AUDIO_SUMMING_MODE >'
+    WAIT 70 SEND_STRING dvShureWm2, '< GET DEVICE_ID >' //Can be 1-8 Characters Long...
+    WAIT 80 SEND_STRING dvShureWm2, '< GET ENCRYPTION >' 
+    WAIT 90 SEND_STRING dvShureWm2, '< GET MODEL >' //Needs FW 2.4+
+}
+DEFINE_FUNCTION fnShureWm1Reconnect()
+{
+    fnCloseShureWm1Connection()
 	WAIT 20
 	{
-	    fnStartShureConnection()
-	    WAIT 30 fnGetShureRep()
+	    fnStartShureWm1Connection()
 	}
 }
-DEFINE_FUNCTION char[100] GetShureIpError (LONG iErrorCode)
+DEFINE_FUNCTION fnShureWm2Reconnect()
+{
+    fnCloseShureWm2Connection()
+	WAIT 20
+	{
+	    fnStartShureWm2Connection()
+	}
+}
+DEFINE_FUNCTION char[100] GetShureWmIpError (LONG iErrorCode)
 {
     CHAR iReturn[100];
     
@@ -156,54 +213,223 @@ DEFINE_FUNCTION char[100] GetShureIpError (LONG iErrorCode)
 (***********************************************************)
 DEFINE_START
 
-ON [lBooted]
-CREATE_BUFFER dvShure, cShureBuffer;
-CREATE_BUFFER dvShure2, cShureBuffer2;
 
+ShureIPStruct[1].sURL = 'arch123wm.amx.gatech.edu' //172.21.2.8
+ShureIPStruct[2].sURL = 'arch123wm2.amx.gatech.edu' //172.21.2.9
 
-WAIT 600
+ShureIPStruct[1].sPort = 2202;
+ShureIPStruct[1].sFlag = IP_TCP;
+
+CREATE_BUFFER dvShureWm1, cShureWm1Buffer;
+CREATE_BUFFER dvShureWm2, cShureWm2Buffer;
+
+WAIT 80 '8 Seconds'
 {
-    OFF [lBooted]
+    fnStartShureWm1Connection();
+}
+WAIT 100 '10 Seconds'
+{
+    fnStartShureWm2Connection();
 }
 
 DEFINE_EVENT 
-BUTTON_EVENT [vdvTP_Shure, BTN_POLL_WM]
-{
-    PUSH :
-    {
-	IF ((scm820Online == TRUE) OR (scmShureWm2Online ==TRUE))
-	{
-	    fnGetShureRep()
-	}
-    }
-}
-DATA_EVENT [dvShure]
+DATA_EVENT [dvShureWm1]
 {
     ONLINE :
     {
-	scm820Online = TRUE;
-	    ON [vdvTP_Shure, BTN_NET_BOOT]
+	ShureIPStruct[1].sOnline = TRUE;
+	    ON [vdvTP_ShureWM, BTN_NET_BOOT]
     }
     OFFLINE :
     {
-	scm820Online = FALSE;
-	    OFF [vdvTP_Shure, BTN_NET_BOOT]
+	ShureIPStruct[1].sOnline = FALSE;
+	    OFF [vdvTP_ShureWM, BTN_NET_BOOT]
     }
     ONERROR :
     {
-	AMX_LOG (AMX_ERROR, "'dvShure : onerror: ',GetShureIpError(DATA.NUMBER)");
-	Send_String 0,"'Shure onerror : ',GetShureIpError(DATA.NUMBER)"; 
+	AMX_LOG (AMX_ERROR, "'dvShureWm1 : onerror: ',GetShureWmIpError(DATA.NUMBER)");
+	Send_String 0,"'Shure onerror : ',GetShureWmIpError(DATA.NUMBER)"; 
+	
+	SWITCH (DATA.NUMBER)
+	{
+	    CASE 7 : //Connection Time Out...
+	    {
+		ShureIPStruct[1].sOnline = FALSE;
+		    fnShureWm1Reconnect()
+	    }
+	    DEFAULT :
+	    {
+		ShureIPStruct[1].sOnline = FALSE;
+	    }
+	}
+    }
+    STRING :
+    {
+    	STACK_VAR CHAR cResponse[100]
+	STACK_VAR INTEGER cID //Holds Input ID
+	STACK_VAR CHAR cFreq[6]
+	STACK_VAR CHAR cBatteryLev[3]
+	STACK_VAR CHAR cFirstFreq[3]
+	STACK_VAR CHAR cLastFreq[3]
+	STACK_VAR CHAR cType[30] //TX Type
+	LOCAL_VAR CHAR cSum[30]
+	
+	ShureIPStruct[1].sOnline = TRUE;
+	    ON [vdvTP_ShureWM, BTN_NET_BOOT]
+	
+	SEND_STRING 0, "'dvShureWm1 : STRING : ',cShureWm1Buffer";
+	
+	//Parsing Begins....
+	WHILE (FIND_STRING(cShureWm1Buffer,'>',1))
+	{
+	    cResponse = REMOVE_STRING(cShureWm1Buffer,'>',1)
+	
+	    IF (FIND_STRING (cResponse,'< REP ',1))
+	    {
+		REMOVE_STRING (cResponse,'< REP ',1)
+		
+		cID = ATOI (LEFT_STRING(cResponse, 1)) //1 -- 4
+		
+		IF (FIND_STRING(cResponse, "ITOA(cID), ' FREQUENCY '",1))
+		{
+		    REMOVE_STRING (cResponse,"ITOA(cId), ' FREQUENCY '",1)
+			cFreq = cResponse;
+			
+			cFirstFreq = LEFT_STRING (cFreq,3)
+			cLastFreq = MID_STRING (cFreq, 4, 3)
+			
+		    SEND_COMMAND vdvTP_ShureWM, "'^TXT-',ITOA(cID),',0,',cFirstFreq,'-',cLastFreq"
+		    
+		    SWITCH (cID)
+		    {
+			CASE 1 :
+			{
+			    ShureInfo[1].sFreq1 = "cFirstFreq,'-',cLastFreq"
+			}
+			CASE 2 : 
+			{
+			    ShureInfo[1].sFreq2 = "cFirstFreq,'-',cLastFreq"
+			}
+		    }
+		}
+		IF (FIND_STRING (cResponse, "ITOA(cID), ' BATT_BARS '",1))
+		{
+		    REMOVE_STRING (cResponse,"ITOA(cId), ' BATT_BARS '",1)
+		    cBatteryLev = cResponse;
+		    
+		    SWITCH (cBatteryLev)
+		    {
+			CASE '255' : //Error Code - Not communicating w/ Mic...
+			{
+			    //Not Connectd / Battery Level not Received...
+			    SEND_COMMAND vdvTP_ShureWM, "'^TXT-',ITOA(nNameSlot[cId]),',0,Not Connected'"
+				OFF [vdvTP_ShureWM, nNameSlot[cID]]
+			}
+			CASE '005' :
+			CASE '004' :
+			CASE '003' :
+			CASE '002' :
+			CASE '001' : //Actual Battery Levels...
+			{
+			    SEND_COMMAND vdvTP_ShureWM, "'^TXT-',ITOA(nNameSlot[cId]),',0,Connected !'"
+				ON [vdvTP_ShureWM, nNameSlot[cID]]
+			}
+		    }
+		}
+		IF (FIND_STRING (cResponse, "ITOA(cId), ' TX_'",1))
+		{
+		    REMOVE_STRING (cResponse, "ITOA(cId), ' TX_'",1)
+			cType = cResponse
+			SET_LENGTH_STRING(cType,LENGTH_STRING(cType) -2);
+			
+		    SWITCH (cType)
+		    {
+			CASE 'MUTE_STATUS OFF' :
+			CASE 'MENU_LOCK OFF' :
+			CASE 'TYPE ULXD1' : 
+			CASE 'RF_PWR LOW' :
+			CASE 'MUTE_BUTTON_STATUS RELEASED' :
+			{
+			    SEND_COMMAND vdvTP_ShureWM, "'^TXT-',ITOA(nNameSlot[cId]),',0,Connectd !'"
+				ON [vdvTP_ShureWM, nNameSlot[cID]]
+			}
+			CASE 'MENU_LOCK UNKN':
+			CASE 'PWR_LOCK UNKN':
+			CASE 'TYPE UNKN' :
+			CASE 'POWER_SOURCE UNKN' :
+			CASE 'RF_PWR UNKN' :
+			{
+			    SEND_COMMAND vdvTP_ShureWM, "'^TXT-',ITOA(nNameSlot[cId]),',0,Not Connected'"
+				OFF [vdvTP_ShureWM, nNameSlot[cID]]
+			}
+		    }
+		}
+		IF (FIND_STRING(cResponse, 'FW_VER {',1))
+		{
+		    REMOVE_STRING (cResponse,'{',1)
+			//SET_LENGTH_STRING(cResponse,LENGTH_STRING(cResponse) -16);
+			ShureInfo[1].sFirmware = LEFT_STRING (cResponse,8) ; //Ex : 2.3.34.0
+		}
+		IF (FIND_STRING (cResponse, 'AUDIO_SUMMING_MODE ',1))
+		{
+		    REMOVE_STRING (cResponse, 'AUDIO_SUMMING_MODE ',1)
+			SET_LENGTH_STRING(cResponse,LENGTH_STRING(cResponse) -2);
+			    ShureInfo[1].sSummMode = cResponse;
+				cSum = "'Summing Mode = ', cResponse";
+			    
+		    //Responses...
+			//OFF -- 1+2 -- 3+4 -- 1+2/3+4 -- 1+2+3+4
+		}
+		IF (FIND_STRING (cResponse, 'DEVICE_ID {',1))
+		{
+		    REMOVE_STRING (cResponse,'{',1)
+			ShureInfo[1].sLocation = cResponse;
+		}
+		IF (FIND_STRING (cResponse, 'ENCRYPTION ',1))
+		{
+		    REMOVE_STRING (cResponse, 'ENCRYPTION ',1)
+			SET_LENGTH_STRING(cResponse,LENGTH_STRING(cResponse) -2);
+			    ShureInfo[1].sEncryption = cResponse;
+				//OFF -- AUTO -- MANUAL
+		}
+		IF (FIND_STRING (cResponse, 'MODEL {',1)) //Needs latest firmware...
+		{
+		    REMOVE_STRING (cResponse, '{',1)
+		    ShureInfo[1].sModel = cResponse;
+		}
+		IF (FIND_STRING (cResponse, 'ERR',1)) //Needs latest firmware...
+		{
+		    ShureInfo[1].sModel = "'Firmware Update Available'"
+		}
+	    }
+	}
+    }
+}
+DATA_EVENT [dvShureWm2]
+{
+    ONLINE :
+    {
+	ShureIPStruct[2].sOnline = TRUE;
+    }
+    OFFLINE :
+    {
+	ShureIPStruct[2].sOnline = FALSE;
+    }
+    ONERROR :
+    {
+	AMX_LOG (AMX_ERROR, "'dvShureWm2 : onerror: ',GetShureWmIpError(DATA.NUMBER)");
+	Send_String 0,"'Shure onerror : ',GetShureWmIpError(DATA.NUMBER)"; 
 	
 	SWITCH (DATA.NUMBER)
 	{
 	    CASE 17 : //Connection Time Out...
 	    {
-		scm820Online = FALSE;
-		    fnShureReconnect()
+		ShureIPStruct[2].sOnline = FALSE;
+		    fnShureWm2Reconnect()
 	    }
 	    DEFAULT :
 	    {
-		scm820Online = FALSE;
+		ShureIPStruct[2].sOnline = FALSE;
 	    }
 	}
     }
@@ -211,129 +437,23 @@ DATA_EVENT [dvShure]
     {
     	STACK_VAR CHAR cResponse[100]
 	STACK_VAR INTEGER cID //Holds Input ID
-	LOCAL_VAR CHAR cFreq[6]
-	LOCAL_VAR CHAR cBatteryLev[3]
-	LOCAL_VAR CHAR cFirstFreq[3]
-	LOCAL_VAR CHAR cLastFreq[3]
+	STACK_VAR CHAR cFreq[6]
+	STACK_VAR CHAR cBatteryLev[3]
+	STACK_VAR CHAR cFirstFreq[3]
+	STACK_VAR CHAR cLastFreq[3]
 	STACK_VAR CHAR cType[30] //TX Type
-	LOCAL_VAR CHAR cDbug[30]
+	LOCAL_VAR CHAR cSum[30]
 	
-	scm820Online = TRUE;
-	    ON [vdvTP_Shure, BTN_NET_BOOT]
-	
-	AMX_LOG (AMX_INFO, "'dvShure : STRING: ',cShureBuffer"); //Store Log withing AMX Master- See Notes Above!
-		
-	//Parsing Begins....
-	WHILE (FIND_STRING(cShureBuffer,'>',1))
-	{
-	    cResponse = REMOVE_STRING(cShureBuffer,'>',1)
-	    SEND_STRING 0,"'ShureULX-D : Response: ',cResponse"
-	
-	    IF (FIND_STRING (cResponse,'< REP ',1))
-	    {
-		REMOVE_STRING (cResponse,'< REP ',1)
-		
-		cID = ATOI (LEFT_STRING(cResponse, 1)) //1 -- 4
-		
-		IF (FIND_STRING(cResponse, "ITOA(cID), ' FREQUENCY '",1))
-		{
-		    REMOVE_STRING (cResponse,"ITOA(cId), ' FREQUENCY '",1)
-			cFreq = cResponse
-			
-			cFirstFreq = LEFT_STRING (cFreq,3)
-			cLastFreq = MID_STRING (cFreq, 4, 3)
-			
-			    SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(cID),',0,',cFirstFreq,'-',cLastFreq"
-		}
-		IF (FIND_STRING (cResponse, "ITOA(cID), ' BATT_BARS '",1))
-		{
-		    REMOVE_STRING (cResponse,"ITOA(cId), ' BATT_BARS '",1)
-		    cBatteryLev = cResponse
-		    
-		    SWITCH (cBatteryLev)
-		    {
-			CASE '255' : //Error Code - Not communicating w/ Mic...
-			{
-			    //Not Connectd / Battery Level not Received...
-			    SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(nNameSlot[cId]),',0,Not Connected'"
-				OFF [vdvTP_Shure, nNameSlot[cID]]
-			}
-			CASE '005' :
-			CASE '004' :
-			CASE '003' :
-			CASE '002' :
-			CASE '001' : //Actual Battery Levels...
-			{
-			    SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(nNameSlot[cId]),',0,Connectd !'"
-				ON [vdvTP_Shure, nNameSlot[cID]]
-			}
-		    }
-		}
-		IF (FIND_STRING (cResponse, "ITOA(cId), ' TX_'",1))
-		{
-		    REMOVE_STRING (cResponse, "ITOA(cId), ' TX_'",1)
-			cType = cResponse
-			SET_LENGTH_STRING(cType,LENGTH_STRING(cType) -2);
-			cDbug = cType
-			
-			SWITCH (cType)
-			{
-			    CASE 'MUTE_STATUS OFF' :
-			    CASE 'MENU_LOCK OFF' :
-			    CASE 'TYPE ULXD1' : 
-			    CASE 'RF_PWR LOW' :
-			    CASE 'MUTE_BUTTON_STATUS RELEASED' :
-			    {
-				SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(nNameSlot[cId]),',0,Connectd !'"
-				    ON [vdvTP_Shure, nNameSlot[cID]]
-			    }
-			    CASE 'MENU_LOCK UNKN':
-			    CASE 'PWR_LOCK UNKN':
-			    CASE 'TYPE UNKN' :
-			    CASE 'POWER_SOURCE UNKN' :
-			    CASE 'RF_PWR UNKN' :
-			    {
-				SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(nNameSlot[cId]),',0,Not Connected'"
-				    OFF [vdvTP_Shure, nNameSlot[cID]]
-			    }
-			}
-		}
-	    }
-	}
-    }
-}
-DATA_EVENT [dvShure2]
-{
-    ONLINE :
-    {
-	scmShureWm2Online = TRUE;
-    }
-    OFFLINE :
-    {
-	scmShureWm2Online = FALSE;
-    }
-    STRING :
-    {
-    	STACK_VAR CHAR cResponse[100]
-	STACK_VAR INTEGER cID //Holds Input ID
-	LOCAL_VAR CHAR cFreq[6]
-	LOCAL_VAR CHAR cBatteryLev[3]
-	LOCAL_VAR CHAR cFirstFreq[3]
-	LOCAL_VAR CHAR cLastFreq[3]
-	STACK_VAR CHAR cType[30] //TX Type
-	LOCAL_VAR CHAR cDbug[30]
-	
-	scmShureWm2Online = TRUE;
+	ShureIPStruct[2].sOnline = TRUE;
 
-		AMX_LOG (AMX_INFO, "'dvShure2 : STRING: ',cShureBuffer2"); //Store Log withing AMX Master- See Notes Above!
-	//SEND_STRING 0,"'ShureULX-D2 : Response: ',cShureBuffer2"
+		//AMX_LOG (AMX_INFO, "'dvShureWm2 : STRING: ',cShureWmBuffer2"); //Store Log withing AMX Master- See Notes Above!
+	SEND_STRING 0,"'dvShureWm2 : Response: ',cShureWm2Buffer"
 	
 	//Parsing Begins....
 	
-	WHILE (FIND_STRING(cShureBuffer2,'>',1))
+	WHILE (FIND_STRING(cShureWm2Buffer,'>',1))
 	{
-	    cResponse = REMOVE_STRING(cShureBuffer2,'>',1)
-		SEND_STRING 0,"'dvShure2 : Response: ',cResponse"
+	    cResponse = REMOVE_STRING(cShureWm2Buffer,'>',1)
 	
 	    IF (FIND_STRING (cResponse,'< REP ',1))
 	    {
@@ -343,26 +463,38 @@ DATA_EVENT [dvShure2]
 		
 		IF (FIND_STRING(cResponse, "ITOA(cID), ' FREQUENCY '",1))
 		{
-		    REMOVE_STRING (cResponse,"ITOA(cId), ' FREQUENCY '",1)
-			cFreq = cResponse
+		    REMOVE_STRING (cResponse,"ITOA(cID), ' FREQUENCY '",1)
+			cFreq = cResponse;
 			
 			cFirstFreq = LEFT_STRING (cFreq,3)
 			cLastFreq = MID_STRING (cFreq, 4, 3)
 			
-			    SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(cID +4),',0,',cFirstFreq,'-',cLastFreq"
+		    SEND_COMMAND vdvTP_ShureWM, "'^TXT-',ITOA(cID +4),',0,',cFirstFreq,'-',cLastFreq"
+			    
+		    SWITCH (cID)
+		    {
+			CASE 1 :
+			{
+			    ShureInfo[2].sFreq1 = "cFirstFreq,'-',cLastFreq"
+			}
+			CASE 2 : 
+			{
+			    ShureInfo[2].sFreq2 = "cFirstFreq,'-',cLastFreq"
+			}
+		    }
 		}
 		IF (FIND_STRING (cResponse, "ITOA(cID), ' BATT_BARS '",1))
 		{
-		    REMOVE_STRING (cResponse,"ITOA(cId), ' BATT_BARS '",1)
-		    cBatteryLev = cResponse
+		    REMOVE_STRING (cResponse,"ITOA(cID), ' BATT_BARS '",1)
+		    cBatteryLev = cResponse;
 		    
 		    SWITCH (cBatteryLev)
 		    {
 			CASE '255' : //Error Code - Not communicating w/ Mic...
 			{
 			    //Not Connectd / Battery Level not Received...
-			    SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(nNameSlot2[cId]),',0,Not Connected'"
-				OFF [vdvTP_Shure, nNameSlot2[cID]]
+			    SEND_COMMAND vdvTP_ShureWM, "'^TXT-',ITOA(nNameSlot2[cID]),',0,Not Connected'"
+				OFF [vdvTP_ShureWM, nNameSlot2[cID]]
 			}
 			CASE '005' :
 			CASE '004' :
@@ -370,39 +502,75 @@ DATA_EVENT [dvShure2]
 			CASE '002' :
 			CASE '001' : //Actual Battery Levels...
 			{
-			    SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(nNameSlot2[cId]),',0,Connectd !'"
-				ON [vdvTP_Shure, nNameSlot2[cID]]
+			    SEND_COMMAND vdvTP_ShureWM, "'^TXT-',ITOA(nNameSlot2[cID]),',0,Connectd !'"
+				ON [vdvTP_ShureWM, nNameSlot2[cID]]
 			}
 		    }
 		}
 		IF (FIND_STRING (cResponse, "ITOA(cId), ' TX_'",1))
 		{
 		    REMOVE_STRING (cResponse, "ITOA(cId), ' TX_'",1)
-			cType = cResponse
+			cType = cResponse;
 			SET_LENGTH_STRING(cType,LENGTH_STRING(cType) -2);
-			cDbug = cType
 			
-			SWITCH (cType)
+		    SWITCH (cType)
+		    {
+			CASE 'MUTE_STATUS OFF' :
+			CASE 'MENU_LOCK OFF' :
+			CASE 'TYPE ULXD1' : 
+			CASE 'RF_PWR LOW' :
+			CASE 'MUTE_BUTTON_STATUS RELEASED' :
 			{
-			    CASE 'MUTE_STATUS OFF' :
-			    CASE 'MENU_LOCK OFF' :
-			    CASE 'TYPE ULXD1' : 
-			    CASE 'RF_PWR LOW' :
-			    CASE 'MUTE_BUTTON_STATUS RELEASED' :
-			    {
-				SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(nNameSlot2[cId]),',0,Connectd !'"
-				    ON [vdvTP_Shure, nNameSlot2[cID]]
-			    }
-			    CASE 'MENU_LOCK UNKN':
-			    CASE 'PWR_LOCK UNKN':
-			    CASE 'TYPE UNKN' :
-			    CASE 'POWER_SOURCE UNKN' :
-			    CASE 'RF_PWR UNKN' :
-			    {
-				SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(nNameSlot2[cId]),',0,Not Connected'"
-				    OFF [vdvTP_Shure, nNameSlot2[cID]]
-			    }
+			    SEND_COMMAND vdvTP_ShureWM, "'^TXT-',ITOA(nNameSlot2[cId]),',0,Connectd !'"
+				    ON [vdvTP_ShureWM, nNameSlot2[cID]]
 			}
+			CASE 'MENU_LOCK UNKN':
+			CASE 'PWR_LOCK UNKN':
+			CASE 'TYPE UNKN' :
+			CASE 'POWER_SOURCE UNKN' :
+			CASE 'RF_PWR UNKN' :
+			{
+			    SEND_COMMAND vdvTP_ShureWM, "'^TXT-',ITOA(nNameSlot2[cId]),',0,Not Connected'"
+				    OFF [vdvTP_ShureWM, nNameSlot2[cID]]
+			}
+		    }
+		}
+		IF (FIND_STRING(cResponse, 'FW_VER {',1))
+		{
+		    REMOVE_STRING (cResponse,'{',1)
+			//SET_LENGTH_STRING(cResponse,LENGTH_STRING(cResponse) -16);
+			ShureInfo[2].sFirmware = LEFT_STRING (cResponse,8) ; //Ex : 2.3.34.0
+		}
+		IF (FIND_STRING (cResponse, 'AUDIO_SUMMING_MODE ',1))
+		{
+		    REMOVE_STRING (cResponse, 'AUDIO_SUMMING_MODE ',1)
+			SET_LENGTH_STRING(cResponse,LENGTH_STRING(cResponse) -2);
+			    ShureInfo[2].sSummMode = cResponse;
+				cSum = "'Summing Mode = ', cResponse";
+			    
+		    //Responses...
+			//OFF -- 1+2 -- 3+4 -- 1+2/3+4 -- 1+2+3+4
+		}
+		IF (FIND_STRING (cResponse, 'DEVICE_ID {',1))
+		{
+		    REMOVE_STRING (cResponse,'{',1)
+			ShureInfo[2].sLocation = cResponse;
+		}
+		IF (FIND_STRING (cResponse, 'ENCRYPTION ',1))
+		{
+		    REMOVE_STRING (cResponse, 'ENCRYPTION ',1)
+			SET_LENGTH_STRING(cResponse,LENGTH_STRING(cResponse) -2);
+			    ShureInfo[2].sEncryption = cResponse;
+				//OFF -- AUTO -- MANUAL
+		}
+		IF (FIND_STRING (cResponse, 'MODEL {',1)) //Needs latest firmware...
+		{
+		    REMOVE_STRING (cResponse, '{',1)
+		    ShureInfo[2].sModel = cResponse;
+		}
+		IF (FIND_STRING (cResponse, 'ERR',1)) //Needs latest firmware...
+		{
+		    ShureInfo[2].sModel = "'Firmware Update Available'"
 		}
 	    }
 	}
@@ -412,18 +580,25 @@ TIMELINE_EVENT [TL_FEEDBACK]
 {
     WAIT 350
     {
-	IF ((scm820Online == FALSE) OR (scmShureWm2Online ==FALSE))
+	IF (ShureIPStruct[1].sOnline == FALSE)
 	{
-	    fnStartShureConnection()
-	    WAIT 20
-	    {
-		fnGetShureRep()
-	    }
+	    fnShureWm1Reconnect()
 	}
 	ELSE
 	{
-	    SEND_STRING dvShure, '< GET AUDIO_SUMMING_MODE >'
-	    WAIT 10 SEND_STRING dvShure2, '< GET AUDIO_SUMMING_MODE >'
+	    fnGetShureWm1Rep()
+	}
+    }
+    WAIT 450
+    {
+    	//
+	IF (ShureIPStruct[2].sOnline == FALSE)
+	{
+	    fnShureWm2Reconnect()
+	}
+	ELSE
+	{
+	    fnGetShureWm2Rep()
 	}
     }
 }
