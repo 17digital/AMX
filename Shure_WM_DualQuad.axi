@@ -110,7 +110,7 @@ DEFINE_FUNCTION fnStartShureWm1Connection()
 {
     IP_CLIENT_OPEN (dvShureWm1.PORT,ShureIPStruct[1].sURL, ShureIPStruct[1].sPort, ShureIPStruct[1].sFlag) 
 
-    WAIT 20
+    TIMED_WAIT_UNTIL (ShureIPStruct[1].sOnline == TRUE) 300 '30 Seconds'
     {
 	fnGetShureWm1Rep()
     }
@@ -119,7 +119,7 @@ DEFINE_FUNCTION fnStartShureWm2Connection()
 {
     IP_CLIENT_OPEN(dvShureWm2.PORT,ShureIPStruct[2].sURL, ShureIPStruct[1].sPort, ShureIPStruct[1].sFlag) 
 
-    WAIT 20
+    TIMED_WAIT_UNTIL (ShureIPStruct[2].sOnline == TRUE) 300 '30 Seconds'
     {
 	fnGetShureWm2Rep()
     }
