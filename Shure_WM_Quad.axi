@@ -1,32 +1,10 @@
 PROGRAM_NAME='Shure_WM_Quad'
-(***********************************************************)
-(* REV HISTORY:                                            *)
-(***********************************************************)
-(*
-    $History: $
-    This include file is designed to Communicate with the Shure ULX-D Wireless to grab Transmitter connection status to receiver. Usefull for displaying connection
-    status on AMX Touch panel for Users. Mic Receivers may not be installed in direct line of user's sight. 
-    
-    Device Shure ULX-D Wireless (Receiver)
-    
-    https://www.shure.com/en-IN/products/wireless-systems/ulx-d_digital_wireless
-    
-	Full API download :
-	https://service.shure.com/s/article/ulx-d-crestron-amx-control-strings?language=en_US
-	https://d24z4d3zypmncx.cloudfront.net/KnowledgeBaseFiles/ulx-d-network-string-commands.pdf
-    
-    !!! AMX Terminal Commands to see Msg logs from this program
-	msg on //error | warning | info | debug | off
-	msg stats //
-	start log on|off //enable or disable
-	show start log all //Display the start up log. <start> specifies message to begin to display. 'all' will display all
-*)
-
 
 DEFINE_DEVICE
 
-
+#IF_NOT_DEFINED dvShure
 dvShure =				0:4:0 //Shure WM Receiver
+#END_IF
 
 dvTP_Shure =				10001:6:0
 
@@ -37,15 +15,17 @@ dvTP_Shure2 =			10002:6:0
 
 DEFINE_CONSTANT
 
-//Mic Transmitter IDS...
+
+//Mic + Line Input IDS...
 IN_MIC_1				= 1
 IN_MIC_2				= 2
 IN_MIC_3				= 3
 IN_MIC_4				= 4
 
 BTN_NET_BOOT		= 1000
+BTN_POLL_WM		= 10
 
-//TouchPanel Bnts/TXT Addresses...
+//TXT Addresses...
 TXT_CH_1				= 311
 TXT_CH_2				= 312
 TXT_CH_3				= 313
@@ -53,14 +33,36 @@ TXT_CH_4				= 314
 TXT_DEVICE				= 1001
 
 (***********************************************************)
+(*              STRUCTURE DEFINITIONS GO BELOW             *)
+(***********************************************************)
+DEFINE_TYPE
+
+STRUCTURE _SHUREStruct
+{
+    CHAR sURL[128];
+    INTEGER sPort;
+    CHAR sFlag;
+    CHAR sOnline;
+}
+STRUCTURE _MYShureWm
+{
+    CHAR sLocation[8]; //Is 8 Char of the device ID
+    CHAR sModel[25];
+    CHAR sFreq1[7]; 
+    CHAR sFreq2[7];
+    CHAR sFirmware[20];
+    CHAR sSummMode[10];
+    CHAR sEncryption[6];
+}
+
+(***********************************************************)
 (*               VARIABLE DEFINITIONS GO BELOW             *)
 (***********************************************************)
 DEFINE_VARIABLE
 
-CHAR shureIP[15]= '172.21.2.159' 
+VOLATILE _SHUREStruct ShureStruct;
+VOLATILE _MYShureWm ShureInfo;
 
-LONG SCM820_Port= 2202 //Port Shure uses!
-VOLATILE INTEGER scm820Online
 VOLATILE INTEGER lBooted
 
 VOLATILE CHAR cShureBuffer[500]
@@ -83,11 +85,18 @@ VOLATILE INTEGER nNameSlot[] =
 (***********************************************************)
 (* EXAMPLE: DEFINE_FUNCTION <RETURN_TYPE> <NAME> (<PARAMETERS>) *)
 (* EXAMPLE: DEFINE_CALL '<NAME>' (<PARAMETERS>) *)  
-DEFINE_FUNCTION fnStartConnection()
+DEFINE_FUNCTION fnStartShureConnection()
 {
-    IP_CLIENT_OPEN(dvShure.PORT,shureIP,SCM820_Port,1) //#1 is for TCP/IP connection
+    SEND_STRING 0, "'Attempt to Start Shure Wireless Connection...'"
+    
+    IP_CLIENT_OPEN(dvShure.PORT,ShureStruct.sURL, ShureStruct.sPort, ShureStruct.sFlag) 
+    
+    	    TIMED_WAIT_UNTIL (ShureStruct.sOnline == TRUE) 300 '30 Seconds'
+	    {
+		fnGetShureRep()
+	    }
 }
-DEFINE_FUNCTION fnCloseConnection()
+DEFINE_FUNCTION fnCloseShureConnection()
 {
     IP_CLIENT_CLOSE(dvShure.PORT) 
 }
@@ -102,17 +111,22 @@ DEFINE_FUNCTION fnGetShureRep()
     WAIT 60 SEND_STRING dvShure, " '< GET ',ITOA(IN_MIC_2),' BATT_BARS >' "
     WAIT 70 SEND_STRING dvShure, " '< GET ',ITOA(IN_MIC_3),' BATT_BARS >' "
     WAIT 80 SEND_STRING dvShure, " '< GET ',ITOA(IN_MIC_4),' BATT_BARS >' "
+    
+        WAIT 90 SEND_STRING dvShure, " '< GET FW_VER >' "
+    WAIT 100 SEND_STRING dvShure, '< GET AUDIO_SUMMING_MODE >'
+    WAIT 110 SEND_STRING dvShure, '< GET DEVICE_ID >' //Can be 1-8 Characters Long...
+    WAIT 120 SEND_STRING dvShure, '< GET ENCRYPTION >' 
+    WAIT 130 SEND_STRING dvShure, '< GET MODEL >' //Needs FW 2.4+
 }
-DEFINE_FUNCTION fnReconnect()
+DEFINE_FUNCTION fnShureReconnect()
 {
-    fnCloseConnection()
-	WAIT 10
+    fnCloseShureConnection()
+	WAIT 20
 	{
-	    fnStartConnection()
-	    WAIT 20 fnGetShureRep()
+	    fnStartShureConnection()
 	}
 }
-DEFINE_FUNCTION char[100] GetIpError (LONG iErrorCode)
+DEFINE_FUNCTION char[100] GetShureIpError (LONG iErrorCode)
 {
     CHAR iReturn[100];
     
@@ -142,6 +156,12 @@ DEFINE_FUNCTION char[100] GetIpError (LONG iErrorCode)
 DEFINE_START
 
 ON [lBooted]
+
+ShureStruct.sURL = 'alballroomwm.amx.gatech.edu' //172.21.2.196
+ShureStruct.sPort = 2202;
+ShureStruct.sFlag = IP_TCP;
+
+
 CREATE_BUFFER dvShure, cShureBuffer;
 
 
@@ -151,64 +171,64 @@ WAIT 600
 }
 
 DEFINE_EVENT 
-BUTTON_EVENT [vdvTP_Shure, BTN_NET_BOOT]
+BUTTON_EVENT [vdvTP_Shure, BTN_POLL_WM]
 {
     RELEASE :
     {
-	fnReconnect()
+	fnGetShureRep()
     }
 }
 DATA_EVENT [dvShure]
 {
     ONLINE :
     {
-	scm820Online = TRUE;
-	ON [vdvTP_Shure, BTN_NET_BOOT]
+	ShureStruct.sOnline = TRUE;
+	    ON [vdvTP_Shure, BTN_NET_BOOT]
     }
     OFFLINE :
     {
-	scm820Online = FALSE;
+	ShureStruct.sOnline = FALSE;
 	    OFF [vdvTP_Shure, BTN_NET_BOOT]
     }
     ONERROR :
     {
-	AMX_LOG (AMX_ERROR, "'dvShure:onerror: ',GetIpError(DATA.NUMBER)");
-	Send_String 0,"'Shure onerror : ',GetIpError(DATA.NUMBER)"; 
+	AMX_LOG (AMX_ERROR, "'dvShure : onerror: ',GetShureIpError(DATA.NUMBER)");
+	Send_String 0,"'Shure onerror : ',GetShureIpError(DATA.NUMBER)"; 
 	
 	SWITCH (DATA.NUMBER)
 	{
 	    CASE 7 : //Connection Time Out...
 	    {
-		scm820Online = FALSE;
-		    fnReconnect()
+		ShureStruct.sOnline = FALSE;
+		    fnShureReconnect();
 	    }
 	    DEFAULT :
 	    {
-		scm820Online = FALSE;
+		ShureStruct.sOnline = FALSE;
 	    }
 	}
     }
     STRING :
     {
-    	LOCAL_VAR CHAR cResponse[50]
-	LOCAL_VAR INTEGER cID //Holds Input ID
+    	STACK_VAR CHAR cResponse[100]
+	STACK_VAR INTEGER cID //Holds Input ID
 	LOCAL_VAR CHAR cFreq[6]
 	LOCAL_VAR CHAR cBatteryLev[3]
 	LOCAL_VAR CHAR cFirstFreq[3]
 	LOCAL_VAR CHAR cLastFreq[3]
 	STACK_VAR CHAR cType[30] //TX Type
-	LOCAL_VAR CHAR cDbug[30]
+	LOCAL_VAR CHAR cSum[30]
 	
-	scm820Online = TRUE;
+	ShureStruct.sOnline = TRUE;
 	    ON [vdvTP_Shure, BTN_NET_BOOT]
 	
-	AMX_LOG (AMX_INFO, "'dvShure:STRING: ',DATA.TEXT"); //Store Log withing AMX Master- See Notes Above!
-	SEND_STRING 0,"'RECEIVING AUDIO ',cShureBuffer"
+	SEND_STRING 0,"'From Shure WM : ',cShureBuffer"
 	
+	//Parsing Begins....
 	WHILE (FIND_STRING(cShureBuffer,'>',1))
 	{
 	    cResponse = REMOVE_STRING(cShureBuffer,'>',1)
-	    
+	
 	    IF (FIND_STRING (cResponse,'< REP ',1))
 	    {
 		REMOVE_STRING (cResponse,'< REP ',1)
@@ -224,6 +244,18 @@ DATA_EVENT [dvShure]
 			cLastFreq = MID_STRING (cFreq, 4, 3)
 			
 			    SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(cID),',0,',cFirstFreq,'-',cLastFreq"
+			    
+    		    SWITCH (cID)
+		    {
+			CASE 1 :
+			{
+			    ShureInfo.sFreq1 = "cFirstFreq,'-',cLastFreq"
+			}
+			CASE 2 : 
+			{
+			    ShureInfo.sFreq2 = "cFirstFreq,'-',cLastFreq"
+			}
+		    }
 		}
 		IF (FIND_STRING (cResponse, "ITOA(cID), ' BATT_BARS '",1))
 		{
@@ -253,48 +285,82 @@ DATA_EVENT [dvShure]
 		{
 		    REMOVE_STRING (cResponse, "ITOA(cId), ' TX_'",1)
 			cType = cResponse
-			    SET_LENGTH_STRING(cType,LENGTH_STRING(cType) -2);
-			cDbug = cType
+			SET_LENGTH_STRING(cType,LENGTH_STRING(cType) -2);
 			
-			SWITCH (cType)
+		    SWITCH (cType)
+		    {
+			CASE 'MUTE_STATUS OFF' :
+			CASE 'MENU_LOCK OFF' :
+			CASE 'TYPE ULXD1' : 
+			CASE 'RF_PWR LOW' :
+			CASE 'MUTE_BUTTON_STATUS RELEASED' :
 			{
-			    CASE 'MUTE_STATUS OFF' :
-			    CASE 'MENU_LOCK OFF' :
-			    CASE 'TYPE ULXD1' : 
-			    CASE 'RF_PWR LOW' :
-			    CASE 'MUTE_BUTTON_STATUS RELEASED' :
-			    {
-				SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(nNameSlot[cId]),',0,Connectd !'"
-				    ON [vdvTP_Shure, nNameSlot[cID]]
-			    }
-			    CASE 'MENU_LOCK UNKN':
-			    CASE 'PWR_LOCK UNKN':
-			    CASE 'TYPE UNKN' :
-			    CASE 'POWER_SOURCE UNKN' :
-			    CASE 'RF_PWR UNKN' :
-			    {
-				SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(nNameSlot[cId]),',0,Not Connected'"
-				    OFF [vdvTP_Shure, nNameSlot[cID]]
-			    }
+			    SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(nNameSlot[cId]),',0,Connectd !'"
+				ON [vdvTP_Shure, nNameSlot[cID]]
 			}
+			CASE 'MENU_LOCK UNKN':
+			CASE 'PWR_LOCK UNKN':
+			CASE 'TYPE UNKN' :
+			CASE 'POWER_SOURCE UNKN' :
+			CASE 'RF_PWR UNKN' :
+			{
+			    SEND_COMMAND vdvTP_Shure, "'^TXT-',ITOA(nNameSlot[cId]),',0,Not Connected'"
+				    OFF [vdvTP_Shure, nNameSlot[cID]]
+			}
+		    }
+		}
+		IF (FIND_STRING(cResponse, 'FW_VER {',1))
+		{
+		    REMOVE_STRING (cResponse,'{',1)
+			//SET_LENGTH_STRING(cResponse,LENGTH_STRING(cResponse) -16);
+			ShureInfo.sFirmware = LEFT_STRING (cResponse,8) ; //Ex : 2.3.34.0
+		}
+		IF (FIND_STRING (cResponse, 'AUDIO_SUMMING_MODE ',1))
+		{
+		    REMOVE_STRING (cResponse, 'AUDIO_SUMMING_MODE ',1)
+			SET_LENGTH_STRING(cResponse,LENGTH_STRING(cResponse) -2);
+			    ShureInfo.sSummMode = cResponse;
+				cSum = "'Summing Mode = ', cResponse";
+			    
+		    //Responses...
+			//OFF -- 1+2 -- 3+4 -- 1+2/3+4 -- 1+2+3+4
+		}
+		IF (FIND_STRING (cResponse, 'DEVICE_ID {',1))
+		{
+		    REMOVE_STRING (cResponse,'{',1)
+			ShureInfo.sLocation = cResponse;
+		}
+		IF (FIND_STRING (cResponse, 'ENCRYPTION ',1))
+		{
+		    REMOVE_STRING (cResponse, 'ENCRYPTION ',1)
+			SET_LENGTH_STRING(cResponse,LENGTH_STRING(cResponse) -2);
+			    ShureInfo.sEncryption = cResponse;
+				//OFF -- AUTO -- MANUAL
+		}
+		IF (FIND_STRING (cResponse, 'MODEL {',1)) //Needs latest firmware...
+		{
+		    REMOVE_STRING (cResponse, '{',1)
+		    ShureInfo.sModel = cResponse;
+		}
+    		IF (FIND_STRING (cResponse, 'ERR',1)) //Needs latest firmware...
+		{
+		    ShureInfo.sModel = "'Firmware Update Available'"
 		}
 	    }
 	}
     }
 }
-TIMELINE_EVENT [TL_FEEDBACK] //This is running every half second...
+TIMELINE_EVENT [TL_FEEDBACK]
 {
     WAIT 300
     {
-	IF (scm820Online == FALSE)
+	IF (ShureStruct.sOnline == FALSE)
 	{
-	    fnStartConnection()
-	    WAIT 20
-	    {
-		fnGetShureRep()
-	    }
+	    fnShureReconnect()
+	}
+	ELSE
+	{
+	    fnGetShureRep()
 	}
     }
 }
-
-
