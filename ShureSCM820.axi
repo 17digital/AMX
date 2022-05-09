@@ -251,25 +251,22 @@ DEFINE_FUNCTION fnStartConnection()
 {
     IP_CLIENT_OPEN (dvShure.PORT,uShureConnection.URL,uShureConnection.Port,uShureConnection.Flags) 
     
-    WAIT 30
+    TIMED_WAIT_UNTIL (scm820Online == TRUE) 300 '30 Seconds'
     {
-	IF (scm820Online == TRUE)
-	{
-	    fnGetSCM820Rep();
+	SEND_STRING 0, "'Shure SCM820 Now Online'"
+	
+	fnGetSCM820Rep();
 
-	    WAIT 100
-	    {
-		fnSCM820ChannelNames();
-	    }
-	}
-	ELSE
+	WAIT 100
 	{
-	    fnCloseSCM820Connection()
+	    fnSCM820ChannelNames();
 	}
     }
 }
 DEFINE_FUNCTION fnCloseSCM820Connection()
 {
+	SEND_STRING 0, "'Shure SCM820 Has Disconnected'"
+	
     IP_CLIENT_CLOSE(dvShure.PORT) //Closes Connection When Done
 }
 DEFINE_FUNCTION fnSCM820ChannelNames()//Set Channel Names (31 Characters Max)
@@ -355,17 +352,16 @@ DEFINE_FUNCTION char[100] GetSCM820IpError (LONG iErrorCode)
 (***********************************************************)
 DEFINE_START
 
-cShureBoot = TRUE;
 CREATE_BUFFER dvShure, cShureBuffer;
 
 uShureConnection.URL = '172.21.24.17' //Living Dsp
 uShureConnection.Port = 2202;
 uShureConnection.Flags = IP_TCP;
 
-WAIT 600
-{
-   cShureBoot = FALSE;
-}
+	    WAIT 100
+	    {
+		fnStartSCM820Connection();
+	    }
     
 
 (***********************************************************)
@@ -563,11 +559,11 @@ TIMELINE_EVENT [TL_FEEDBACK] //Feedback /Hearbeat Check...
     {
 	IF (scm820Online == FALSE)
 	{
-	    fnStartSCM820Connection()
+	    fnSCM820Reconnect()
 	}
 	ELSE
 	{
-	    SEND_STRING dvShure, '< GET DEVICE_ID >'
+	   fnGetSCM820Rep();
 	}
     }
 }
