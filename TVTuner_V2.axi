@@ -46,15 +46,29 @@ BTN_CH_FAV6			= 136
 BTN_CH_FAV7			= 137
 BTN_CH_FAV8			= 138
 BTN_CH_FAV9			= 139
-CHANNEL_DEFAULT		= 0
+CHANNEL_DEFAULT			= 0
 
-TXT_CH_DISPLAY				=1
+TXT_CH_DISPLAY			=1
+CH_COUNT			= 9;
+BTN_LOAD_CH			= 220;
+
+(***********************************************************)
+(*                   TYPE DEFINITIONS GO BELOW             *)
+(***********************************************************)
+DEFINE_TYPE
+
+STRUCTURE _TVStation
+{
+    CHAR cStationName[15];
+    CHAR cStationChan[4];
+}
 
 (***********************************************************)
 (*               VARIABLE DEFINITIONS GO BELOW             *)
 (***********************************************************)
 DEFINE_VARIABLE
 
+VOLATILE _TVStation uTVStation[CH_COUNT];
 VOLATILE CHAR cSetChannel[5]
 
 VOLATILE DEV vdvTP_Tuner[] = 
@@ -115,7 +129,10 @@ DEFINE_FUNCTION fnLoadChannelLabels()
     
     FOR (cLoop=1; cLoop<=LENGTH_ARRAY(nFavoriteChBtns); cLoop++)
     {
-	SEND_COMMAND vdvTP_Tuner, "'^TXT-',ITOA(nFavoriteChBtns[cLoop]),',0,',nTunerFavLabels[cLoop]"
+	uTVStation[cLoop].cStationName = nTunerFavLabels[cLoop];
+	    uTVStation[cLoop].cStationChan = nTunerChannelCall[cLoop];
+	    
+	SEND_COMMAND vdvTP_Tuner, "'^TXT-',ITOA(nFavoriteChBtns[cLoop]),',0,',uTVStation[cLoop].cStationName"
     }
 }
 
@@ -138,10 +155,10 @@ BUTTON_EVENT [vdvTP_Tuner, nFavoriteChBtns] //Tuner Presets...
 	STACK_VAR INTEGER nTVIdx
 	nTVIdx = GET_LAST (nFavoriteChBtns)
 	
-	    SEND_COMMAND vdvTuner, "'XCH-',nTunerChannelCall[nTVIdx]" 
+	    SEND_COMMAND vdvTuner, "'XCH-',uTVStation[nTVIdx].cStationChan" 
 	ON [vdvTP_Tuner, nFavoriteChBtns[nTVIdx]] //Send Feedback to Panel...
 	
-	    SEND_COMMAND vdvTP_Tuner, "'^TXT-',ITOA(TXT_CH_DISPLAY),',0,',nTunerFavLabels[nTVIdx]"
+	    SEND_COMMAND vdvTP_Tuner, "'^TXT-',ITOA(TXT_CH_DISPLAY),',0,',uTVStation[nTVIdx].cStationName"
     }
 }
 BUTTON_EVENT [vdvTP_Tuner, CHANNEL_DEFAULT] //Default
@@ -187,6 +204,11 @@ PUSH :
 		cSetChannel = ' ';
 		TOTAL_OFF [vdvTP_Tuner, nFavoriteChBtns ]
 		BREAK;
+	    }
+	    CASE BTN_LOAD_CH : //Re-Load
+	    {
+		fnLoadChannelLabels();
+		    BREAK;
 	    }
 	}
 	cSetChannel = "cSetChannel, nChn"
