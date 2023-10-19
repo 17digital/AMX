@@ -1,69 +1,31 @@
 PROGRAM_NAME='Extron_Recorder'
-(***********************************************************)
-(*  FILE CREATED ON: 02/15/2017  AT: 09:10:34              *)
-(***********************************************************)
-(*  FILE_LAST_MODIFIED_ON: 09/11/2019  AT: 05:29:47        *)
-(***********************************************************)
 
-(**
-    Default : No DHCP!!
-    IP>>> 192.168.254.254 / 16
-    
-    http://128.61.218.94/www/
-    
-    Firmware 2.00
-    
-    Stream : 
-    
-    SMP 351
-    
-    The SMP 300 Series supports FAT32, NTFS, and VFAT long file names, EXT2, EXT3 and
-    EXT4 formats for USB drives that are used for file storage.
-    
-    Auto Time Response when recording??? - SEND "'34I',$0A" -- Send Check USB Function!! (Button)
-    
-    Could Send " 'I',$0D" so often for USB properties...
-    
-    May need to add Wait after recording... 10second delay
-    
-    Verbose Mode...
-    1 = verbose mode (default for USB and RS-232 host Control
-    2 = tagged responses for queries
-    3 = verbose mode and tagged responses for queries
-    
-        Set DHCP On... "$1B,'1DH',$0D"
-    Set DHCP Off...(Default)  "$1B,'0DH',$0D"
-    Set IP Address..."$1B,'1*','128.61.95.11/24*128.61.95.1',$0D"
-    View Mac Address..."$1B,'CH',$0D" ...
-    View Network ..."$1B,'1CISG',$0D"
-    View Data/Time ..."$1B,'CT',$0D"
-    Set Date/Time..."'$1B,'MM/DD/YY-HH:MM:SS CT',$0D //"$1B,'06/08/17-11:50:00CT',$0D"
-    Clear Active Alarms "$1B,'CALRM',$0D"
-    View Unit Name..."$1B,'CN',$0D"
-    Set Unit Nmae..."$1B,'COB312CN',$0D" (63 Max)
-    
-        Reboot Network..."$1B,'2BOOT',13"
-    Reboot System..."$1B,'1BOOT',13"
-    
-	**)
-    
+(*
+
+	Nano1118 Details
+	{
+	    "Location": Nano-1118",
+	    "ModelId": "SMP 351",
+	    "Description": "Streaming Media Processor",
+	    "Series": "SMP 300 Series",
+	    "Serial": "A1REUQN",
+	    "Firmware": "3.06",
+	    "FeaturesInstalled": Null,
+	    "Login": "admin",
+	    "Password": "extron"
+	}
+
+Guest access:
+Login ID : user
+Password : password
+*)
 
 DEFINE_DEVICE
 
 
-
-
-#IF_NOT_DEFINED dvTP_Recorder
 dvTP_Recorder =			10001:4:0
-#END_IF
+dvTP_RecBooth =			10004:2:0
 
-#IF_NOT_DEFINED dvTP_Recorder2
-dvTP_Recorder2 =		10002:4:0
-#END_IF
-
-#IF_NOT_DEFINED dvTP_Recorder3
-dvTP_Recorder3 =		10003:4:0
-#END_IF
 
 #IF_NOT_DEFINED dvExtronRec
 dvExtronRec =			5001:2:0
@@ -72,27 +34,20 @@ dvExtronRec =			5001:2:0
 
 DEFINE_CONSTANT
 
-#IF_NOT_DEFINED __GLOBAL_CONST__
-#DEFINE __GLOBAL_CONST__
-
-CR 					= 13
-LF 					= 10
-ESC					= 27 //Escape
-
+#IF_NOT_DEFINED __COMMON_ASCII__
+#DEFINE __COMMON_ASCII__
+CHAR CR 				= $0D;
+CHAR LF 				= $0A;
+CHAR ESC				= $1B;
 #END_IF
 
-SET_ADDRESS_IP			= '172.21.5.23' //
-SET_ADDRESS_SUB			= '255.255.252.0'
-SET_ADDRESS_GW			= '172.21.4.1'
-SET_DEVICE_NAME			= 'Room-122' //No Spaces + Must Start with Letter
-SET_ADDRESS_DNS			= '130.207.244.251'
+
 SET_REC_DESTINATION		= 3 //Set Recording Destination (2=Front 3=Rear 1=Internal)
-SET_VERBOSE_MODE			= 3
-SET_LOCATION				= 'SEB' //Up to 64 Characters
+SET_VERBOSE_MODE		= 3
 
 RECORDING_STOP			= 0
 RECORDING_START			= 1
-RECORDING_PAUSE			= 2
+RECORDING_PAUSE		= 2
 
 TL_TIMER					= 19 //Recording Timer ID
 
@@ -107,12 +62,20 @@ FULL_CONTENT			= 9 //FullScreen A
 FULL_CAMERA				= 10 //FullScreen B
 
 //Video Input Switching....
-VID_IN_CONTENT				= 1 //DGX
-VID_IN_ATEM					= 2 //From Atem
-VID_IN_CAMERA				= 4 //
+VID_IN_CONTENT				= 1 //SVSI
+VID_IN_CAMERA				= 4 //Camera 1118 
+VID_IN_CAMERA_2				= 2; //Camera 1117
 
-VID_CH_A					= 1
-VID_CH_B					= 2
+VID_CH_A					= 1;
+VID_CH_B					= 2;
+
+//Streaming Stuff...
+CH_A_ARCHIVE				= 1; //Current
+CH_B_ARCHIVE				= 2; //Dual Channel Mode Only
+CH_C_CONFIDENCE			= 3; //
+
+STREAM_STOP				= 0;
+STREAM_START				= 1;
 
 //LockOut Modes.. Uncomment the one you want...
 LOCK_MODE			= 3 //Use Record Controls Only
@@ -125,6 +88,9 @@ BTN_REC_START			= 1
 BTN_REC_PAUSE			= 2
 BTN_REC_STOP			= 3
 BTN_REC_BOOKMARK		= 4 //Chpt Mark
+
+BTN_STREAM_START		= 21;
+BTN_STREAM_STOP 		= 20;
 
 BTN_PBP_UL				= 5 //pbp_ul
 BTN_PBP_UR				= 6 //pbp_ur
@@ -143,21 +109,44 @@ BTN_INPUT_ATEM			= 112
 TXT_REC_STATUS			= 10 //Readable Text Return
 TXT_USB_STATUS			= 11
 TXT_TIMER				= 12 //Only holds timer
+TXT_STREAM_STATUS		= 13
+
+
+(***********************************************************)
+(*              STRUCTURE DEFINITIONS GO BELOW             *)
+(***********************************************************)
+DEFINE_TYPE
+
+STRUCTURE _SMP_STRUCT
+{
+    CHAR bHost[25];
+    CHAR bSubNet[15];
+    CHAR bGateway[15];
+    CHAR bDeviceName[25]; //No Spaces + Must Start with Letter
+    CHAR bDNS[15];
+    CHAR bLocation[25]; //Up to 64 Characters
+    INTEGER bLive;
+}
 
 
 DEFINE_VARIABLE
 
-VOLATILE INTEGER lSecondTimer
-VOLATILE INTEGER nMinuteStamp
-VOLATILE INTEGER nHourStamp
+VOLATILE _SMP_STRUCT SmpInfo;
+VOLATILE CHAR bData[25];
+VOLATILE INTEGER bFailed;
 
-VOLATILE CHAR nExBuffer[100]
+VOLATILE INTEGER lSecondTimer;
+VOLATILE INTEGER nMinuteStamp;
+VOLATILE INTEGER nHourStamp;
+
+VOLATILE CHAR nExBuffer[100];
 VOLATILE LONG lRecordTimer[] = {1000} //1 Second Pull...
+VOLATILE INTEGER bSmpInitalized;
 
 VOLATILE DEV vdvTP_Capture[] = 
 {
     dvTP_Recorder, 
-    dvTP_Recorder2
+    dvTP_RecBooth
 }
 VOLATILE INTEGER nRecSends[] =
 {
@@ -197,21 +186,11 @@ VOLATILE INTEGER nLayoutCall[] =
 }
 VOLATILE CHAR nExtronInputs[5][16] =
 {
-    'DGX Content',
-    'Atem View',
+    'Content',
+    'Camera1117',
     'Nothing 3',
-    'Camera',
+    'Camera1118',
     'Nothing 5'
-}
-VOLATILE INTEGER nVideoInSources[] =
-{
-    VID_IN_CONTENT,
-    VID_IN_ATEM
-}
-VOLATILE INTEGER nVideoSwitchBtns[] =
-{
-    BTN_INPUT_CONTENT,
-    BTN_INPUT_ATEM
 }
 
 DEFINE_MUTUALLY_EXCLUSIVE
@@ -220,9 +199,10 @@ DEFINE_MUTUALLY_EXCLUSIVE
 ([dvTP_Recorder, BTN_REC_START]..[dvTP_Recorder, BTN_REC_STOP])
 ([dvTP_Recorder, BTN_INPUT_CONTENT],[dvTP_Recorder, BTN_INPUT_ATEM])
 
-([dvTP_Recorder2, BTN_PBP_UL]..[dvTP_Recorder2, BTN_FULL_CAMERA])
-([dvTP_Recorder2, BTN_REC_START]..[dvTP_Recorder2, BTN_REC_STOP])
-([dvTP_Recorder2, BTN_INPUT_CONTENT],[dvTP_Recorder2, BTN_INPUT_ATEM])
+([dvTP_RecBooth, BTN_PBP_UL]..[dvTP_RecBooth, BTN_FULL_CAMERA])
+([dvTP_RecBooth, BTN_REC_START]..[dvTP_RecBooth, BTN_REC_STOP])
+([dvTP_RecBooth, BTN_INPUT_CONTENT],[dvTP_RecBooth, BTN_INPUT_ATEM])
+
 
 (***********************************************************)
 (*        SUBROUTINE/FUNCTION DEFINITIONS GO BELOW         *)
@@ -235,19 +215,51 @@ DEFINE_FUNCTION fnQueryStatus()
     
     WAIT 20 SEND_STRING dvExtronRec, "ITOA(LOCK_MODE),'X',CR"
     WAIT 30 SEND_STRING dvExtronRec, "ESC,ITOA(SET_VERBOSE_MODE),'CV',CR" 
-    WAIT 50 SEND_STRING dvExtronRec, "ESC,'1*',SET_ADDRESS_IP,'*',SET_ADDRESS_SUB,'*',SET_ADDRESS_GW,'CISG',CR"
-    WAIT 60 SEND_STRING dvExtronRec, "ESC,SET_ADDRESS_DNS,'DI',CR" 
-    WAIT 70 SEND_STRING dvExtronRec, "ESC,SET_DEVICE_NAME,'CN',CR"
-    WAIT 80 SEND_STRING dvExtronRec, "ESC,'L',SET_LOCATION,'SNMP',CR"
-    WAIT 100 SEND_STRING dvExtronRec, "ESC,'YRCDR',CR" //Record StatusP',CR"
-    WAIT 130 SEND_STRING dvExtronRec, "ITOA(VID_IN_CONTENT),'*',ITOA(VID_CH_A),'!',CR" //Set Active Channel A
-    WAIT 150 SEND_STRING dvExtronRec, "ITOA(VID_IN_CAMERA),'*',ITOA(VID_CH_B),'!',CR" //Force Input on Channel B/2
+        WAIT 40 SEND_STRING dvExtronRec, "ESC,'YRCDR',CR" //Record StatusP',CR"
+    WAIT 50 SEND_STRING dvExtronRec, "'IN',ITOA(VID_IN_CONTENT),'*',ITOA(VID_CH_A),'!',CR" //Set Active Channel A
+    WAIT 60 SEND_STRING dvExtronRec, "'IN',ITOA(VID_IN_CAMERA),'*',ITOA(VID_CH_B),'!',CR" //Force Input on Channel B/2
+    WAIT 70 SEND_STRING dvExtronRec, "ESC,'E',ITOA(CH_A_ARCHIVE),'RTMP',CR" //Get RTMP Status...
     
-    WAIT 200 fnSetExtronInputNames()
+    WAIT 90 fnSetExtronInputNames()
+    
+    WAIT 120
+    {
+	IF (LENGTH_STRING(bData) >0 )
+	{
+	    bFailed = FALSE;
+	    SEND_STRING dvExtronRec, "ESC,'1*',SmpInfo.bHost,'*',SmpInfo.bSubNet,'*',SmpInfo.bGateway,'CISG',CR"
+	    WAIT 10 SEND_STRING dvExtronRec, "ESC,SmpInfo.bDNS,'DI',CR" 
+	    WAIT 20 SEND_STRING dvExtronRec, "ESC,SmpInfo.bDeviceName,'CN',CR"
+	    WAIT 30 SEND_STRING dvExtronRec, "ESC,'L',SmpInfo.bLocation,'SNMP',CR"
+	}
+	ELSE
+	{
+	    SEND_STRING 0, "'Check SMP Read Parsing'"
+		bFailed = TRUE;
+		    fnFailoverData();
+	}
+    }
+}
+DEFINE_FUNCTION fnFailoverData()
+{
+    SmpInfo.bHost = '128.61.215.49'
+    SmpInfo.bSubNet = '255.255.255.0'
+    SmpInfo.bGateway = '128.61.215.1'
+    SmpInfo.bDNS = '130.207.244.251'
+    SmpInfo.bDeviceName = 'Room-1118'
+    SmpInfo.bLocation = 'NanoTech'
+    
+    WAIT 20
+    {
+	    SEND_STRING dvExtronRec, "ESC,'1*',SmpInfo.bHost,'*',SmpInfo.bSubNet,'*',SmpInfo.bGateway,'CISG',CR"
+	    WAIT 10 SEND_STRING dvExtronRec, "ESC,SmpInfo.bDNS,'DI',CR" 
+	    WAIT 20 SEND_STRING dvExtronRec, "ESC,SmpInfo.bDeviceName,'CN',CR"
+	    WAIT 30 SEND_STRING dvExtronRec, "ESC,'L',SmpInfo.bLocation,'SNMP',CR"
+    }
 }
 DEFINE_FUNCTION fnSetExtronInputNames()
 {
-    STACK_VAR INTEGER cLoop
+    STACK_VAR INTEGER cLoop;
     
     FOR (cLoop =1; cLoop<=LENGTH_ARRAY(nExtronInputs); cLoop++)
     {
@@ -256,31 +268,32 @@ DEFINE_FUNCTION fnSetExtronInputNames()
 }
 DEFINE_FUNCTION fnParseExtron()
 {
-    STACK_VAR CHAR cMsgs[100]
-    LOCAL_VAR CHAR nPreset[2]
-    LOCAL_VAR INTEGER nRec
-    LOCAL_VAR CHAR cTimer[50]
-    LOCAL_VAR CHAR cUsbname[50]
-    LOCAL_VAR CHAR cTrash[50]
-    LOCAL_VAR CHAR cVidIn[8]
-    STACK_VAR CHAR cCountdown[1]
+    STACK_VAR CHAR cMsgs[100];
+    STACK_VAR CHAR nPreset[2];
+    STACK_VAR INTEGER nRec;
+    STACK_VAR CHAR cTimer[50];
+    LOCAL_VAR CHAR cUsbname[50];
+    LOCAL_VAR CHAR cTrash[50];
+    STACK_VAR CHAR cVidIn[8];
+    STACK_VAR CHAR cCountdown[1];
     
    WHILE (FIND_STRING(nExBuffer,"CR,LF",1))
    {
 	cMsgs = REMOVE_STRING(nExBuffer,"CR,LF",1)
+	    bSmpInitalized = TRUE;
     
 	SELECT
 	{
 	    ACTIVE (FIND_STRING (cMsgs,'RecStart0',1)): //Rec Countdown....
 	    {
 		REMOVE_STRING (cMsgs,'0',1)
-		cCountdown = cMsgs
+		cCountdown = cMsgs;
 		SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_REC_STATUS),',0,Recording Begins In ',cCountdown" 
 	    }
 	    ACTIVE(FIND_STRING(cMsgs,'8Rpr',1)):
 	    {
 		REMOVE_STRING (cMsgs,'8Rpr',1)
-		nPreset = cMsgs
+		nPreset = cMsgs;
 		
 		SWITCH (nPreset)
 		{
@@ -316,12 +329,12 @@ DEFINE_FUNCTION fnParseExtron()
 			//SEND_STRING dvExtronRec, "'35I',CR" //Record Timer...
 			IF (TIMELINE_ACTIVE(TL_TIMER))
 			{
-			    fnStartTimer()
+			    fnStartTimer();
 			    TIMELINE_RESTART(TL_TIMER)
 			}
 			ELSE
 			{
-			    fnResetTimerToZero()
+			    fnResetTimerToZero();
 			    TIMELINE_CREATE(TL_TIMER,lRecordTimer,LENGTH_ARRAY(lRecordTimer),TIMELINE_ABSOLUTE,TIMELINE_REPEAT);
 			}
 			SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_REC_STATUS),',0,Recording Started!'" 
@@ -349,7 +362,24 @@ DEFINE_FUNCTION fnParseExtron()
 			}
 		    }
 		}
-	    }  
+	    } 
+	    ACTIVE (FIND_STRING(cMsgs,'RtmpE01*',1)) :
+	    {
+		REMOVE_STRING(cMsgs,'*',1) //Should be left w/ VAR of 1/0
+		    SmpInfo.bLive = ATOI(LEFT_STRING(cMsgs, 1));
+		    
+		    SWITCH (SmpInfo.bLive)
+		    {
+			CASE  STREAM_START : {
+			    ON [vdvTP_Capture, BTN_STREAM_START]
+				SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_STREAM_STATUS),',0,Stream is Live!'" 
+			}
+			DEFAULT : {
+			    OFF [vdvTP_Capture, BTN_STREAM_STOP]
+				SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_STREAM_STATUS),',0,Not Streaming'" 
+			}
+		    }
+	    }
 	    ACTIVE(FIND_STRING(cMsgs,'Inf36*',1)):
 	    {
 		REMOVE_STRING(cMsgs,'Inf36*',1)
@@ -397,20 +427,6 @@ DEFINE_FUNCTION fnParseExtron()
 		    SEND_STRING dvExtronRec, "$1B,'CALRM',CR" //Clear Alarm
 		}
 	    }
-	    ACTIVE(FIND_STRING(cMsgs,'In0',1)):
-	    {
-		REMOVE_STRING(cMsgs,'In0',1)
-		cVidIn = cMsgs
-		
-		IF(FIND_STRING(cVidIn,"ITOA(VID_IN_CONTENT),'*0',ITOA(VID_CH_A)",1))
-		{
-		    ON [vdvTP_Capture, BTN_INPUT_CONTENT]
-		}
-    		IF(FIND_STRING(cVidIn,"ITOA(VID_IN_ATEM),'*0',ITOA(VID_CH_A)",1))
-		{
-		    ON [vdvTP_Capture, BTN_INPUT_ATEM]
-		}
-	    }
 	}
     }
 }
@@ -422,6 +438,10 @@ DEFINE_FUNCTION fnRecordSwitch(INTEGER cIn)
 {
     SEND_STRING dvExtronRec, "ESC,'Y',ITOA(cIn),'RCDR',CR"
 }
+DEFINE_FUNCTION fnStreamRTMP (INTEGER cSwitch) {
+
+    SEND_STRING dvExtronRec, "ESC,'E',ITOA(CH_A_ARCHIVE),'*',ITOA(cSwitch),'RTMP',CR"
+}
 DEFINE_FUNCTION fnSwitchInput(INTEGER cIn, INTEGER cOut)
 {
     SEND_STRING dvExtronRec, "ITOA(cIn),'*',ITOA(cOut),'!',CR"
@@ -431,18 +451,18 @@ DEFINE_FUNCTION fnStartTimer()
     STACK_VAR CHAR iTimeFormated[20];
     LOCAL_VAR CHAR iTimeResult[20];
     
-    lSecondTimer = lSecondTimer + 1
+    lSecondTimer = lSecondTimer + 1;
     
     IF (lSecondTimer = 60)
     {
-	nMinuteStamp = nMinuteStamp + 1
+	nMinuteStamp = nMinuteStamp + 1;
 	
 	IF (nMinuteStamp = 60)
 	{
-	    nHourStamp = nHourStamp + 1
-	    nMinuteStamp = 0
+	    nHourStamp = nHourStamp + 1;
+	    nMinuteStamp = 0;
 	}
-	lSecondTimer = 0
+	lSecondTimer = 0;
     }
     
     iTimeFormated = FORMAT(': %02d ',lSecondTimer)
@@ -454,9 +474,9 @@ DEFINE_FUNCTION fnStartTimer()
 }
 DEFINE_FUNCTION fnResetTimerToZero()
 {
-    nMinuteStamp = 0
-    nHourStamp = 0
-    lSecondTimer = 0
+    nMinuteStamp = 0;
+    nHourStamp = 0;
+    lSecondTimer = 0;
    SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_TIMER),',0,00 : 00 : 00'"
 }
 
@@ -464,7 +484,6 @@ DEFINE_FUNCTION fnResetTimerToZero()
 DEFINE_START
 
 CREATE_BUFFER dvExtronRec,nExBuffer;
-
 
 DEFINE_EVENT
 DATA_EVENT [dvExtronRec]
@@ -474,15 +493,36 @@ DATA_EVENT [dvExtronRec]
 	SEND_COMMAND DATA.DEVICE, "'SET BAUD 9600,N,8,1 485 DISABLED'"
 	SEND_COMMAND DATA.DEVICE, "'RXON'"
 	SEND_COMMAND DATA.DEVICE, "'HSOFF'"
-	WAIT 100
+	
+	WAIT 400
 	{
 	    fnQueryStatus()
 	}
     }
     STRING :
     {
-	fnParseExtron()
+	fnParseExtron();
+		CANCEL_WAIT 'EXTRON RX'
+	WAIT 300 'EXTRON RX'
+	{
+	    bSmpInitalized = FALSE;
+	}
     }
+}
+BUTTON_EVENT [vdvTP_Capture, BTN_STREAM_START]
+{
+    PUSH :
+    {
+	IF (SmpInfo.bLive == FALSE) {
+	
+		fnStreamRTMP(STREAM_START);
+		    SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_STREAM_STATUS),',0,Stream Starting, Please wait...'" 
+	}
+	ELSE {
+	    fnStreamRTMP(STREAM_STOP);
+		    SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_STREAM_STATUS),',0,Stream Stopping...'" 
+	}
+    }	    
 }
 BUTTON_EVENT [vdvTP_Capture, nLayoutBtns]
 {
@@ -496,13 +536,6 @@ BUTTON_EVENT [vdvTP_Capture, nRecBtns]
     PUSH :
     {
 	fnRecordSwitch(nRecSends[GET_LAST(nRecBtns)])
-    }
-}
-BUTTON_EVENT [vdvTP_Capture, nVideoSwitchBtns]
-{
-    PUSH :
-    {
-	fnSwitchInput(nVideoInSources[GET_LAST(nVideoSwitchBtns)],VID_CH_A)
     }
 }
 BUTTON_EVENT [vdvTP_Capture, BTN_REC_BOOKMARK]
@@ -526,13 +559,15 @@ TIMELINE_EVENT [TL_TIMER]
 TIMELINE_EVENT [TL_FEEDBACK] //Feedback...
 {
     
-    WAIT 100 //Get USB Status...
-    {
-	SEND_STRING dvExtronRec, "'36I',CR" 
+    WAIT 100 { //Get USB + Stream Status...
+    	SEND_STRING dvExtronRec, "'36I',CR" 
+	WAIT 20 {
+	    SEND_STRING dvExtronRec, "ESC,'E',ITOA(CH_A_ARCHIVE),'RTMP',CR"
+	}
     }
     
-    WAIT 8500
+    WAIT 6500 //5 minutes
     {
-	SEND_STRING dvExtronRec, "ESC,ITOA(SET_VERBOSE_MODE),'CV',CR"
+	fnQueryStatus();
     }
 }
