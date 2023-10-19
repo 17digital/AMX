@@ -1,4 +1,4 @@
-PROGRAM_NAME='readMultiJson'
+PROGRAM_NAME='readJson'
 
 
 (***********************************************************)
