@@ -1,4 +1,4 @@
-PROGRAM_NAME='readJson'
+PROGRAM_NAME='readMultiJson'
 
 
 (***********************************************************)
@@ -16,7 +16,7 @@ dvRead =				0:10:0
 DEFINE_CONSTANT
 
 CHAR GIT_IP_HOST[]				= 'config.amx.gatech.edu'
-CHAR RM_DIRECTORY[]				= '/Nano/nano1118.json'
+CHAR RM_DIRECTORY[]				= '/Biltmore/building.json'
 
 LONG TL_IPCOMM_CONNECT		= 5001 
 
@@ -28,10 +28,10 @@ TXT_ROOM					= 100
 
 
 //Json ID's
-ROOM_ID				= 1; //Important see Json file
+ROOM_ID				= 2; //Important see Json file
 ROOM_COUNT			= 3; //Important for setting for Loop! 
 
-BTN_SET_ALL					= 1502
+BTN_SET_ALL				= 1502
 
 DEFINE_TYPE
 
@@ -88,8 +88,6 @@ DEFINE_FUNCTION parseLineFromJson()
     STACK_VAR CHAR cResponse[20];
     STACK_VAR INTEGER cCount;
     LOCAL_VAR INTEGER nRoomTotal;
-    STACK_VAR CHAR cRead[25];
-    STACK_VAR CHAR cSmpHelp[100];
     
     WHILE (FIND_STRING(sGitIpBuffer, 'HTTP/1.1 200 OK',1))
     {
@@ -98,68 +96,44 @@ DEFINE_FUNCTION parseLineFromJson()
 	    
 	cMsg = sGitIpBuffer; //
 	    uGitConnection.isConnected = TRUE;
-	    
-	    IF (FIND_STRING(cMsg,'"roomphone": "',1)) 
-	    {
-		REMOVE_STRING (cMsg, '"roomphone": "',1)
-		    cResponse = REMOVE_STRING (cMsg, '",',1)
-			cInfo[ROOM_ID].bPhone = LEFT_STRING(cResponse,LENGTH_STRING(cResponse) -2);
-			    SEND_COMMAND vdvTP_Rooms, "'^TXT-',ITOA(TXT_HELP),',0,',cInfo[ROOM_ID].bPhone"
-				sNumFound = cInfo[ROOM_ID].bPhone;
-	    }
-	    IF (FIND_STRING(cMsg,'"roomreboot": ',1)) 
-	    {
-		REMOVE_STRING (cMsg, '"roomreboot": ',1)
-		    cInfo[ROOM_ID].bReset = ATOI(cMsg);
-	    }
-	    IF (FIND_STRING(cMsg,'off_hour": ',1)) 
-	    {
-		REMOVE_STRING (cMsg, 'off_hour": ',1)
-		    cInfo[ROOM_ID].bHour = ATOI(cMsg);
-	    }
-	    IF (FIND_STRING(cMsg,'off_minute": ',1)) 
-	    {
-		REMOVE_STRING (cMsg, 'off_minute": ',1)
+    
+	IF(FIND_STRING(cMsg,'"roomphone": "',1)) {
+	
+	    REMOVE_STRING (cMsg, '"roomphone": "',1)
+		cResponse = REMOVE_STRING (cMsg, '",',1)
+		    cInfo[ROOM_ID].bPhone = LEFT_STRING(cResponse,LENGTH_STRING(cResponse) -2);
+			SEND_COMMAND vdvTP_Main, "'^TXT-',ITOA(TXT_HELP),',0,',cInfo[ROOM_ID].bPhone"
+			    sNumFound = cInfo[ROOM_ID].bPhone;
+	}
+	IF (FIND_STRING(cMsg,'"roomreboot": ',1)) {
+	
+	    REMOVE_STRING (cMsg, '"roomreboot": ',1)
+		cInfo[ROOM_ID].bReset = ATOI(cMsg);
+	}
+	IF (FIND_STRING(cMsg,'off_hour": ',1)) {
+	
+	    REMOVE_STRING (cMsg, 'off_hour": ',1)
+			cInfo[ROOM_ID].bHour = ATOI(cMsg);
+	}
+	IF (FIND_STRING(cMsg,'off_minute": ',1)) {
+	
+		    REMOVE_STRING (cMsg, 'off_minute": ',1)
 			cInfo[ROOM_ID].bMinute = ATOI(cMsg);
+	}
+	IF (FIND_STRING(cMsg, '"room_nameid',1)) { //Data Header where loop begins
+	
+	    SEND_STRING 0, "'Found roomdata - begin Parse'"
+	    
+	    FOR (cCount =1; cCount<= ROOM_COUNT; cCount++) {
+	    
+		REMOVE_STRING(cMsg, "'"room_nameid',ITOA(cCount),'": "'",1)
+			//cCount = ATOI(cMsg);
+			    cResponse = REMOVE_STRING (cMsg, '"',1)
+			    
+		cInfo[cCount].bLocation = LEFT_STRING(cResponse,LENGTH_STRING(cResponse) -1);
+		    SEND_COMMAND vdvTP_Main, "'^TXT-',ITOA(TXT_ROOM),',0,',cInfo[ROOM_ID].bLocation"
 	    }
-	    IF (FIND_STRING(cMsg, '"room_name1":',1))  {
-		REMOVE_STRING (cMsg, '"room_name1": "',1)
-		    cResponse = REMOVE_STRING (cMsg, '",',1)
-			cInfo[ROOM_ID].bLocation = LEFT_STRING(cResponse,LENGTH_STRING(cResponse) -2);
-		    
-			    SEND_COMMAND dvTP_1118, "'^TXT-',ITOA(TXT_ROOM),',0,',cInfo[ROOM_ID].bLocation"
-	    }
-	    IF (FIND_STRING(cMsg, '"smpIp": "',1)) {
-		REMOVE_STRING (cMsg, '"smpIp": "',1)
-		    cSmpHelp = REMOVE_STRING (cMsg, '",',1)
-			SmpInfo.bHost = LEFT_STRING(cSmpHelp,LENGTH_STRING(cSmpHelp) -2);
-			    bData = SmpInfo.bHost;
-	    }
-	    IF (FIND_STRING(cMsg, '"smpSubnet": "',1)) {
-		    REMOVE_STRING (cMsg, '"smpSubnet": "',1)
-			     cSmpHelp = REMOVE_STRING (cMsg, '",',1)
-			SmpInfo.bSubNet =LEFT_STRING(cSmpHelp,LENGTH_STRING(cSmpHelp) -2);
-	    }
-	    IF (FIND_STRING(cMsg, '"smpGateway": "',1)) {
-			REMOVE_STRING (cMsg, '"smpGateway": "',1)
-			    cSmpHelp = REMOVE_STRING (cMsg, '",',1)
-				SmpInfo.bGateway = LEFT_STRING(cSmpHelp,LENGTH_STRING(cSmpHelp) -2);
-	    }
-	    IF (FIND_STRING(cMsg, '"smpName": "',1)) {
-		REMOVE_STRING (cMsg, '"smpName": "',1)
-			   cSmpHelp = REMOVE_STRING (cMsg, '",',1)
-				SmpInfo.bDeviceName = LEFT_STRING(cSmpHelp,LENGTH_STRING(cSmpHelp) -2);
-	    }
-	    IF (FIND_STRING(cMsg, '"smpDns": "',1)) {
-		    REMOVE_STRING (cMsg, '"smpDns": "',1)
-			    cSmpHelp = REMOVE_STRING (cMsg, '",',1)
-				SmpInfo.bDNS = LEFT_STRING(cSmpHelp,LENGTH_STRING(cSmpHelp) -2);
-	    }
-	    IF (FIND_STRING(cMsg, '"smpLocation": "',1)) {
-		REMOVE_STRING (cMsg, '"smpLocation": "',1)
-		    cSmpHelp = REMOVE_STRING (cMsg, '"',1)
-			SmpInfo.bLocation = LEFT_STRING(cSmpHelp,LENGTH_STRING(cSmpHelp) -1);
-	    }
+	}
     }
 }
 DEFINE_FUNCTION sendGitHttp(CHAR iMode[20], CHAR iCmd[500])
@@ -216,9 +190,6 @@ uGitConnection.address = GIT_IP_HOST;
 uGitConnection.port = 80;
 uGitConnection.nMode = IP_TCP;
 
-cInfo[2].bLocation = 'Nano-Tech 1117'
-cInfo[3].bLocation = 'Nano-Tech 1116'
-
 //TIMELINE_CREATE (TL_FEEDBACK,lTLFeedback,1,TIMELINE_ABSOLUTE,TIMELINE_REPEAT);
 CREATE_BUFFER dvRead, sGitIpBuffer;
 
@@ -239,11 +210,8 @@ BUTTON_EVENT [vdvTP_Main, BTN_SET_ALL]
 	IF (LENGTH_STRING (sNumFound))
 	{
 	    SEND_STRING 0, "'Phone # Already Stored'"
-		SEND_COMMAND dvTP_1118, "'^TXT-',ITOA(TXT_ROOM),',0,',cInfo[ROOM_ID].bLocation"
-		    SEND_COMMAND dvTP_1117, "'^TXT-',ITOA(TXT_ROOM),',0,',cInfo[2].bLocation"
-		    SEND_COMMAND dvTP_1116, "'^TXT-',ITOA(TXT_ROOM),',0,',cInfo[3].bLocation"
-		    
-		    SEND_COMMAND vdvTP_Rooms, "'^TXT-',ITOA(TXT_HELP),',0,',cInfo[ROOM_ID].bPhone"
+		SEND_COMMAND vdvTP_Main, "'^TXT-',ITOA(TXT_ROOM),',0,',cInfo[ROOM_ID].bLocation"
+		    SEND_COMMAND vdvTP_Main, "'^TXT-',ITOA(TXT_HELP),',0,',cInfo[ROOM_ID].bPhone"
 	}
 	ELSE
 	{
@@ -269,12 +237,10 @@ DATA_EVENT [dvRead]
 	uGitConnection.isConnected = FALSE;
 	   SEND_STRING 0, "'<-- Could Not Reach Config.amx !!-->',GetHubIpError(DATA.NUMBER)";
 	    
-	    IF (LENGTH_STRING (sNumFound) == 0) //No Length...
-	    {
-	    	    SEND_COMMAND vdvTP_Rooms, "'^TXT-',ITOA(TXT_HELP),',0,',INFO_NUM"
-			SEND_COMMAND dvTP_1118, "'^TXT-',ITOA(TXT_ROOM),',0,',INFO_ROOM_1118"
-			    SEND_COMMAND dvTP_1117, "'^TXT-',ITOA(TXT_ROOM),',0,',INFO_ROOM_1117"
-				SEND_COMMAND dvTP_1116, "'^TXT-',ITOA(TXT_ROOM),',0,',INFO_ROOM_1116"
+	    IF (LENGTH_STRING (sNumFound) == 0) { //No Length...
+	    
+	    	    SEND_COMMAND vdvTP_Main, "'^TXT-',ITOA(TXT_HELP),',0,',INFO_NUM"
+			SEND_COMMAND vdvTP_Main, "'^TXT-',ITOA(TXT_ROOM),',0,',cInfo[ROOM_ID].bLocation"
 	    }
 	
 	SWITCH (DATA.NUMBER)
