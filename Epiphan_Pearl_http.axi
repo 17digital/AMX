@@ -448,6 +448,15 @@ DEFINE_FUNCTION ParseLinesFromPearl(CHAR cMsg[2048]) {
 				SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_USB_STATUS),',0,USB : ',PearlInfo.iUsbSpace"
 				
 	    }
+	    IF (FIND_STRING(cMsg,'"status":"ok"',1)) { //USB Insert Status...
+		PearlInfo.iUsbSpace = 'Not Found'
+				PearlInfo.iTransferInProgress = FALSE;
+				SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_USB_STATUS),',0,USB : Please Remove USB '"
+				WAIT 20 {
+				    sendPearlHttp( 'GET', '/api/system/storages/external/status'); //Get USB Connection...
+				}
+	    
+	    }
 	}
     }
 }
@@ -578,9 +587,6 @@ BUTTON_EVENT [vdvTP_Capture, nTransportBtns]
 		    SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_USB_STATUS),',0,Recording : Still In Progress'"
 		} ELSE {
 		    sendPearlHttp( 'SET', '/api/system/storages/external/eject');
-			WAIT 20 {
-			    sendPearlHttp( 'GET', '/api/system/storages/external/status'); //Get USB Connection...
-			}
 		}
 	    }
 	}
