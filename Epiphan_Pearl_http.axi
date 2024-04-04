@@ -2,14 +2,17 @@ PROGRAM_NAME='Epiphan_Pearl_V1'
 (***********************************************************)
 (*  FILE CREATED ON: 02/15/2017  AT: 09:10:34              *)
 (***********************************************************)
-(*  FILE_LAST_MODIFIED_ON: 05/25/2020  AT: 22:58:57        *)
+(*  FILE_LAST_MODIFIED_ON: 05/02/2020  AT: 11:27:10        *)
 (***********************************************************)
 
 (**
-
-	    Communication over IP w/ Authentication
-	    Includes USB Parsing
-	    Must declare username and password
+    Notes...
+    No Feedback or API for USB Transfer...
+    Needs Verbose Mode for detailed feedback. Example to query layout only sends back interger. Needs detail of Channel, etc.
+    Also no detailed feedback for GET rec Status or Stream Status
+    
+    Recording Timer returns only seconds...
+        
 **)
     
 
@@ -17,15 +20,17 @@ DEFINE_DEVICE
 
 
 dvTP_Recorder =			10001:4:0
+dvTP_RecBooth =		10002:4:0
+dvTP_RecStudio =		10003:4:0
+
 
 #IF_NOT_DEFINED dvPearl
 dvPearl =					0:3:0
 #END_IF
 
-
 DEFINE_CONSTANT
 
-CHAR PEARL_IP_HOST[]		= '172.21.3.67'
+CHAR PEARL_IP_HOST[]		= '172.21.2.111'
 CHAR PEARL_IP_PORT[]		= 80;
 CHAR PEARL_USER[]			= 'admin'
 CHAR PEARL_PSWD[]		= 'Administrator'
@@ -49,9 +54,9 @@ CHAR LF					= $0A;
 #END_IF
 
 // Time Lines
-LONG TL_TIMER					= 2001; //Recording Timer
-LONG TL_TRANSFER				= 2002; //Loop for Checking USB Transfer Status...
-LONG TL_IPCOMM_CONNECT		= 5001; 
+TL_TIMER					= 21; //Recording Timer
+TL_TRANSFER				= 22; //Loop for Checking USB Transfer Status...
+LONG TL_IPCOMM_CONNECT		= 5001 
 
 TXT_REC_STATUS			= 10
 TXT_USB_STATUS			= 11
@@ -62,9 +67,9 @@ CHANNEL_AV_SERVICES		= 3
 //Layouts..Defined within Pearl...
 LAYOUT_FULL_CAMERA		= 1; //Camera ONLY
 LAYOUT_FULL_CONTENT	= 2; //Content ONLY
-LAYOUT_EQUAL			= 5; //Camera + Content Side by Side
-LAYOUT_CAM_PIP			= 3; //Camera in Corner in Front of BG
-LAYOUT_PRODUCTION		= 6; //Camera w/ Green Chroma Key
+LAYOUT_EQUAL			= 3; //Camera + Content Side by Side
+LAYOUT_CAM_PIP			= 4; //Camera in Corner in Front of BG
+LAYOUT_PRODUCTION		= 9; //Camera w/ Green Chroma Key
 
 //Buttons...
 BTN_START_REC			= 1
@@ -106,6 +111,7 @@ STRUCT _PearlBox
     CHAR iUsbSpace[15] //Bytes 15711338496
     CHAR iUsbFileName[30];
     INTEGER iTransferInProgress;
+    INTEGER iFiles;
 }
 STRUCT HttpHeader 
 {
@@ -132,6 +138,7 @@ STRUCT HttpResponse
     HttpHeader headers[20];
     CHAR body[HTTP_MAX_BODY_LENGTH];
 }
+
 
 (***********************************************************)
 (*               VARIABLE DEFINITIONS GO BELOW             *)
@@ -186,8 +193,13 @@ VOLATILE INTEGER nTransportBtns[] =
 DEFINE_MUTUALLY_EXCLUSIVE
 
 ([dvTP_Recorder, BTN_START_REC],[dvTP_Recorder, BTN_STOP_REC])
-([dvTP_Recorder, BTN_START_STREAM],[dvTP_Recorder, BTN_STOP_STREAM])
 ([dvTP_Recorder, BTN_LAYOUT_FULL_CAM]..[dvTP_Recorder, BTN_LAYOUT_CONT_PRO])
+
+([dvTP_RecBooth, BTN_START_REC],[dvTP_RecBooth, BTN_STOP_REC])
+([dvTP_RecBooth, BTN_LAYOUT_FULL_CAM]..[dvTP_RecBooth, BTN_LAYOUT_CONT_PRO])
+
+([dvTP_RecStudio, BTN_START_REC],[dvTP_RecStudio, BTN_STOP_REC])
+([dvTP_RecStudio, BTN_LAYOUT_FULL_CAM]..[dvTP_RecStudio, BTN_LAYOUT_CONT_PRO])
 
 (***********************************************************)
 (*        SUBROUTINE/FUNCTION DEFINITIONS GO BELOW         *)
@@ -401,16 +413,24 @@ DEFINE_FUNCTION ParseLinesFromPearl(CHAR cMsg[2048]) {
 	    IF (FIND_STRING(cMsg,'"state":"uploading"',1)) { //Transfer Status 'File Being Uploaded'
 		//Start Timeline Repeat....Need to query every 2 seconds if transfer is still happening?
 		SEND_COMMAND vdvTP_Capture, "'^PPN-_Warning'"
-		    PearlInfo.iTransferInProgress = TRUE;
+		     PearlInfo.iTransferInProgress = TRUE;
 		//File Not Transfering...OK to Record....
-		SEND_STRING 0, "'File being Transferred!!!'"
+		SEND_STRING 0, "'File being Transferred!'"
 		REMOVE_STRING(cMsg,'"id":"VGA.',1)
 		    PearlInfo.iUsbFileName = REMOVE_STRING(cMsg,'.mp4',1)
 			SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_USB_STATUS),',0,Transfering File : ',PearlInfo.iUsbFileName,' to USB'"
 		    
 		    IF (!TIMELINE_ACTIVE(TL_TRANSFER)) {
 			       TIMELINE_CREATE(TL_TRANSFER, lTLStatusUp, LENGTH_ARRAY(lTLStatusUp), TIMELINE_ABSOLUTE, TIMELINE_REPEAT);
-			}
+		    }
+	    }
+	    IF (FIND_STRING(cMsg,'"state":"error"',1)) { //Files Ready to transfer... but No USB Inserted.
+		PearlInfo.iTransferInProgress = FALSE;
+		//File Not Transfering...OK to Record....
+		SEND_STRING 0, "'No USB Mounted!!!'"
+		REMOVE_STRING(cMsg,'"files":',1)
+			PearlInfo.iFiles = ATOI(LEFT_STRING(cMsg, 1));
+			SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_USB_STATUS),',0,USB: No USB drive Mounted'"
 	    }
 	    IF (FIND_STRING(cMsg,'"state":"ready"',1)) { //USB Insert Status...
 		    //USB is in Drive
@@ -424,8 +444,9 @@ DEFINE_FUNCTION ParseLinesFromPearl(CHAR cMsg[2048]) {
 	    IF (FIND_STRING(cMsg,'"state":"nodev"',1)) { //USB Insert Status...
 		    //No USB is in Drive
 			    PearlInfo.iUsbSpace = 'Not Found'
+				PearlInfo.iTransferInProgress = FALSE;
 				SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_USB_STATUS),',0,USB : ',PearlInfo.iUsbSpace"
-				    PearlInfo.iTransferInProgress = FALSE;
+				
 	    }
 	}
     }
@@ -465,26 +486,26 @@ DEFINE_FUNCTION fnConvertByteMessage(CHAR cBytes[13]) {
 	IF(LENGTH_STRING(cBytes) == 13) { //We have 3Digit Gig Number
 	    cLead = LEFT_STRING(cBytes, 3);
 		cTail = MID_STRING(cBytes, 4, 3);
-		    SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_USB_STATUS),',0,USB Ready! | Space Available : ',cLead,'.',cTail,' GB'"
+		    SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_USB_STATUS),',0,USB Ready | Space Available : ',cLead,'.',cTail,' GB'"
 	}
 	ELSE IF(LENGTH_STRING(cBytes) == 12) { //We have 2Digit Gig Number
 	    cLead = LEFT_STRING(cBytes, 2);
 		cTail = MID_STRING(cBytes, 3, 3);
-		    SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_USB_STATUS),',0,USB Ready! | Space Available : ',cLead,'.',cTail,' GB'"
+		    SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_USB_STATUS),',0,USB Ready | Space Available : ',cLead,'.',cTail,' GB'"
 	}
 	ELSE IF(LENGTH_STRING(cBytes) == 10) { //We have 1Digit Gig Number
 	    cLead = LEFT_STRING(cBytes, 1);
 		cTail = MID_STRING(cBytes, 2, 3);
-		    SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_USB_STATUS),',0,USB Ready! | Space Available : ',cLead,'.',cTail,' GB'"
+		    SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_USB_STATUS),',0,USB Ready | Space Available : ',cLead,'.',cTail,' GB'"
 	}
 	ELSE IF(LENGTH_STRING(cBytes) == 9) { //We have 3Digit MegaByte Number
 	    cLead = LEFT_STRING(cBytes, 3);
 		cTail = MID_STRING(cBytes, 3, 3);
-		    SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_USB_STATUS),',0,USB Ready! | Space Available : ',cLead,'.',cTail,' MB'"
+		    SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_USB_STATUS),',0,USB Ready | Space Available : ',cLead,'.',cTail,' MB'"
 	}
 	ELSE
 	{
-	    SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_USB_STATUS),',0,USB Ready! | Space Available : Need More Space!'"
+	    SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_USB_STATUS),',0,USB Ready | Space Available : Need More Space!'"
 	}
 }
 
@@ -497,9 +518,9 @@ PearlInfo.iFlag = IP_TCP;
 
 fnConvertPassword();
 
-TIMELINE_CREATE (TL_IPCOMM_CONNECT,lTlIpConnect,LENGTH_ARRAY(lTlIpConnect),TIMELINE_ABSOLUTE, TIMELINE_REPEAT);
-    CREATE_BUFFER dvPearl, httpResponseBuffer;
-
+    TIMELINE_CREATE (TL_IPCOMM_CONNECT,lTlIpConnect,LENGTH_ARRAY(lTlIpConnect),TIMELINE_ABSOLUTE, TIMELINE_REPEAT);
+	CREATE_BUFFER dvPearl, httpResponseBuffer;
+	
 WAIT 600
 {
 	SEND_STRING 0, "'Master Completed Boot ',__TIME__"
@@ -552,8 +573,14 @@ BUTTON_EVENT [vdvTP_Capture, nTransportBtns]
 		IF (PearlInfo.iTransferInProgress == TRUE) {
 		    SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_USB_STATUS),',0,Transfering File : Still In Progress'"
 		
+		}
+		ELSE IF (PearlInfo.iRec == TRUE) {
+		    SEND_COMMAND vdvTP_Capture, "'^TXT-',ITOA(TXT_USB_STATUS),',0,Recording : Still In Progress'"
 		} ELSE {
 		    sendPearlHttp( 'SET', '/api/system/storages/external/eject');
+			WAIT 20 {
+			    sendPearlHttp( 'GET', '/api/system/storages/external/status'); //Get USB Connection...
+			}
 		}
 	    }
 	}
@@ -642,8 +669,3 @@ TIMELINE_EVENT [TL_TRANSFER]
 {
     sendPearlHttp( 'GET', '/api/afu/0/status');
 }
-
-
-
-
-
